@@ -1,0 +1,316 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
+import RequireAuth from "@/components/RequireAuth";
+import type { Municipio, SnapshotDiario } from "@/types/municipio";
+
+function isDone(s: SnapshotDiario): boolean {
+  return s.ratificacao_status === "quitado" || s.etapa_pipeline === "concluido";
+}
+
+function mesAtual(): string {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function mesAnterior(mes: string): string {
+  const [ano, m] = mes.split("-").map(Number);
+  const d = new Date(ano, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function intervaloDoMes(mes: string): { inicio: string; fim: string; ultimoDia: number } {
+  const [ano, m] = mes.split("-").map(Number);
+  const ultimoDia = new Date(ano, m, 0).getDate();
+  return { inicio: `${mes}-01`, fim: `${mes}-${String(ultimoDia).padStart(2, "0")}`, ultimoDia };
+}
+
+async function buscarSnapshotsDoMes(mes: string): Promise<SnapshotDiario[]> {
+  const { inicio, fim } = intervaloDoMes(mes);
+  const snap = await getDocs(
+    query(collection(db, "snapshots_diarios"), where("data", ">=", inicio), where("data", "<=", fim))
+  );
+  return snap.docs.map((d) => d.data() as SnapshotDiario);
+}
+
+const ETAPA_COR: Record<string, string> = {
+  concluido: "#059669",
+  em_andamento: "#d97706",
+  aguardando_cliente: "#a1a1aa",
+  nao_iniciado: "#71717a",
+};
+
+export default function EvolucaoPage() {
+  const { user } = useAuth();
+  const [municipios, setMunicipios] = useState<Municipio[]>([]);
+  const [mes, setMes] = useState(mesAtual());
+  const [overlay, setOverlay] = useState(false);
+  const [snapshotsDoMes, setSnapshotsDoMes] = useState<SnapshotDiario[]>([]);
+  const [snapshotsMesAnterior, setSnapshotsMesAnterior] = useState<SnapshotDiario[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  const [busca, setBusca] = useState("");
+  const [municipioSelecionado, setMunicipioSelecionado] = useState<Municipio | null>(null);
+  const [timeline, setTimeline] = useState<SnapshotDiario[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    getDocs(collection(db, "municipios")).then((snap) => {
+      setMunicipios(snap.docs.map((d) => d.data() as Municipio));
+    });
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setCarregando(true);
+    buscarSnapshotsDoMes(mes).then((dados) => {
+      setSnapshotsDoMes(dados);
+      setCarregando(false);
+    });
+  }, [user, mes]);
+
+  useEffect(() => {
+    if (!user || !overlay) {
+      setSnapshotsMesAnterior([]);
+      return;
+    }
+    buscarSnapshotsDoMes(mesAnterior(mes)).then(setSnapshotsMesAnterior);
+  }, [user, mes, overlay]);
+
+  useEffect(() => {
+    if (!user || !municipioSelecionado) {
+      setTimeline([]);
+      return;
+    }
+    const { inicio, fim } = intervaloDoMes(mes);
+    getDocs(
+      query(
+        collection(db, "snapshots_diarios"),
+        where("codigo_ibge", "==", municipioSelecionado.codigo_ibge),
+        where("data", ">=", inicio),
+        where("data", "<=", fim)
+      )
+    ).then((snap) => {
+      setTimeline(
+        snap.docs.map((d) => d.data() as SnapshotDiario).sort((a, b) => a.data.localeCompare(b.data))
+      );
+    });
+  }, [user, municipioSelecionado, mes]);
+
+  const totalMunicipios = municipios.length || 295;
+
+  function curvaS(snapshots: SnapshotDiario[]) {
+    const porDia = new Map<number, SnapshotDiario[]>();
+    for (const s of snapshots) {
+      const dia = Number(s.data.slice(8, 10));
+      if (!porDia.has(dia)) porDia.set(dia, []);
+      porDia.get(dia)!.push(s);
+    }
+    return [...porDia.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([dia, lista]) => ({
+        dia,
+        percentual: Math.round((lista.filter(isDone).length / totalMunicipios) * 1000) / 10,
+      }));
+  }
+
+  const curvaAtual = useMemo(() => curvaS(snapshotsDoMes), [snapshotsDoMes, totalMunicipios]);
+  const curvaAnterior = useMemo(() => curvaS(snapshotsMesAnterior), [snapshotsMesAnterior, totalMunicipios]);
+
+  const dadosCurva = useMemo(() => {
+    const dias = new Set([...curvaAtual.map((c) => c.dia), ...curvaAnterior.map((c) => c.dia)]);
+    return [...dias].sort((a, b) => a - b).map((dia) => ({
+      dia,
+      atual: curvaAtual.find((c) => c.dia === dia)?.percentual ?? null,
+      anterior: curvaAnterior.find((c) => c.dia === dia)?.percentual ?? null,
+    }));
+  }, [curvaAtual, curvaAnterior]);
+
+  const volumeDiario = useMemo(() => {
+    const porDia = new Map<number, Set<string>>();
+    for (const s of snapshotsDoMes) {
+      if (!isDone(s)) continue;
+      const dia = Number(s.data.slice(8, 10));
+      if (!porDia.has(dia)) porDia.set(dia, new Set());
+      porDia.get(dia)!.add(s.codigo_ibge);
+    }
+    const dias = [...porDia.keys()].sort((a, b) => a - b);
+    return dias.map((dia) => {
+      if (dia === 1) return { dia, fechamentos: porDia.get(1)!.size, obs: "contagem bruta (dia 1)" };
+      const hoje = porDia.get(dia)!;
+      const ontem = porDia.get(dia - 1) ?? new Set<string>();
+      const novos = [...hoje].filter((ibge) => !ontem.has(ibge)).length;
+      return { dia, fechamentos: novos, obs: null };
+    });
+  }, [snapshotsDoMes]);
+
+  const municipiosFiltrados = useMemo(() => {
+    if (!busca.trim()) return [];
+    const termo = busca.toUpperCase();
+    return municipios
+      .filter((m) => m.nome_busca.includes(termo) || m.codigo_ibge.includes(termo))
+      .slice(0, 8);
+  }, [busca, municipios]);
+
+  return (
+    <RequireAuth>
+      <main className="flex-1 px-6 py-6">
+        <h1 className="mb-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50">Evolução Temporal</h1>
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+          Histórico diário a partir dos snapshots — "concluído" = ratificação quitada ou etapa do
+          pipeline marcada como concluída.
+        </p>
+
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <input
+            type="month"
+            value={mes}
+            onChange={(e) => setMes(e.target.value)}
+            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            <input type="checkbox" checked={overlay} onChange={(e) => setOverlay(e.target.checked)} />
+            Sobrepor mês anterior
+          </label>
+        </div>
+
+        {carregando ? (
+          <p className="text-zinc-600 dark:text-zinc-400">Carregando...</p>
+        ) : (
+          <div className="space-y-8">
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                Curva S — % de municípios concluídos por dia
+              </h2>
+              <div className="h-72 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dadosCurva}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
+                    <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="%" />
+                    <Tooltip />
+                    {overlay && <Legend />}
+                    <Line
+                      type="monotone"
+                      dataKey="atual"
+                      name={mes}
+                      stroke="#6b1124"
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
+                    {overlay && (
+                      <Line
+                        type="monotone"
+                        dataKey="anterior"
+                        name={mesAnterior(mes)}
+                        stroke="#a1a1aa"
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        dot={false}
+                        connectNulls
+                      />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                Volume diário de fechamentos
+              </h2>
+              <p className="mb-2 text-xs text-zinc-500">
+                Município que virou &quot;concluído&quot; naquele dia. O dia 1 mostra contagem bruta (sem
+                comparação com o mês anterior).
+              </p>
+              <div className="h-64 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={volumeDiario}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
+                    <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="fechamentos" fill="#6b1124" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                Linha do tempo por município
+              </h2>
+              <div className="relative mb-3 max-w-sm">
+                <input
+                  placeholder="Buscar município por nome ou código IBGE..."
+                  value={busca}
+                  onChange={(e) => {
+                    setBusca(e.target.value);
+                    setMunicipioSelecionado(null);
+                  }}
+                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+                {municipiosFiltrados.length > 0 && !municipioSelecionado && (
+                  <ul className="absolute z-10 mt-1 w-full rounded-md border border-zinc-300 bg-white text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                    {municipiosFiltrados.map((m) => (
+                      <li key={m.codigo_ibge}>
+                        <button
+                          onClick={() => {
+                            setMunicipioSelecionado(m);
+                            setBusca(m.nome);
+                          }}
+                          className="block w-full px-3 py-1.5 text-left text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                          {m.nome}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {municipioSelecionado && (
+                <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                  {timeline.length === 0 ? (
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Sem snapshots para {municipioSelecionado.nome} neste mês.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {timeline.map((s) => (
+                        <div
+                          key={s.data}
+                          title={`${s.data}: ${s.etapa_pipeline ?? "sem etapa"}`}
+                          className="flex h-8 w-8 items-center justify-center rounded text-xs font-medium text-white"
+                          style={{ backgroundColor: ETAPA_COR[s.etapa_pipeline ?? ""] ?? "#71717a" }}
+                        >
+                          {Number(s.data.slice(8, 10))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </main>
+    </RequireAuth>
+  );
+}
