@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Radar e-Sfinge TCE & BI de Gestão",
+  title: "BI eSfinge SC",
   description: "Monitoramento do envio de dados e ratificações dos municípios catarinenses ao TCE-SC",
 };
 

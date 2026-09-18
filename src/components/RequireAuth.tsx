@@ -34,7 +34,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
         <div>
           <h1 className="text-2xl font-semibold text-apple-title">
-            Radar e-Sfinge TCE &amp; BI de Gestão
+            BI eSfinge SC
           </h1>
           <p className="mt-2 text-sm text-apple-secondary">
             Acesso restrito a colaboradores @betha.com.br
@@ -71,7 +71,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
                 </svg>
               </div>
               <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-                <span className="text-[13px] font-bold tracking-tight text-apple-title">Radar e-Sfinge</span>
+                <span className="text-[13px] font-bold tracking-tight text-apple-title">BI eSfinge SC</span>
                 <span className="rounded bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-semibold text-apple-muted dark:bg-white/[0.06]">
                   TCE-SC
                 </span>
@@ -111,7 +111,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
       <footer className="mt-auto border-t border-black/[0.05] bg-white/60 py-4 text-[11px] text-apple-muted backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/60">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
           <span>
-            <span className="font-semibold text-apple-title">Radar e-Sfinge</span> · Ferramenta interna Betha para
+            <span className="font-semibold text-apple-title">BI eSfinge SC</span> · Ferramenta interna Betha para
             acompanhar a prestação de contas dos municípios de SC ao TCE-SC
           </span>
         </div>

@@ -115,7 +115,7 @@ export default function Home() {
               </span>
             </div>
             <h1 className="text-3xl leading-tight font-bold tracking-[-0.03em] text-apple-title sm:text-[34px]">
-              Radar e-Sfinge
+              BI eSfinge SC
             </h1>
             <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-apple-secondary">
               Envio de dados e ratificações dos municípios catarinenses ao TCE-SC
