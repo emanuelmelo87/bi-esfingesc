@@ -85,7 +85,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="rounded-full px-3 py-1 text-[12px] font-medium text-apple-secondary transition-colors hover:text-apple-title data-[admin=true]:text-vinho"
+                  className="rounded-full px-3 py-1 text-[12px] font-medium text-apple-secondary transition-colors hover:text-apple-title data-[admin=true]:text-vinho dark:data-[admin=true]:text-rose-400"
                   data-admin={"admin" in link ? link.admin : undefined}
                 >
                   {link.label}

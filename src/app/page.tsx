@@ -108,7 +108,7 @@ export default function Home() {
         <section className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-1.5 flex items-center gap-2">
-              <span className="text-[11px] font-semibold tracking-wider text-vinho uppercase">TCE-SC</span>
+              <span className="text-[11px] font-semibold tracking-wider text-vinho uppercase dark:text-rose-400">TCE-SC</span>
               <span className="h-1 w-1 rounded-full bg-black/20 dark:bg-white/20" />
               <span className="text-[11px] font-semibold tracking-wider text-apple-secondary uppercase">
                 Prestação de Contas
@@ -321,7 +321,7 @@ export default function Home() {
                 <span>
                   Mostrando {criticos.length} de {totalMunicipios} municípios
                 </span>
-                <Link href="/pipeline" className="flex items-center gap-1 font-semibold text-vinho transition hover:opacity-80">
+                <Link href="/pipeline" className="flex items-center gap-1 font-semibold text-vinho transition hover:opacity-80 dark:text-rose-400">
                   Ir para o Pipeline <span aria-hidden="true">→</span>
                 </Link>
               </div>
