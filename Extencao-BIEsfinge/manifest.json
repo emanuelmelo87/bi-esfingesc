@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Radar e-Sfinge — BI EsfingeSC",
+  "description": "Captura status de envio e ratificações do TCE-SC para o Radar e-Sfinge BI",
+  "version": "0.1.0",
+  "permissions": ["storage", "tabs", "scripting", "alarms", "identity", "sidePanel"],
+  "host_permissions": [
+    "https://virtual.tce.sc.gov.br/*",
+    "https://api.virtual.tce.sc.gov.br/*",
+    "https://paineis.tce.sc.gov.br/*",
+    "https://paineistransparencia.tce.sc.gov.br/*",
+    "https://firestore.googleapis.com/*",
+    "https://identitytoolkit.googleapis.com/*",
+    "https://securetoken.googleapis.com/*"
+  ],
+  "action": {
+    "default_title": "Radar e-Sfinge",
+    "default_icon": "icon.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "oauth2": {
+    "client_id": "SUBSTITUIR_APOS_CRIAR_OAUTH_CLIENT_NO_CONSOLE.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/userinfo.email"]
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA41G/YUOB5cUBFghrwXfSCwHnHK57nnDxOpDe5l4o02Wa/fJWJwp0joojrPQd0f1GviB0H2L6qCrIDFOVkagC/dl3haDS9ZAlcFDzcXwPuz2zbpwokMINvCxHjUUax/0b8m1NQQO6hXQG79Y9VqBx5MHfj58hmZSGUnFgym6O6IhR3dUQTWSgen2/IHwB/8lYRiamBSW7YHr9ENbzR0yROjFbprr7aCmU2UGt5ORKQBpt9VSvfTeGORqfL+hZL7VRhGTYIi0oFaRc1/V/qWvHfOw8XHeCYvmI7uJJHASvilCf5jPopf5IFWNG8OPgxgEg+PsyzEbigS+OxUjCXYz2FwIDAQAB"
+}

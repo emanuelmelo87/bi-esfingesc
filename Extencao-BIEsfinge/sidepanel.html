@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #1E1E1E; color: #e0e0e0; min-width: 280px; }
+
+    .header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; }
+    .header img { width: 28px; height: 28px; border-radius: 6px; }
+    h2 { font-size: 14px; color: #fff; }
+    h2 span { color: #6B1124; }
+
+    .tab-bar { display: flex; margin: 12px 16px 0; border-bottom: 1px solid #333; }
+    .tab-btn { flex: 1; padding: 8px 0; background: transparent; border: none; border-bottom: 2px solid transparent;
+      color: #777; font-size: 11px; font-weight: 700; cursor: pointer; margin-bottom: -1px; }
+    .tab-btn.active { color: #d13a56; border-bottom-color: #d13a56; }
+
+    .tab-pane { display: none; padding: 12px 16px 16px; }
+    .tab-pane.active { display: block; }
+
+    .section { background: #262626; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .section-title { font-size: 10px; color: #d13a56; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    label { font-size: 11px; color: #aaa; display: block; margin-bottom: 3px; margin-top: 8px; }
+    input { width: 100%; background: #141414; border: 1px solid #3a3a3a; border-radius: 6px; color: #fff; padding: 6px 8px; font-size: 12px; }
+    button { width: 100%; padding: 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+    .status { font-size: 11px; text-align: center; margin-top: 6px; color: #777; }
+    .status.ok { color: #3fb950; }
+    .status.err { color: #f85149; }
+
+    #auth-card { background: #262626; border: 1px solid #3a3a3a; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    #auth-card.signed-in { border-color: #238636; }
+    .auth-email { font-size: 12px; font-weight: 600; color: #fff; }
+    .btn-signin { background: #6B1124; color: #fff; }
+    .btn-signout { background: #333; color: #ccc; font-size: 11px; padding: 6px; }
+    .btn-sync { background: linear-gradient(135deg, #6B1124, #82152c); color: #fff; font-size: 13px; padding: 11px; }
+    .btn-save { background: #238636; color: #fff; }
+    .btn-cancel { background: #333; color: #888; font-size: 11px; padding: 6px; }
+
+    .item-list { margin: 6px 0; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
+    .sched-item { display: flex; align-items: center; justify-content: space-between;
+      background: #141414; border: 1px solid #3a3a3a; border-radius: 6px; padding: 5px 8px; }
+    .sched-item span { font-size: 13px; font-weight: 600; color: #d13a56; }
+    .sched-item button { width: auto; padding: 2px 8px; background: #3a1a1a; color: #f85149;
+      border: 1px solid #5a2020; border-radius: 4px; font-size: 11px; margin: 0; }
+    .add-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+    .add-row input[type=time] { flex: 1; }
+    .btn-add { width: auto !important; padding: 6px 10px !important; background: #0e4429; color: #3fb950;
+      border: 1px solid #238636; border-radius: 6px; margin: 0 !important; font-size: 12px; white-space: nowrap; }
+
+    .days-label { font-size: 10px; color: #777; margin-top: 10px; margin-bottom: 4px; }
+    .days-row { display: flex; gap: 4px; }
+    .day-btn { flex: 1; padding: 5px 0; background: #141414; border: 1px solid #3a3a3a;
+      border-radius: 5px; color: #777; font-size: 10px; font-weight: 600; cursor: pointer; text-align: center; }
+    .day-btn.active { background: #0e2a1a; border-color: #238636; color: #3fb950; }
+
+    #last-exec-card { display: none; background: #0e2a1a; border: 1px solid #238636; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    #last-exec-card.visible { display: block; }
+    .exec-title { font-size: 10px; color: #3fb950; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .exec-label { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .exec-time { font-size: 10px; color: #777; margin-top: 6px; text-align: right; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <img src="icon.png" alt="Radar e-Sfinge">
+    <h2>Radar <span>e-Sfinge</span></h2>
+  </div>
+
+  <div style="padding: 12px 16px 0">
+    <div id="auth-card">
+      <div id="auth-signed-out">
+        <div class="status">Faça login com sua conta @betha.com.br</div>
+        <button class="btn-signin" id="btn-signin">Entrar com Google</button>
+      </div>
+      <div id="auth-signed-in" style="display:none">
+        <div class="auth-email" id="auth-email">—</div>
+        <button class="btn-signout" id="btn-signout">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="exec">Execução</button>
+    <button class="tab-btn" data-tab="sched">Agendamento</button>
+  </div>
+
+  <div class="tab-pane active" id="pane-exec">
+    <div id="last-exec-card">
+      <div class="exec-title">Última execução</div>
+      <div class="exec-label" id="exec-label">—</div>
+      <div class="exec-time" id="exec-timestamp"></div>
+    </div>
+
+    <button class="btn-sync" id="btn-sync">Sincronizar agora</button>
+    <div class="status" id="sync-status"></div>
+  </div>
+
+  <div class="tab-pane" id="pane-sched">
+    <div class="section">
+      <div class="section-title">Horários de disparo</div>
+      <div class="item-list" id="sched-list"></div>
+      <div class="add-row">
+        <input type="time" id="sched-new-time" value="08:00">
+        <button class="btn-add" id="btn-add-time">+ Add</button>
+      </div>
+      <div class="days-label">Dias da semana:</div>
+      <div class="days-row" id="days-row">
+        <div class="day-btn" data-day="0">Dom</div>
+        <div class="day-btn" data-day="1">Seg</div>
+        <div class="day-btn" data-day="2">Ter</div>
+        <div class="day-btn" data-day="3">Qua</div>
+        <div class="day-btn" data-day="4">Qui</div>
+        <div class="day-btn" data-day="5">Sex</div>
+        <div class="day-btn" data-day="6">Sáb</div>
+      </div>
+      <button class="btn-save" id="btn-save-sched" style="margin-top:10px">Salvar agendamento</button>
+      <button class="btn-cancel" id="btn-cancel-sched">Cancelar todos</button>
+      <div class="status" id="sched-status"></div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

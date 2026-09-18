@@ -1,0 +1,13 @@
+{
+  "name": "extencao-bi-esfingesc",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/progress.js --bundle --outfile=progress.js --platform=browser"
+  },
+  "dependencies": {
+    "firebase": "^12.19.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
