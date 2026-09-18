@@ -31418,6 +31418,22 @@ This typically indicates that your device does not have a healthy Internet conne
     }
     return resultado;
   }
+  async function gravarSnapshotsDiarios() {
+    const snap = await getDocs(collection(db, "status_operacional_atual"));
+    const hoje = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const batch = writeBatch(db);
+    let total = 0;
+    snap.forEach(function(d) {
+      batch.set(
+        doc(db, "snapshots_diarios", hoje + "_" + d.id),
+        Object.assign({}, d.data(), { data: hoje, timestamp_execucao: serverTimestamp() })
+      );
+      total++;
+    });
+    await batch.commit();
+    log("Snapshot di\xE1rio gravado: " + total + " munic\xEDpios (" + hoje + ").", "ok");
+    return total;
+  }
   async function main() {
     try {
       await signInComContaBetha();
@@ -31430,9 +31446,10 @@ This typically indicates that your device does not have a healthy Internet conne
       const ratifPorIbge = await capturarRatificacoes(porNomeBusca);
       const combinado = mesclarMapas(cndPorIbge, ratifPorIbge);
       const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
+      const totalSnapshot = await gravarSnapshotsDiarios();
       await chrome.storage.local.set({
         last_execution: {
-          resumo: total + " munic\xEDpios atualizados (CND + Ratifica\xE7\xF5es)",
+          resumo: total + " munic\xEDpios atualizados, " + totalSnapshot + " snapshots gravados",
           timestamp: Date.now()
         }
       });

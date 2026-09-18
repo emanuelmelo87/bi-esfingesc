@@ -280,6 +280,27 @@ function mesclarMapas(a, b) {
   return resultado;
 }
 
+// ── Componente 3 — snapshot diário ───────────────────────────────────────
+
+async function gravarSnapshotsDiarios() {
+  const snap = await getDocs(collection(db, "status_operacional_atual"));
+  // ponytail: UTC, pode ficar 1 dia adiantado/atrasado perto da meia-noite em
+  // America/Sao_Paulo. Upgrade: Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'})
+  const hoje = new Date().toISOString().slice(0, 10);
+  const batch = writeBatch(db);
+  let total = 0;
+  snap.forEach(function (d) {
+    batch.set(
+      doc(db, "snapshots_diarios", hoje + "_" + d.id),
+      Object.assign({}, d.data(), { data: hoje, timestamp_execucao: serverTimestamp() })
+    );
+    total++;
+  });
+  await batch.commit();
+  log("Snapshot diário gravado: " + total + " municípios (" + hoje + ").", "ok");
+  return total;
+}
+
 // ── Orquestração ──────────────────────────────────────────────────────
 
 async function main() {
@@ -297,10 +318,11 @@ async function main() {
     const ratifPorIbge = await capturarRatificacoes(porNomeBusca);
     const combinado = mesclarMapas(cndPorIbge, ratifPorIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
+    const totalSnapshot = await gravarSnapshotsDiarios();
 
     await chrome.storage.local.set({
       last_execution: {
-        resumo: total + " municípios atualizados (CND + Ratificações)",
+        resumo: total + " municípios atualizados, " + totalSnapshot + " snapshots gravados",
         timestamp: Date.now(),
       },
     });
