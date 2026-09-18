@@ -163,8 +163,8 @@ export default function EvolucaoPage() {
   return (
     <RequireAuth>
       <main className="flex-1 px-6 py-6">
-        <h1 className="mb-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50">Evolução Temporal</h1>
-        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+        <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Evolução Temporal</h1>
+        <p className="mb-4 text-sm text-apple-secondary">
           Histórico diário a partir dos snapshots — &ldquo;concluído&rdquo; = ratificação quitada ou
           etapa do pipeline marcada como concluída.
         </p>
@@ -174,23 +174,23 @@ export default function EvolucaoPage() {
             type="month"
             value={mes}
             onChange={(e) => setMes(e.target.value)}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
           />
-          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="flex items-center gap-1.5 text-sm text-apple-secondary">
             <input type="checkbox" checked={overlay} onChange={(e) => setOverlay(e.target.checked)} />
             Sobrepor mês anterior
           </label>
         </div>
 
         {carregando ? (
-          <p className="text-zinc-600 dark:text-zinc-400">Carregando...</p>
+          <p className="text-apple-secondary">Carregando...</p>
         ) : (
           <div className="space-y-8">
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <h2 className="mb-2 text-sm font-semibold text-apple-title">
                 Curva S — % de municípios concluídos por dia
               </h2>
-              <div className="h-72 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="apple-glass-card h-72 rounded-[22px] p-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dadosCurva}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
@@ -225,14 +225,14 @@ export default function EvolucaoPage() {
             </section>
 
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <h2 className="mb-2 text-sm font-semibold text-apple-title">
                 Volume diário de fechamentos
               </h2>
-              <p className="mb-2 text-xs text-zinc-500">
+              <p className="mb-2 text-xs text-apple-muted">
                 Município que virou &quot;concluído&quot; naquele dia. O dia 1 mostra contagem bruta (sem
                 comparação com o mês anterior).
               </p>
-              <div className="h-64 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="apple-glass-card h-64 rounded-[22px] p-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={volumeDiario}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
@@ -246,7 +246,7 @@ export default function EvolucaoPage() {
             </section>
 
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <h2 className="mb-2 text-sm font-semibold text-apple-title">
                 Linha do tempo por município
               </h2>
               <div className="relative mb-3 max-w-sm">
@@ -257,10 +257,10 @@ export default function EvolucaoPage() {
                     setBusca(e.target.value);
                     setMunicipioSelecionado(null);
                   }}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  className="w-full rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
                 />
                 {municipiosFiltrados.length > 0 && !municipioSelecionado && (
-                  <ul className="absolute z-10 mt-1 w-full rounded-md border border-zinc-300 bg-white text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                  <ul className="apple-glass-card absolute z-10 mt-1 w-full overflow-hidden rounded-2xl text-sm">
                     {municipiosFiltrados.map((m) => (
                       <li key={m.codigo_ibge}>
                         <button
@@ -268,7 +268,7 @@ export default function EvolucaoPage() {
                             setMunicipioSelecionado(m);
                             setBusca(m.nome);
                           }}
-                          className="block w-full px-3 py-1.5 text-left text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                          className="block w-full px-3 py-1.5 text-left text-apple-title hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
                         >
                           {m.nome}
                         </button>
@@ -279,9 +279,9 @@ export default function EvolucaoPage() {
               </div>
 
               {municipioSelecionado && (
-                <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="apple-glass-card rounded-[22px] p-4">
                   {timeline.length === 0 ? (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <p className="text-sm text-apple-secondary">
                       Sem snapshots para {municipioSelecionado.nome} neste mês.
                     </p>
                   ) : (

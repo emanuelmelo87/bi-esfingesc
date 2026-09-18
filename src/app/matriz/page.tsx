@@ -91,48 +91,50 @@ export default function MatrizPage() {
 
   return (
     <RequireAuth>
-      <main className="flex-1 px-6 py-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Matriz de Módulos &amp; CND</h1>
+          <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Matriz de Módulos &amp; CND</h1>
           <button
             onClick={exportar}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-full border border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
           >
             Exportar CSV
           </button>
         </div>
-        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mb-4 text-sm text-apple-secondary">
           Status por área e monitor de validade da CND, por município.
         </p>
 
         {carregando ? (
-          <p className="text-zinc-600 dark:text-zinc-400">Carregando...</p>
+          <p className="text-apple-secondary">Carregando...</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-                <tr>
-                  <th className="px-3 py-2">Município</th>
-                  {MODULOS.map((m) => (
-                    <th key={m.key} className="px-3 py-2">{m.label}</th>
-                  ))}
-                  <th className="px-3 py-2">CND</th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map(({ municipio, status }) => (
-                  <tr key={municipio.codigo_ibge} className="border-t border-zinc-200 hover:bg-zinc-100/60 dark:border-zinc-800 dark:hover:bg-zinc-900/60">
-                    <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">{municipio.nome}</td>
+          <div className="apple-glass-card overflow-hidden rounded-[22px]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[12px]">
+                <thead>
+                  <tr className="border-b border-black/[0.05] bg-black/[0.015] text-[11px] font-medium tracking-wider text-apple-muted uppercase dark:border-white/10 dark:bg-white/[0.02]">
+                    <th className="px-6 py-3">Município</th>
                     {MODULOS.map((m) => (
-                      <td key={m.key} className="px-3 py-2">
-                        {moduloBadge(status?.modulos?.[m.key]?.status)}
-                      </td>
+                      <th key={m.key} className="px-4 py-3">{m.label}</th>
                     ))}
-                    <td className="px-3 py-2">{cndCountdownBadge(status)}</td>
+                    <th className="px-6 py-3">CND</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
+                  {linhas.map(({ municipio, status }) => (
+                    <tr key={municipio.codigo_ibge} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
+                      <td className="px-6 py-3.5 font-semibold text-apple-title">{municipio.nome}</td>
+                      {MODULOS.map((m) => (
+                        <td key={m.key} className="px-4 py-3.5">
+                          {moduloBadge(status?.modulos?.[m.key]?.status)}
+                        </td>
+                      ))}
+                      <td className="px-6 py-3.5">{cndCountdownBadge(status)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </main>

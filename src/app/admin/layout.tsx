@@ -16,7 +16,7 @@ function AdminGate({ children }: { children: ReactNode }) {
   if (perfil === null) {
     return (
       <main className="flex flex-1 items-center justify-center">
-        <p className="text-zinc-600 dark:text-zinc-400">Verificando permissões...</p>
+        <p className="text-apple-secondary">Verificando permissões...</p>
       </main>
     );
   }
@@ -24,7 +24,7 @@ function AdminGate({ children }: { children: ReactNode }) {
   if (!isAdmin) {
     return (
       <main className="flex flex-1 items-center justify-center">
-        <p className="text-zinc-600 dark:text-zinc-400">Acesso restrito.</p>
+        <p className="text-apple-secondary">Acesso restrito.</p>
       </main>
     );
   }

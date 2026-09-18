@@ -10,9 +10,9 @@ const PERFIS = ["ADMIN_GERAL", "GESTOR_CANAL", "ANALISTA", "LEITURA"] as const;
 
 export default function AdminPermissoesPage() {
   return (
-    <main className="flex-1 px-6 py-6">
-      <h1 className="mb-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50">Matriz de Permissões (RBAC)</h1>
-      <p className="mb-4 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+      <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Matriz de Permissões (RBAC)</h1>
+      <p className="mb-4 max-w-2xl text-sm text-apple-secondary">
         Grade de privilégios pretendida para os 4 perfis. Nesta sprint, só o bloqueio de acesso
         às telas de Admin (ADMIN_GERAL) e a restrição de edição em lote para LEITURA estão
         de fato aplicados no código. As distinções entre GESTOR_CANAL e ANALISTA (ex.: escopo
@@ -20,33 +20,35 @@ export default function AdminPermissoesPage() {
         o suficiente para implementar sem adivinhar.
       </p>
 
-      <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-            <tr>
-              <th className="px-3 py-2">Capacidade</th>
-              {PERFIS.map((p) => (
-                <th key={p} className="px-3 py-2">{p}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {CAPACIDADES.map((cap) => (
-              <tr key={cap.label} className="border-t border-zinc-200 dark:border-zinc-800">
-                <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">{cap.label}</td>
+      <div className="apple-glass-card overflow-hidden rounded-[22px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-black/[0.05] bg-black/[0.015] text-[11px] font-medium tracking-wider text-apple-muted uppercase dark:border-white/10 dark:bg-white/[0.02]">
+                <th className="px-6 py-3">Capacidade</th>
                 {PERFIS.map((p) => (
-                  <td key={p} className="px-3 py-2">
-                    {cap[p] ? (
-                      <span className="text-emerald-600 dark:text-emerald-400">Sim</span>
-                    ) : (
-                      <span className="text-zinc-400 dark:text-zinc-600">Não</span>
-                    )}
-                  </td>
+                  <th key={p} className="px-4 py-3">{p}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
+              {CAPACIDADES.map((cap) => (
+                <tr key={cap.label}>
+                  <td className="px-6 py-3.5 font-semibold text-apple-title">{cap.label}</td>
+                  {PERFIS.map((p) => (
+                    <td key={p} className="px-4 py-3.5">
+                      {cap[p] ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">Sim</span>
+                      ) : (
+                        <span className="text-apple-muted">Não</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   );

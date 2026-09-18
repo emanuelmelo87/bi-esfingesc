@@ -42,15 +42,15 @@ export default function ThemeToggle() {
   ];
 
   return (
-    <div className="flex gap-1 text-xs">
+    <div className="flex items-center gap-[2px] rounded-[9px] bg-black/[0.05] p-[2px] text-[11px] font-medium text-apple-secondary dark:bg-white/[0.06]">
       {opcoes.map((o) => (
         <button
           key={o.value}
           onClick={() => escolher(o.value)}
-          className={`rounded-full px-2 py-1 transition-colors ${
+          className={`rounded-[7px] px-2.5 py-0.5 transition-colors ${
             tema === o.value
-              ? "bg-vinho text-white"
-              : "text-zinc-600 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              ? "bg-white text-apple-title shadow-xs ring-1 ring-black/[0.04] dark:bg-zinc-700 dark:text-white dark:ring-white/10"
+              : "text-apple-secondary hover:text-apple-title"
           }`}
         >
           {o.label}
