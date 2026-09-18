@@ -53,10 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user?.email) {
-      setPerfil(null);
-      return;
-    }
+    // perfil só é lido quando user existe (RequireAuth barra tudo antes disso),
+    // então não precisa resetar aqui — o próximo login já traz o perfil certo.
+    if (!user?.email) return;
     const email = user.email.toLowerCase();
     const ref = doc(db, "usuarios", email);
 

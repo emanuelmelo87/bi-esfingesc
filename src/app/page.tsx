@@ -24,8 +24,10 @@ export default function Home() {
   }
 
   useEffect(() => {
-    carregarMunicipios();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!user) return;
+    getDocs(collection(db, "municipios")).then((snap) => {
+      setMunicipios(snap.docs.map((d) => d.data() as Municipio));
+    });
   }, [user]);
 
   useEffect(() => {

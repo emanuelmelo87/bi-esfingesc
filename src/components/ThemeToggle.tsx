@@ -15,6 +15,9 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     const salvo = (localStorage.getItem("tema") as Tema | null) ?? "sistema";
+    // localStorage não existe no SSR, então o valor real só é conhecido aqui —
+    // sincronizar via efeito é o padrão correto, não um caso de "poderia ser derivado".
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTema(salvo);
     aplicarTema(salvo);
 

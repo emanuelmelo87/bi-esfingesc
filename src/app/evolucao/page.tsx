@@ -77,7 +77,6 @@ export default function EvolucaoPage() {
 
   useEffect(() => {
     if (!user) return;
-    setCarregando(true);
     buscarSnapshotsDoMes(mes).then((dados) => {
       setSnapshotsDoMes(dados);
       setCarregando(false);
@@ -85,18 +84,12 @@ export default function EvolucaoPage() {
   }, [user, mes]);
 
   useEffect(() => {
-    if (!user || !overlay) {
-      setSnapshotsMesAnterior([]);
-      return;
-    }
+    if (!user || !overlay) return;
     buscarSnapshotsDoMes(mesAnterior(mes)).then(setSnapshotsMesAnterior);
   }, [user, mes, overlay]);
 
   useEffect(() => {
-    if (!user || !municipioSelecionado) {
-      setTimeline([]);
-      return;
-    }
+    if (!user || !municipioSelecionado) return;
     const { inicio, fim } = intervaloDoMes(mes);
     getDocs(
       query(
@@ -172,8 +165,8 @@ export default function EvolucaoPage() {
       <main className="flex-1 px-6 py-6">
         <h1 className="mb-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50">Evolução Temporal</h1>
         <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-          Histórico diário a partir dos snapshots — "concluído" = ratificação quitada ou etapa do
-          pipeline marcada como concluída.
+          Histórico diário a partir dos snapshots — &ldquo;concluído&rdquo; = ratificação quitada ou
+          etapa do pipeline marcada como concluída.
         </p>
 
         <div className="mb-6 flex flex-wrap items-center gap-3">
