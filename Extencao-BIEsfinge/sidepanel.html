@@ -84,6 +84,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="exec">Execução</button>
     <button class="tab-btn" data-tab="sched">Agendamento</button>
+    <button class="tab-btn" data-tab="tce">Conta TCE</button>
   </div>
 
   <div class="tab-pane active" id="pane-exec">
@@ -118,6 +119,23 @@
       <button class="btn-save" id="btn-save-sched" style="margin-top:10px">Salvar agendamento</button>
       <button class="btn-cancel" id="btn-cancel-sched">Cancelar todos</button>
       <div class="status" id="sched-status"></div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-tce">
+    <div class="section">
+      <div class="section-title">Login TCE Virtual</div>
+      <div style="font-size:10px;color:#777;margin-bottom:8px;line-height:1.5">
+        Usada só para a captura restrita (Contábil/Folha/Tributos). Fica salva sem
+        criptografia neste navegador — mesmo padrão da extensão anterior.
+      </div>
+      <label>Matrícula</label>
+      <input type="text" id="tce-matricula" placeholder="ex: 8578013921" autocomplete="username">
+      <label>Senha</label>
+      <input type="password" id="tce-senha" placeholder="senha TCE" autocomplete="new-password">
+      <button class="btn-save" id="btn-save-tce" style="margin-top:10px">Salvar</button>
+      <button class="btn-cancel" id="btn-clear-tce">Remover credencial</button>
+      <div class="status" id="tce-status"></div>
     </div>
   </div>
 

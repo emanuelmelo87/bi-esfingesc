@@ -10,6 +10,10 @@ const RATIFICACOES_URL =
 // Municipio, Situação) — hardcoded dentro de extractRatificacoesGlobais, que roda injetada
 // numa aba e não pode fechar sobre constantes deste escopo.
 
+const TCE_LOGIN_URL = "https://virtual.tce.sc.gov.br/login";
+const TCE_TICKET_API = "https://api.virtual.tce.sc.gov.br/sgi/rest/usuarios/ticketQlik";
+const QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
+
 const logEl = document.getElementById("log");
 const modoLabelEl = document.getElementById("modo-label");
 const modo = new URLSearchParams(location.search).get("modo") || "manual";
@@ -248,6 +252,353 @@ async function capturarRatificacoes(porNomeBusca) {
   return porIbge;
 }
 
+// ── Componente 2 — Status de Módulos por Área (restrito, precisa de login
+// no TCE Virtual) — porte do fluxo login+ticket+WS Qlik já usado e testado
+// na extensão extensao-esfinge, redirecionado para gravar no nosso Firestore
+// em vez do backend Apps Script daquele projeto. ─────────────────────────
+
+// Autocontidas: rodam via chrome.scripting.executeScript, não podem fechar
+// sobre nada do escopo externo.
+
+function readTokenFromPage() {
+  var t = localStorage.getItem("token");
+  if (!t) return null;
+  try { t = JSON.parse(t); } catch (e) {}
+  return t || null;
+}
+
+function isLoginPage() {
+  return !!(
+    document.querySelector("input[type=password]") ||
+    document.body.innerText.includes("Matricula") ||
+    document.body.innerText.includes("Fazer login")
+  );
+}
+
+function fillLoginForm(matricula, senha) {
+  function setVal(el, v) {
+    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    try { setter.call(el, v); } catch (e) { el.value = v; }
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  var inputs = Array.from(document.querySelectorAll("input"));
+  var userEl = inputs.find(function (i) { return i.type !== "password" && i.type !== "hidden" && i.type !== "submit"; });
+  var passEl = inputs.find(function (i) { return i.type === "password"; });
+  if (!userEl || !passEl) return "formulario-nao-encontrado";
+  setVal(userEl, matricula);
+  setVal(passEl, senha);
+  var btn = document.querySelector("button[type=submit]") ||
+    Array.from(document.querySelectorAll("button")).find(function (b) { return /entrar|login|ok|acessar/i.test(b.textContent); });
+  if (btn) { btn.click(); return "ok"; }
+  var form = document.querySelector("form");
+  if (form) { form.submit(); return "ok"; }
+  return "botao-nao-encontrado";
+}
+
+function callTicketQlik(token) {
+  return fetch("https://api.virtual.tce.sc.gov.br/sgi/rest/usuarios/ticketQlik", {
+    method: "GET",
+    headers: { auth_token: token },
+  })
+    .then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { throw new Error("ticketQlik " + r.status + ": " + t.slice(0, 100)); });
+      return r.text();
+    })
+    .then(function (body) {
+      var match = body.match(/qlikTicket=([^&\s"']+)/);
+      if (match) return match[1];
+      try {
+        var d = JSON.parse(body);
+        var t = typeof d === "string" ? d : d.ticket || d.qlikTicket || d.token;
+        if (t) return String(t);
+      } catch (e) {}
+      throw new Error("Nao foi possivel extrair ticket: " + body.slice(0, 100));
+    });
+}
+
+// periodo: "MM/AAAA". Retorna array de {municipio, anoMes, modulo, unidade, qtd, data_envio}
+// ou {error}.
+function extractQlikModulos(periodo) {
+  return new Promise(function (resolve) {
+    var appId = "7b7ba237-120c-4c65-9188-65334fc38245";
+    var ws = new WebSocket("wss://paineis.tce.sc.gov.br/custom/app/" + appId);
+    var msgId = 1, cubeHandle = null, allRows = [], totalRows = 0;
+    var PAGE_SIZE = 2000;
+    var fase = "open";
+    var timer = setTimeout(function () {
+      try { ws.close(); } catch (e) {}
+      resolve({ error: "Timeout — sessão Qlik expirou" });
+    }, 120000);
+
+    function send(msg) { ws.send(JSON.stringify(msg)); }
+
+    ws.onopen = function () {
+      send({ jsonrpc: "2.0", id: msgId++, method: "OpenDoc", handle: -1, params: [appId] });
+    };
+    ws.onerror = function () {
+      clearTimeout(timer);
+      resolve({ error: "Erro WebSocket — autenticação Qlik inválida" });
+    };
+    ws.onmessage = function (e) {
+      var d = JSON.parse(e.data);
+      if (d.method) return;
+
+      if (fase === "open") {
+        if (d.error || !d.result || !d.result.qReturn) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "OpenDoc falhou" });
+          return;
+        }
+        var docHandle = d.result.qReturn.qHandle;
+        fase = "cube";
+        send({
+          jsonrpc: "2.0", id: msgId++, method: "CreateSessionObject", handle: docHandle,
+          params: [{
+            qInfo: { qType: "extract" },
+            qHyperCubeDef: {
+              qDimensions: [
+                { qDef: { qFieldDefs: ["nomeEnte"] } },
+                { qDef: { qFieldDefs: ["descricao"] } },
+                { qDef: { qFieldDefs: ["nomeUnidade"], qNullSuppression: false } },
+              ],
+              qMeasures: [
+                { qDef: { qDef: "Sum({<anoMesData={'" + periodo + "'}> } qtdPacotes)" } },
+                { qDef: { qDef: "Date(Max({<anoMesData={'" + periodo + "'}> } datahorainiciotransmissao_original), 'DD/MM/YYYY')" } },
+              ],
+              qSuppressMissing: false,
+              qInitialDataFetch: [{ qTop: 0, qLeft: 0, qHeight: 0, qWidth: 5 }],
+            },
+          }],
+        });
+      } else if (fase === "cube") {
+        if (d.error || !d.result || !d.result.qReturn) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "CreateSessionObject falhou" });
+          return;
+        }
+        cubeHandle = d.result.qReturn.qHandle;
+        fase = "layout";
+        send({ jsonrpc: "2.0", id: msgId++, method: "GetLayout", handle: cubeHandle, params: [] });
+      } else if (fase === "layout") {
+        if (d.error || !d.result || !d.result.qLayout) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "GetLayout falhou" });
+          return;
+        }
+        var sz = d.result.qLayout.qHyperCube && d.result.qLayout.qHyperCube.qSize;
+        if (!sz || sz.qcy === 0) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: "Sem dados para o período " + periodo });
+          return;
+        }
+        totalRows = sz.qcy;
+        fase = "fetch";
+        fetchPage(0);
+      } else if (fase === "fetch") {
+        if (d.error || !d.result || !d.result.qDataPages) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "GetHyperCubeData falhou" });
+          return;
+        }
+        var pg = d.result.qDataPages[0];
+        if (pg && pg.qMatrix.length > 0) pg.qMatrix.forEach(function (r) { allRows.push(r); });
+        if (allRows.length < totalRows) fetchPage(allRows.length);
+        else finish();
+      }
+    };
+
+    function fetchPage(top) {
+      var h = Math.min(PAGE_SIZE, totalRows - top);
+      send({ jsonrpc: "2.0", id: msgId++, method: "GetHyperCubeData", handle: cubeHandle, params: ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: h, qWidth: 5 }]] });
+    }
+    function finish() {
+      clearTimeout(timer); try { ws.close(); } catch (ex) {}
+      resolve(allRows.map(function (row) {
+        var qtdNum = row[3] ? row[3].qNum || 0 : 0;
+        return {
+          municipio: (row[0].qText || "").trim(),
+          anoMes: periodo,
+          modulo: (row[1].qText || "").trim(),
+          unidade: (row[2].qText || "").trim(),
+          qtd: isNaN(qtdNum) ? 0 : qtdNum,
+        };
+      }));
+    }
+  });
+}
+
+// ── Mapeamento nome de módulo (Qlik) → campo, e campo → área do Radar.
+// "Contratos" não tem fonte identificada nesta extração — fica null,
+// sinalizado no log em vez de adivinhado (ver plano, Estágio 7).
+const MOD_SLUG = {
+  "Assinatura Balancete do Razão": "assinatura_balancete_razao",
+  "Execução Orçamentária": "execucao_orcamentaria",
+  "Gestão Fiscal": "gestao_fiscal",
+  "Planejamento": "planejamento",
+  "Registros Contábeis": "registros_contabeis",
+  "Relação Folha/Liquidação": "relacao_folha_liquidacao",
+  "Relação Tributário/Contábil - Impostos": "relacao_tributario_impostos",
+  "Relação Tributário/Contábil - Taxas": "relacao_tributario_taxas",
+  "Tributário": "tributario",
+};
+const AREA_POR_CAMPO = {
+  assinatura_balancete_razao: "contabil",
+  execucao_orcamentaria: "contabil",
+  gestao_fiscal: "contabil",
+  planejamento: "contabil",
+  registros_contabeis: "contabil",
+  relacao_folha_liquidacao: "folha",
+  relacao_tributario_impostos: "tributos",
+  relacao_tributario_taxas: "tributos",
+  tributario: "tributos",
+};
+// somente/exceto: a quais tipos de entidade o campo se aplica; ok(v): valor válido.
+const REGRAS_MODULO = {
+  assinatura_balancete_razao: { exceto: ["CI"], ok: (v) => v === 2 },
+  execucao_orcamentaria: { exceto: ["CI"], ok: (v) => v > 0 },
+  gestao_fiscal: { somente: ["CM", "CI"], ok: (v) => v > 0 },
+  planejamento: { somente: ["CI"], ok: (v) => v > 0 },
+  registros_contabeis: { exceto: ["CI"], ok: (v) => v > 0 },
+  relacao_folha_liquidacao: { exceto: ["CI", "Outros"], ok: (v) => v > 0 },
+  relacao_tributario_impostos: { somente: ["Prefeitura"], ok: (v) => v > 0 },
+  relacao_tributario_taxas: { somente: ["Prefeitura"], ok: (v) => v > 0 },
+  tributario: { somente: ["Prefeitura"], ok: (v) => v > 0 },
+};
+
+function detectarTipoEntidade(nomeUnidade) {
+  const n = (nomeUnidade || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (/CAMARA|C\.M\b|CM\b/.test(n)) return "CM";
+  if (/CONTROLE.INTERNO|CONTROLADORIA/.test(n)) return "CI";
+  if (/PREFEITURA/.test(n)) return "Prefeitura";
+  if (/CONSORCIO|CONS\./.test(n)) return "Consorcio";
+  return "Outros";
+}
+
+function campoAplica(campo, tipo) {
+  const regra = REGRAS_MODULO[campo];
+  if (regra.somente) return regra.somente.includes(tipo);
+  if (regra.exceto) return !regra.exceto.includes(tipo);
+  return true;
+}
+
+// Status de uma área para um documento de entidade: "ok" se todos os campos
+// aplicáveis dessa área passam na regra; "pendente" se algum falhar/faltar;
+// null se nenhum campo da área se aplica a esse tipo de entidade.
+function statusArea(area, doc) {
+  const campos = Object.keys(AREA_POR_CAMPO).filter((c) => AREA_POR_CAMPO[c] === area && campoAplica(c, doc.entidade));
+  if (campos.length === 0) return null;
+  const algumFalhou = campos.some((c) => {
+    const v = doc[c];
+    return v === null || v === undefined || !REGRAS_MODULO[c].ok(v);
+  });
+  return algumFalhou ? "pendente" : "ok";
+}
+
+async function capturarModulos(porNomeBusca) {
+  const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
+  if (!tce_matricula || !tce_senha) {
+    log("Módulos por área: credenciais do TCE não configuradas — pulando.", "info");
+    return new Map();
+  }
+
+  log("Fazendo login no TCE Virtual...");
+  const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
+  const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+  if (precisaLogar) {
+    await chrome.scripting.executeScript({
+      target: { tabId: loginTab.id },
+      func: fillLoginForm,
+      args: [tce_matricula, tce_senha],
+    });
+    await new Promise((r) => setTimeout(r, 3000));
+    const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+    if (aindaLogin) {
+      await fecharAba(loginTab);
+      log("Login no TCE falhou — verifique a matrícula/senha configuradas.", "err");
+      return new Map();
+    }
+  }
+  const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
+  if (!jwt) {
+    await fecharAba(loginTab);
+    log("Não foi possível ler o token de sessão do TCE.", "err");
+    return new Map();
+  }
+  log("Login no TCE confirmado. Obtendo ticket Qlik...", "ok");
+  const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
+  await fecharAba(loginTab);
+
+  if (!ticket || typeof ticket !== "string") {
+    log("Ticket Qlik inválido.", "err");
+    return new Map();
+  }
+
+  const hoje = new Date();
+  const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const periodo = String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+
+  log("Abrindo Qlik de módulos (período " + periodo + ")...");
+  const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
+  const [{ result: rawData }] = await chrome.scripting.executeScript({
+    target: { tabId: qlikTab.id },
+    func: extractQlikModulos,
+    args: [periodo],
+  });
+  await fecharAba(qlikTab);
+
+  if (!rawData || rawData.error) {
+    log("Módulos: " + (rawData ? rawData.error : "sem resposta do Qlik") + ".", "err");
+    return new Map();
+  }
+  log("Módulos: " + rawData.length + " linhas raspadas.");
+
+  // Pivotar em documentos por (município × entidade)
+  const docsPorEntidade = new Map();
+  for (const r of rawData) {
+    if (!r.municipio || !r.modulo) continue;
+    const tipo = detectarTipoEntidade(r.unidade && r.unidade !== "-" ? r.unidade : r.municipio);
+    const chave = r.municipio + "||" + tipo;
+    if (!docsPorEntidade.has(chave)) {
+      docsPorEntidade.set(chave, { municipio: r.municipio, entidade: tipo });
+    }
+    const campo = MOD_SLUG[r.modulo];
+    if (campo) docsPorEntidade.get(chave)[campo] = r.qtd;
+  }
+
+  // Agrupar por município: Prefeitura como representante, senão pior status entre entidades
+  const porMunicipio = new Map();
+  for (const entidadeDoc of docsPorEntidade.values()) {
+    if (!porMunicipio.has(entidadeDoc.municipio)) porMunicipio.set(entidadeDoc.municipio, []);
+    porMunicipio.get(entidadeDoc.municipio).push(entidadeDoc);
+  }
+
+  const porIbge = new Map();
+  let semMatch = 0;
+  for (const [nomeMunicipio, entidades] of porMunicipio) {
+    const municipio = resolverMunicipio(nomeMunicipio, porNomeBusca);
+    if (!municipio) {
+      semMatch++;
+      continue;
+    }
+    const prefeitura = entidades.find((d) => d.entidade === "Prefeitura");
+    const modulos = {};
+    for (const area of ["contabil", "folha", "tributos"]) {
+      if (prefeitura) {
+        modulos[area] = { status: statusArea(area, prefeitura), atualizado_em: serverTimestamp() };
+      } else {
+        const statusEntidades = entidades.map((d) => statusArea(area, d)).filter(Boolean);
+        const pior = statusEntidades.includes("pendente") ? "pendente" : statusEntidades[0] || null;
+        modulos[area] = { status: pior, atualizado_em: serverTimestamp() };
+      }
+    }
+    modulos.contratos = { status: null, atualizado_em: null }; // fonte não identificada — ver risco #2 do plano
+    porIbge.set(municipio.codigo_ibge, { modulos });
+  }
+  log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+  return porIbge;
+}
+
 // ── Gravação combinada no Firestore ──────────────────────────────────────
 
 async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
@@ -316,7 +667,8 @@ async function main() {
 
     const cndPorIbge = await capturarCND(porNomeBusca);
     const ratifPorIbge = await capturarRatificacoes(porNomeBusca);
-    const combinado = mesclarMapas(cndPorIbge, ratifPorIbge);
+    const modulosPorIbge = await capturarModulos(porNomeBusca);
+    const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratifPorIbge), modulosPorIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
     const totalSnapshot = await gravarSnapshotsDiarios();
 

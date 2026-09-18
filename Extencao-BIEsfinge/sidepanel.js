@@ -105,6 +105,34 @@ document.getElementById("btn-cancel-sched").addEventListener("click", function (
   document.getElementById("sched-status").className = "status ok";
 });
 
+// ── Conta TCE ────────────────────────────────────────────────────────
+document.getElementById("btn-save-tce").addEventListener("click", function () {
+  var matricula = document.getElementById("tce-matricula").value.trim();
+  var senha = document.getElementById("tce-senha").value;
+  if (!matricula || !senha) {
+    document.getElementById("tce-status").textContent = "Preencha matrícula e senha.";
+    document.getElementById("tce-status").className = "status err";
+    return;
+  }
+  chrome.storage.local.set({ tce_matricula: matricula, tce_senha: senha }, function () {
+    document.getElementById("tce-status").textContent = "Credencial salva.";
+    document.getElementById("tce-status").className = "status ok";
+  });
+});
+
+document.getElementById("btn-clear-tce").addEventListener("click", function () {
+  chrome.storage.local.remove(["tce_matricula", "tce_senha"], function () {
+    document.getElementById("tce-matricula").value = "";
+    document.getElementById("tce-senha").value = "";
+    document.getElementById("tce-status").textContent = "Credencial removida.";
+    document.getElementById("tce-status").className = "status ok";
+  });
+});
+
+chrome.storage.local.get(["tce_matricula"], function (data) {
+  if (data.tce_matricula) document.getElementById("tce-matricula").value = data.tce_matricula;
+});
+
 // ── Estado inicial + reatividade ────────────────────────────────────
 chrome.storage.local.get(
   ["auth_status", "last_execution", "schedule_times", "schedule_days"],
