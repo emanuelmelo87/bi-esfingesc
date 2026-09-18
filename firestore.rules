@@ -6,7 +6,15 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@betha[.]com[.]br$');
     }
 
-    match /{document=**} {
+    match /municipios/{id} {
+      allow read, write: if isBethaUser();
+    }
+
+    match /status_operacional_atual/{id} {
+      allow read, write: if isBethaUser();
+    }
+
+    match /snapshots_diarios/{id} {
       allow read, write: if isBethaUser();
     }
   }

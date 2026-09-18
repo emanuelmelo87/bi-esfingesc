@@ -26,7 +26,7 @@ export default function Home() {
         </div>
         <button
           onClick={signIn}
-          className="rounded-full bg-[#6B1124] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#82152c]"
+          className="rounded-full bg-vinho px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-vinho-hover"
         >
           Entrar com Google
         </button>
