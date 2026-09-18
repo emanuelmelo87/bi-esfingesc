@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { exportCsv } from "@/lib/csv";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge, { type Tone } from "@/components/StatusBadge";
 import type { Municipio, StatusOperacionalAtual } from "@/types/municipio";
@@ -73,20 +74,43 @@ export default function MatrizPage() {
     [municipios, statusPorIbge]
   );
 
+  function exportar() {
+    exportCsv(
+      "matriz.csv",
+      linhas.map(({ municipio, status }) => ({
+        municipio: municipio.nome,
+        contabil: status?.modulos?.contabil?.status ?? "",
+        folha: status?.modulos?.folha?.status ?? "",
+        contratos: status?.modulos?.contratos?.status ?? "",
+        tributos: status?.modulos?.tributos?.status ?? "",
+        cnd_status: status?.cnd_status ?? "",
+        cnd_validade: status?.cnd_validade ?? "",
+      }))
+    );
+  }
+
   return (
     <RequireAuth>
       <main className="flex-1 px-6 py-6">
-        <h1 className="mb-1 text-xl font-semibold text-zinc-50">Matriz de Módulos &amp; CND</h1>
-        <p className="mb-4 text-sm text-zinc-400">
+        <div className="mb-1 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Matriz de Módulos &amp; CND</h1>
+          <button
+            onClick={exportar}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            Exportar CSV
+          </button>
+        </div>
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
           Status por área e monitor de validade da CND, por município.
         </p>
 
         {carregando ? (
-          <p className="text-zinc-400">Carregando...</p>
+          <p className="text-zinc-600 dark:text-zinc-400">Carregando...</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-zinc-800">
+          <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-left text-zinc-400">
+              <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                 <tr>
                   <th className="px-3 py-2">Município</th>
                   {MODULOS.map((m) => (
@@ -97,8 +121,8 @@ export default function MatrizPage() {
               </thead>
               <tbody>
                 {linhas.map(({ municipio, status }) => (
-                  <tr key={municipio.codigo_ibge} className="border-t border-zinc-800 hover:bg-zinc-900/60">
-                    <td className="px-3 py-2 text-zinc-100">{municipio.nome}</td>
+                  <tr key={municipio.codigo_ibge} className="border-t border-zinc-200 hover:bg-zinc-100/60 dark:border-zinc-800 dark:hover:bg-zinc-900/60">
+                    <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">{municipio.nome}</td>
                     {MODULOS.map((m) => (
                       <td key={m.key} className="px-3 py-2">
                         {moduloBadge(status?.modulos?.[m.key]?.status)}

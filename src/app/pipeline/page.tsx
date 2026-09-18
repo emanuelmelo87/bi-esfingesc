@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, doc, getDocs, onSnapshot, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { exportCsv } from "@/lib/csv";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import type { EtapaPipeline, Municipio, StatusOperacionalAtual } from "@/types/municipio";
@@ -52,7 +53,7 @@ export default function PipelinePage() {
   const [loteEtapa, setLoteEtapa] = useState<EtapaPipeline | "">("");
   const [salvandoLote, setSalvandoLote] = useState(false);
 
-  const { user } = useAuth();
+  const { user, perfil } = useAuth();
 
   useEffect(() => {
     if (!user) return;
@@ -135,22 +136,50 @@ export default function PipelinePage() {
     }
   }
 
+  function exportar() {
+    exportCsv(
+      "pipeline.csv",
+      linhasFiltradas.map((l) => ({
+        municipio: l.municipio,
+        fornecedor: l.fornecedor ?? "",
+        canal_atendimento: l.canal_atendimento ?? "",
+        cnd_status: l.status?.cnd_status ?? "",
+        ratificacao_status: l.status?.ratificacao_status ?? "",
+        analista: l.status?.analista ?? "",
+        etapa_pipeline: l.status?.etapa_pipeline ?? "",
+      }))
+    );
+  }
+
+  const inputClass =
+    "rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
+  const loteInputClass =
+    "rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100";
+
   return (
     <RequireAuth>
       <main className="flex-1 px-6 py-6">
-        <h1 className="mb-4 text-xl font-semibold text-zinc-50">Pipeline — 295 Municípios</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Pipeline — 295 Municípios</h1>
+          <button
+            onClick={exportar}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            Exportar CSV
+          </button>
+        </div>
 
         <div className="mb-4 flex flex-wrap gap-3">
           <input
             placeholder="Competência (MM/AAAA)"
             value={filtroCompetencia}
             onChange={(e) => setFiltroCompetencia(e.target.value)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100"
+            className={inputClass}
           />
           <select
             value={filtroCanal}
             onChange={(e) => setFiltroCanal(e.target.value)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100"
+            className={inputClass}
           >
             <option value="todos">Canal: todos</option>
             {canaisDisponiveis.map((c) => (
@@ -160,7 +189,7 @@ export default function PipelinePage() {
           <select
             value={filtroFornecedor}
             onChange={(e) => setFiltroFornecedor(e.target.value)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100"
+            className={inputClass}
           >
             <option value="todos">Fornecedor: todos</option>
             <option value="Betha">Betha</option>
@@ -169,7 +198,7 @@ export default function PipelinePage() {
           <select
             value={filtroEtapa}
             onChange={(e) => setFiltroEtapa(e.target.value)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100"
+            className={inputClass}
           >
             <option value="todos">Etapa: todas</option>
             {ETAPAS.map((e) => (
@@ -178,25 +207,25 @@ export default function PipelinePage() {
           </select>
         </div>
 
-        {selecionados.size > 0 && (
-          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-vinho bg-zinc-900 px-3 py-2">
-            <span className="text-sm text-zinc-300">{selecionados.size} selecionado(s):</span>
+        {selecionados.size > 0 && perfil !== "LEITURA" && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-vinho bg-zinc-100 px-3 py-2 dark:bg-zinc-900">
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">{selecionados.size} selecionado(s):</span>
             <input
               placeholder="Analista"
               value={loteAnalista}
               onChange={(e) => setLoteAnalista(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-100"
+              className={loteInputClass}
             />
             <input
               placeholder="Equipe"
               value={loteEquipe}
               onChange={(e) => setLoteEquipe(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-100"
+              className={loteInputClass}
             />
             <select
               value={loteEtapa}
               onChange={(e) => setLoteEtapa(e.target.value as EtapaPipeline)}
-              className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-100"
+              className={loteInputClass}
             >
               <option value="">Etapa (manter)</option>
               {ETAPAS.map((e) => (
@@ -214,18 +243,20 @@ export default function PipelinePage() {
         )}
 
         {carregando ? (
-          <p className="text-zinc-400">Carregando...</p>
+          <p className="text-zinc-600 dark:text-zinc-400">Carregando...</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-zinc-800">
+          <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-left text-zinc-400">
+              <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                 <tr>
                   <th className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.size === linhasFiltradas.length && linhasFiltradas.length > 0}
-                      onChange={alternarSelecaoTodos}
-                    />
+                    {perfil !== "LEITURA" && (
+                      <input
+                        type="checkbox"
+                        checked={selecionados.size === linhasFiltradas.length && linhasFiltradas.length > 0}
+                        onChange={alternarSelecaoTodos}
+                      />
+                    )}
                   </th>
                   <th className="px-3 py-2">Município</th>
                   <th className="px-3 py-2">Fornecedor</th>
@@ -238,25 +269,27 @@ export default function PipelinePage() {
               </thead>
               <tbody>
                 {linhasFiltradas.map((l) => (
-                  <tr key={l.codigo_ibge} className="border-t border-zinc-800 hover:bg-zinc-900/60">
+                  <tr key={l.codigo_ibge} className="border-t border-zinc-200 hover:bg-zinc-100/60 dark:border-zinc-800 dark:hover:bg-zinc-900/60">
                     <td className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={selecionados.has(l.codigo_ibge)}
-                        onChange={() => alternarSelecao(l.codigo_ibge)}
-                      />
+                      {perfil !== "LEITURA" && (
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(l.codigo_ibge)}
+                          onChange={() => alternarSelecao(l.codigo_ibge)}
+                        />
+                      )}
                     </td>
-                    <td className="px-3 py-2 text-zinc-100">{l.municipio}</td>
-                    <td className="px-3 py-2 text-zinc-400">
+                    <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">{l.municipio}</td>
+                    <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">
                       {l.fornecedor ?? "Não classificado"}
                     </td>
-                    <td className="px-3 py-2 text-zinc-400">
+                    <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">
                       {l.canal_atendimento ?? "Não classificado"}
                     </td>
                     <td className="px-3 py-2">{cndBadge(l.status?.cnd_status)}</td>
                     <td className="px-3 py-2">{ratifBadge(l.status?.ratificacao_status)}</td>
-                    <td className="px-3 py-2 text-zinc-400">{l.status?.analista ?? "—"}</td>
-                    <td className="px-3 py-2 text-zinc-400">
+                    <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{l.status?.analista ?? "—"}</td>
+                    <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">
                       {ETAPAS.find((e) => e.value === l.status?.etapa_pipeline)?.label ?? "—"}
                     </td>
                   </tr>
