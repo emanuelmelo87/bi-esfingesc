@@ -31190,9 +31190,7 @@ This typically indicates that your device does not have a healthy Internet conne
 
   // src/progress.js
   var CND_URL = "https://virtual.tce.sc.gov.br/esfinge-web/esfinge-online/administracao/certidao/consulta-geral";
-  var RATIFICACOES_APP_ID = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
-  var RATIFICACOES_WS = "wss://paineistransparencia.tce.sc.gov.br/app/" + RATIFICACOES_APP_ID;
-  var RATIFICACOES_OBJECT_ID = "WMFemM";
+  var RATIFICACOES_URL = "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
   var logEl = document.getElementById("log");
   var modoLabelEl = document.getElementById("modo-label");
   var modo = new URLSearchParams(location.search).get("modo") || "manual";
@@ -31206,7 +31204,7 @@ This typically indicates that your device does not have a healthy Internet conne
     console.log("[Radar e-Sfinge]", msg);
   }
   function normalizar(nome) {
-    return nome.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim().replace(/\s+/g, " ");
+    return nome.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9\s]/g, " ").trim().replace(/\s+/g, " ");
   }
   function getGoogleToken() {
     return new Promise(function(resolve, reject) {
@@ -31316,17 +31314,49 @@ This typically indicates that your device does not have a healthy Internet conne
     log("CND: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
     return porIbge;
   }
-  function qlikCall(ws, id, method, handle, params) {
+  function extractRatificacoesGlobais() {
     return new Promise(function(resolve, reject) {
-      function onMsg(e2) {
-        const d = JSON.parse(e2.data);
-        if (d.id !== id) return;
-        ws.removeEventListener("message", onMsg);
-        if (d.error) reject(new Error(JSON.stringify(d.error)));
-        else resolve(d.result);
+      var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
+      var objectId = "WMFemM";
+      var ws = new WebSocket("wss://paineistransparencia.tce.sc.gov.br/app/" + appId);
+      var msgId = 1;
+      function call(method, handle, params) {
+        return new Promise(function(res, rej) {
+          var id = msgId++;
+          function onMsg(e2) {
+            var d = JSON.parse(e2.data);
+            if (d.id !== id) return;
+            ws.removeEventListener("message", onMsg);
+            if (d.error) rej(new Error(JSON.stringify(d.error)));
+            else res(d.result);
+          }
+          ws.addEventListener("message", onMsg);
+          ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, handle, params }));
+        });
       }
-      ws.addEventListener("message", onMsg);
-      ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, handle, params }));
+      ws.onerror = function() {
+        reject(new Error("Falha ao conectar no WebSocket do Qlik."));
+      };
+      ws.onopen = function() {
+        call("OpenDoc", -1, [appId]).then(function(openDoc) {
+          return call("GetObject", openDoc.qReturn.qHandle, [objectId]);
+        }).then(function(getObj) {
+          return call("GetHyperCubeData", getObj.qReturn.qHandle, [
+            "/qHyperCubeDef",
+            [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }]
+          ]);
+        }).then(function(dataPage) {
+          ws.close();
+          resolve(
+            dataPage.qDataPages[0].qMatrix.map(function(r2) {
+              return { anoMes: r2[0].qText, nomeMunicipio: r2[2].qText, situacao: r2[3].qText };
+            })
+          );
+        }).catch(function(err) {
+          ws.close();
+          reject(err);
+        });
+      };
     });
   }
   function mapSituacao(situacaoTexto) {
@@ -31335,27 +31365,13 @@ This typically indicates that your device does not have a healthy Internet conne
     return "ausente";
   }
   async function capturarRatificacoes(porNomeBusca) {
-    log("Conectando ao Qlik de Ratifica\xE7\xF5es Globais...");
-    const ws = new WebSocket(RATIFICACOES_WS);
-    await new Promise(function(resolve, reject) {
-      ws.onopen = resolve;
-      ws.onerror = function() {
-        reject(new Error("Falha ao conectar no WebSocket do Qlik."));
-      };
+    log("Abrindo Ratifica\xE7\xF5es Globais em aba oculta...");
+    const tab = await abrirAbaOculta(RATIFICACOES_URL);
+    const [{ result: rows }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractRatificacoesGlobais
     });
-    let id = 1;
-    const openDoc = await qlikCall(ws, id++, "OpenDoc", -1, [RATIFICACOES_APP_ID]);
-    const docHandle = openDoc.qReturn.qHandle;
-    const getObj = await qlikCall(ws, id++, "GetObject", docHandle, [RATIFICACOES_OBJECT_ID]);
-    const objHandle = getObj.qReturn.qHandle;
-    const dataPage = await qlikCall(ws, id++, "GetHyperCubeData", objHandle, [
-      "/qHyperCubeDef",
-      [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }]
-    ]);
-    ws.close();
-    const rows = dataPage.qDataPages[0].qMatrix.map(function(r2) {
-      return { anoMes: r2[0].qText, nomeMunicipio: r2[2].qText, situacao: r2[3].qText };
-    });
+    await fecharAba(tab);
     log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + (rows[0] ? rows[0].anoMes : "?") + ").");
     const porIbge = /* @__PURE__ */ new Map();
     let semMatch = 0;

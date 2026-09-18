@@ -22,7 +22,9 @@ function normalizar(nome) {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toUpperCase()
-    .trim();
+    .replace(/[^A-Z0-9\s]/g, " ") // pontuação (apóstrofo, hífen...) vira espaço, nunca some
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 const resp = await fetch(

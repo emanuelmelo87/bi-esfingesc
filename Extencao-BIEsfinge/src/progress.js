@@ -4,9 +4,11 @@ import { auth, db, ALLOWED_EMAIL_DOMAIN } from "./firebase-config.js";
 
 const CND_URL =
   "https://virtual.tce.sc.gov.br/esfinge-web/esfinge-online/administracao/certidao/consulta-geral";
-const RATIFICACOES_APP_ID = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
-const RATIFICACOES_WS = "wss://paineistransparencia.tce.sc.gov.br/app/" + RATIFICACOES_APP_ID;
-const RATIFICACOES_OBJECT_ID = "WMFemM"; // objeto "Tabela": Ano/Mês, Ranking, Nome Municipio, Situação
+const RATIFICACOES_URL =
+  "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
+// appId "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b", objeto "WMFemM" (Ano/Mês, Ranking, Nome
+// Municipio, Situação) — hardcoded dentro de extractRatificacoesGlobais, que roda injetada
+// numa aba e não pode fechar sobre constantes deste escopo.
 
 const logEl = document.getElementById("log");
 const modoLabelEl = document.getElementById("modo-label");
@@ -27,6 +29,7 @@ function normalizar(nome) {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, " ") // pontuação (apóstrofo, hífen...) vira espaço, nunca some
     .trim()
     .replace(/\s+/g, " ");
 }
@@ -153,19 +156,61 @@ async function capturarCND(porNomeBusca) {
   return porIbge;
 }
 
-// ── Componente 1b — Ratificações Globais (WebSocket direto, público) ────
+// ── Componente 1b — Ratificações Globais (WebSocket, injetado numa aba na
+// própria origem do Qlik — a mesma extração feita direto da página da extensão
+// é rejeitada pelo servidor por causa do Origin chrome-extension://) ────────
 
-function qlikCall(ws, id, method, handle, params) {
+// Autocontida: roda via chrome.scripting.executeScript dentro da aba, não pode
+// fechar sobre nada do escopo externo (ver nota no topo do arquivo).
+function extractRatificacoesGlobais() {
   return new Promise(function (resolve, reject) {
-    function onMsg(e) {
-      const d = JSON.parse(e.data);
-      if (d.id !== id) return;
-      ws.removeEventListener("message", onMsg);
-      if (d.error) reject(new Error(JSON.stringify(d.error)));
-      else resolve(d.result);
+    var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
+    var objectId = "WMFemM";
+    var ws = new WebSocket("wss://paineistransparencia.tce.sc.gov.br/app/" + appId);
+    var msgId = 1;
+
+    function call(method, handle, params) {
+      return new Promise(function (res, rej) {
+        var id = msgId++;
+        function onMsg(e) {
+          var d = JSON.parse(e.data);
+          if (d.id !== id) return;
+          ws.removeEventListener("message", onMsg);
+          if (d.error) rej(new Error(JSON.stringify(d.error)));
+          else res(d.result);
+        }
+        ws.addEventListener("message", onMsg);
+        ws.send(JSON.stringify({ jsonrpc: "2.0", id: id, method: method, handle: handle, params: params }));
+      });
     }
-    ws.addEventListener("message", onMsg);
-    ws.send(JSON.stringify({ jsonrpc: "2.0", id: id, method: method, handle: handle, params: params }));
+
+    ws.onerror = function () {
+      reject(new Error("Falha ao conectar no WebSocket do Qlik."));
+    };
+    ws.onopen = function () {
+      call("OpenDoc", -1, [appId])
+        .then(function (openDoc) {
+          return call("GetObject", openDoc.qReturn.qHandle, [objectId]);
+        })
+        .then(function (getObj) {
+          return call("GetHyperCubeData", getObj.qReturn.qHandle, [
+            "/qHyperCubeDef",
+            [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }],
+          ]);
+        })
+        .then(function (dataPage) {
+          ws.close();
+          resolve(
+            dataPage.qDataPages[0].qMatrix.map(function (r) {
+              return { anoMes: r[0].qText, nomeMunicipio: r[2].qText, situacao: r[3].qText };
+            })
+          );
+        })
+        .catch(function (err) {
+          ws.close();
+          reject(err);
+        });
+    };
   });
 }
 
@@ -176,30 +221,13 @@ function mapSituacao(situacaoTexto) {
 }
 
 async function capturarRatificacoes(porNomeBusca) {
-  log("Conectando ao Qlik de Ratificações Globais...");
-  const ws = new WebSocket(RATIFICACOES_WS);
-  await new Promise(function (resolve, reject) {
-    ws.onopen = resolve;
-    ws.onerror = function () { reject(new Error("Falha ao conectar no WebSocket do Qlik.")); };
+  log("Abrindo Ratificações Globais em aba oculta...");
+  const tab = await abrirAbaOculta(RATIFICACOES_URL);
+  const [{ result: rows }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: extractRatificacoesGlobais,
   });
-
-  let id = 1;
-  const openDoc = await qlikCall(ws, id++, "OpenDoc", -1, [RATIFICACOES_APP_ID]);
-  const docHandle = openDoc.qReturn.qHandle;
-  const getObj = await qlikCall(ws, id++, "GetObject", docHandle, [RATIFICACOES_OBJECT_ID]);
-  const objHandle = getObj.qReturn.qHandle;
-
-  // As linhas vêm ordenadas por Ano/Mês desc + Ranking asc — as primeiras 295 já são
-  // a competência mais recente, uma linha por município.
-  const dataPage = await qlikCall(ws, id++, "GetHyperCubeData", objHandle, [
-    "/qHyperCubeDef",
-    [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }],
-  ]);
-  ws.close();
-
-  const rows = dataPage.qDataPages[0].qMatrix.map(function (r) {
-    return { anoMes: r[0].qText, nomeMunicipio: r[2].qText, situacao: r[3].qText };
-  });
+  await fecharAba(tab);
   log("Ratificações: " + rows.length + " linhas (competência " + (rows[0] ? rows[0].anoMes : "?") + ").");
 
   const porIbge = new Map();
