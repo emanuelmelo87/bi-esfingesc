@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# service account keys
+service-account*.json
+/DadosChavesProjetos/
+
 # vercel
 .vercel
 
