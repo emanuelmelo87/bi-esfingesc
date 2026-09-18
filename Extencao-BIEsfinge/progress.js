@@ -31195,8 +31195,10 @@ This typically indicates that your device does not have a healthy Internet conne
   var QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
   var logEl = document.getElementById("log");
   var modoLabelEl = document.getElementById("modo-label");
-  var modo = new URLSearchParams(location.search).get("modo") || "manual";
-  modoLabelEl.textContent = "Modo: " + modo;
+  var urlParams = new URLSearchParams(location.search);
+  var modo = urlParams.get("modo") || "manual";
+  var competenciaAlvo = urlParams.get("competencia") || null;
+  modoLabelEl.textContent = "Modo: " + modo + (competenciaAlvo ? " (compet\xEAncia " + competenciaAlvo + ")" : "");
   function log(msg, kind) {
     const line = document.createElement("div");
     line.className = kind ? "log-" + kind : "";
@@ -31316,12 +31318,13 @@ This typically indicates that your device does not have a healthy Internet conne
     log("CND: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
     return porIbge;
   }
-  function extractRatificacoesGlobais() {
+  function extractRatificacoesGlobais(competenciaAlvo2) {
     return new Promise(function(resolve, reject) {
       var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
       var objectId = "WMFemM";
       var ws = new WebSocket("wss://paineistransparencia.tce.sc.gov.br/app/" + appId);
       var msgId = 1;
+      var PAGE_SIZE = 2e3;
       function call(method, handle, params) {
         return new Promise(function(res, rej) {
           var id = msgId++;
@@ -31336,6 +31339,9 @@ This typically indicates that your device does not have a healthy Internet conne
           ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, handle, params }));
         });
       }
+      function linha(r2) {
+        return { anoMes: r2[0].qText, nomeMunicipio: r2[2].qText, situacao: r2[3].qText };
+      }
       ws.onerror = function() {
         reject(new Error("Falha ao conectar no WebSocket do Qlik."));
       };
@@ -31343,17 +31349,35 @@ This typically indicates that your device does not have a healthy Internet conne
         call("OpenDoc", -1, [appId]).then(function(openDoc) {
           return call("GetObject", openDoc.qReturn.qHandle, [objectId]);
         }).then(function(getObj) {
-          return call("GetHyperCubeData", getObj.qReturn.qHandle, [
-            "/qHyperCubeDef",
-            [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }]
-          ]);
-        }).then(function(dataPage) {
+          var objHandle = getObj.qReturn.qHandle;
+          if (!competenciaAlvo2) {
+            return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }]]).then(
+              function(dataPage) {
+                return dataPage.qDataPages[0].qMatrix.map(linha);
+              }
+            );
+          }
+          return call("GetLayout", objHandle, []).then(function(layoutRes) {
+            var total = layoutRes.qLayout.qHyperCube.qSize.qcy;
+            var linhas = [];
+            function buscarPagina(top) {
+              var altura = Math.min(PAGE_SIZE, total - top);
+              return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: altura, qWidth: 4 }]]).then(
+                function(dataPage) {
+                  dataPage.qDataPages[0].qMatrix.forEach(function(r2) {
+                    var l2 = linha(r2);
+                    if (l2.anoMes === competenciaAlvo2) linhas.push(l2);
+                  });
+                  if (top + altura < total) return buscarPagina(top + altura);
+                  return linhas;
+                }
+              );
+            }
+            return buscarPagina(0);
+          });
+        }).then(function(linhas) {
           ws.close();
-          resolve(
-            dataPage.qDataPages[0].qMatrix.map(function(r2) {
-              return { anoMes: r2[0].qText, nomeMunicipio: r2[2].qText, situacao: r2[3].qText };
-            })
-          );
+          resolve(linhas);
         }).catch(function(err) {
           ws.close();
           reject(err);
@@ -31366,15 +31390,19 @@ This typically indicates that your device does not have a healthy Internet conne
     if (situacaoTexto.indexOf("Fora do Prazo") >= 0) return "atrasado";
     return "ausente";
   }
-  async function capturarRatificacoes(porNomeBusca) {
-    log("Abrindo Ratifica\xE7\xF5es Globais em aba oculta...");
+  async function capturarRatificacoes(porNomeBusca, competenciaAlvo2) {
+    log(
+      competenciaAlvo2 ? "Abrindo Ratifica\xE7\xF5es Globais para a compet\xEAncia " + competenciaAlvo2 + "..." : "Abrindo Ratifica\xE7\xF5es Globais em aba oculta..."
+    );
     const tab = await abrirAbaOculta(RATIFICACOES_URL);
     const [{ result: rows }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: extractRatificacoesGlobais
+      func: extractRatificacoesGlobais,
+      args: [competenciaAlvo2 || null]
     });
     await fecharAba(tab);
-    log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + (rows[0] ? rows[0].anoMes : "?") + ").");
+    const competencia = competenciaAlvo2 || (rows[0] ? rows[0].anoMes : null);
+    log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + (competencia || "?") + ").");
     const porIbge = /* @__PURE__ */ new Map();
     let semMatch = 0;
     for (const row of rows) {
@@ -31390,7 +31418,7 @@ This typically indicates that your device does not have a healthy Internet conne
       });
     }
     log("Ratifica\xE7\xF5es: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    return porIbge;
+    return { porIbge, competencia };
   }
   function readTokenFromPage() {
     var t2 = localStorage.getItem("token");
@@ -31660,11 +31688,12 @@ This typically indicates that your device does not have a healthy Internet conne
     });
     return algumFalhou ? "pendente" : "ok";
   }
-  async function capturarModulos(porNomeBusca) {
+  async function capturarModulos(porNomeBusca, competenciaAlvo2) {
+    const vazio = { porIbge: /* @__PURE__ */ new Map(), competencia: null };
     const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
     if (!tce_matricula || !tce_senha) {
       log("M\xF3dulos por \xE1rea: credenciais do TCE n\xE3o configuradas \u2014 pulando.", "info");
-      return /* @__PURE__ */ new Map();
+      return vazio;
     }
     log("Fazendo login no TCE Virtual...");
     const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
@@ -31680,25 +31709,28 @@ This typically indicates that your device does not have a healthy Internet conne
       if (aindaLogin) {
         await fecharAba(loginTab);
         log("Login no TCE falhou \u2014 verifique a matr\xEDcula/senha configuradas.", "err");
-        return /* @__PURE__ */ new Map();
+        return vazio;
       }
     }
     const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
     if (!jwt) {
       await fecharAba(loginTab);
       log("N\xE3o foi poss\xEDvel ler o token de sess\xE3o do TCE.", "err");
-      return /* @__PURE__ */ new Map();
+      return vazio;
     }
     log("Login no TCE confirmado. Obtendo ticket Qlik...", "ok");
     const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
     await fecharAba(loginTab);
     if (!ticket || typeof ticket !== "string") {
       log("Ticket Qlik inv\xE1lido.", "err");
-      return /* @__PURE__ */ new Map();
+      return vazio;
     }
-    const hoje = /* @__PURE__ */ new Date();
-    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-    const periodo = String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+    let periodo = competenciaAlvo2;
+    if (!periodo) {
+      const hoje = /* @__PURE__ */ new Date();
+      const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      periodo = String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+    }
     log("Abrindo Qlik de m\xF3dulos (per\xEDodo " + periodo + ")...");
     const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
     const [{ result: rawData }] = await chrome.scripting.executeScript({
@@ -31709,7 +31741,7 @@ This typically indicates that your device does not have a healthy Internet conne
     await fecharAba(qlikTab);
     if (!rawData || rawData.error) {
       log("M\xF3dulos: " + (rawData ? rawData.error : "sem resposta do Qlik") + ".", "err");
-      return /* @__PURE__ */ new Map();
+      return vazio;
     }
     log("M\xF3dulos: " + rawData.length + " linhas raspadas.");
     const docsPorEntidade = /* @__PURE__ */ new Map();
@@ -31750,7 +31782,7 @@ This typically indicates that your device does not have a healthy Internet conne
       porIbge.set(municipio.codigo_ibge, { modulos });
     }
     log("M\xF3dulos: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    return porIbge;
+    return { porIbge, competencia: periodo };
   }
   async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
     if (porIbge.size === 0) {
@@ -31771,6 +31803,29 @@ This typically indicates that your device does not have a healthy Internet conne
     }
     await batch.commit();
     log("Gravados " + porIbge.size + " documentos em status_operacional_atual.", "ok");
+    return porIbge.size;
+  }
+  function competenciaParaId(competencia) {
+    const [mes, ano] = competencia.split("/");
+    return ano + "-" + mes;
+  }
+  async function gravarStatusPorCompetencia(competencia, porIbge, porIbgeMunicipios) {
+    if (!competencia || porIbge.size === 0) return 0;
+    const idCompetencia = competenciaParaId(competencia);
+    const batch = writeBatch(db);
+    for (const [codigoIbge, campos] of porIbge) {
+      const municipio = porIbgeMunicipios.get(codigoIbge);
+      batch.set(
+        doc(db, "status_por_competencia", idCompetencia + "_" + codigoIbge),
+        Object.assign(
+          { codigo_ibge: codigoIbge, municipio: municipio ? municipio.nome : "", competencia, atualizado_em: serverTimestamp() },
+          campos
+        ),
+        { merge: true }
+      );
+    }
+    await batch.commit();
+    log("Gravados " + porIbge.size + " documentos em status_por_competencia (" + competencia + ").", "ok");
     return porIbge.size;
   }
   function mesclarMapas(a, b2) {
@@ -31804,12 +31859,31 @@ This typically indicates that your device does not have a healthy Internet conne
         return;
       }
       const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
+      if (competenciaAlvo) {
+        const ratif2 = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
+        const modulos2 = await capturarModulos(porNomeBusca, competenciaAlvo);
+        const totalRatif = await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
+        const totalModulos = await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
+        await chrome.storage.local.set({
+          last_execution: {
+            resumo: "Backfill " + competenciaAlvo + ": " + totalRatif + " ratifica\xE7\xF5es, " + totalModulos + " m\xF3dulos",
+            timestamp: Date.now()
+          }
+        });
+        log("Conclu\xEDdo.", "ok");
+        if (modo === "alarme") setTimeout(function() {
+          window.close();
+        }, 2e3);
+        return;
+      }
       const cndPorIbge = await capturarCND(porNomeBusca);
-      const ratifPorIbge = await capturarRatificacoes(porNomeBusca);
-      const modulosPorIbge = await capturarModulos(porNomeBusca);
-      const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratifPorIbge), modulosPorIbge);
+      const ratif = await capturarRatificacoes(porNomeBusca);
+      const modulos = await capturarModulos(porNomeBusca);
+      const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
       const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
       const totalSnapshot = await gravarSnapshotsDiarios();
+      await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
+      await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       await chrome.storage.local.set({
         last_execution: {
           resumo: total + " munic\xEDpios atualizados, " + totalSnapshot + " snapshots gravados",

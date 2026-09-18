@@ -19,8 +19,17 @@ document.getElementById("btn-signout").addEventListener("click", function () {
 });
 
 document.getElementById("btn-sync").addEventListener("click", function () {
+  var competencia = document.getElementById("competencia-backfill").value.trim();
+  if (competencia && !/^\d{2}\/\d{4}$/.test(competencia)) {
+    document.getElementById("sync-status").textContent = "Competência precisa estar no formato MM/AAAA.";
+    document.getElementById("sync-status").className = "status err";
+    return;
+  }
   document.getElementById("sync-status").textContent = "Abrindo captura...";
-  chrome.tabs.create({ url: chrome.runtime.getURL("progress.html") + "?modo=manual" });
+  document.getElementById("sync-status").className = "status";
+  var url = chrome.runtime.getURL("progress.html") + "?modo=manual";
+  if (competencia) url += "&competencia=" + encodeURIComponent(competencia);
+  chrome.tabs.create({ url: url });
 });
 
 function renderAuth(authStatus) {

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, doc, getDocs, onSnapshot, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, query, serverTimestamp, where, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { exportCsv } from "@/lib/csv";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import type { EtapaPipeline, Municipio, StatusOperacionalAtual } from "@/types/municipio";
+import type { StatusPorCompetencia } from "@/types/competencia";
 
 const ETAPAS: { value: EtapaPipeline; label: string }[] = [
   { value: "nao_iniciado", label: "Não iniciado" },
@@ -21,7 +22,10 @@ type Linha = {
   municipio: string;
   fornecedor: string | null;
   canal_atendimento: string | null;
-  status?: StatusOperacionalAtual;
+  cnd_status: string | null;
+  ratificacao_status: string | null;
+  analista: string | null;
+  etapa_pipeline: EtapaPipeline | null;
 };
 
 function cndBadge(status: string | null | undefined) {
@@ -40,9 +44,10 @@ function ratifBadge(status: string | null | undefined) {
 export default function PipelinePage() {
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
   const [statusPorIbge, setStatusPorIbge] = useState<Map<string, StatusOperacionalAtual>>(new Map());
+  const [historicoPorIbge, setHistoricoPorIbge] = useState<Map<string, StatusPorCompetencia>>(new Map());
   const [carregando, setCarregando] = useState(true);
 
-  const [filtroCompetencia, setFiltroCompetencia] = useState("");
+  const [competencia, setCompetencia] = useState(""); // "" = atual; "MM/AAAA" = histórico
   const [filtroCanal, setFiltroCanal] = useState("todos");
   const [filtroFornecedor, setFiltroFornecedor] = useState("todos");
   const [filtroEtapa, setFiltroEtapa] = useState("todos");
@@ -54,6 +59,8 @@ export default function PipelinePage() {
   const [salvandoLote, setSalvandoLote] = useState(false);
 
   const { user, perfil } = useAuth();
+  const usandoHistorico = competencia.trim() !== "";
+  const podeEditar = perfil !== "LEITURA" && !usandoHistorico;
 
   useEffect(() => {
     if (!user) return;
@@ -73,16 +80,37 @@ export default function PipelinePage() {
     return unsub;
   }, [user]);
 
+  useEffect(() => {
+    if (!user || !usandoHistorico) return;
+    const q = query(collection(db, "status_por_competencia"), where("competencia", "==", competencia.trim()));
+    const unsub = onSnapshot(q, (snap) => {
+      const proximo = new Map<string, StatusPorCompetencia>();
+      snap.forEach((d) => {
+        const dados = d.data() as StatusPorCompetencia;
+        proximo.set(dados.codigo_ibge, dados);
+      });
+      setHistoricoPorIbge(proximo);
+    });
+    return unsub;
+  }, [user, usandoHistorico, competencia]);
+
   const linhas: Linha[] = useMemo(
     () =>
-      municipios.map((m) => ({
-        codigo_ibge: m.codigo_ibge,
-        municipio: m.nome,
-        fornecedor: m.fornecedor,
-        canal_atendimento: statusPorIbge.get(m.codigo_ibge)?.canal_atendimento_override ?? m.canal_atendimento,
-        status: statusPorIbge.get(m.codigo_ibge),
-      })),
-    [municipios, statusPorIbge]
+      municipios.map((m) => {
+        const atual = statusPorIbge.get(m.codigo_ibge);
+        const historico = historicoPorIbge.get(m.codigo_ibge);
+        return {
+          codigo_ibge: m.codigo_ibge,
+          municipio: m.nome,
+          fornecedor: m.fornecedor,
+          canal_atendimento: atual?.canal_atendimento_override ?? m.canal_atendimento,
+          cnd_status: usandoHistorico ? null : atual?.cnd_status ?? null,
+          ratificacao_status: usandoHistorico ? historico?.ratificacao_status ?? null : atual?.ratificacao_status ?? null,
+          analista: usandoHistorico ? null : atual?.analista ?? null,
+          etapa_pipeline: usandoHistorico ? null : atual?.etapa_pipeline ?? null,
+        };
+      }),
+    [municipios, statusPorIbge, historicoPorIbge, usandoHistorico]
   );
 
   const canaisDisponiveis = useMemo(
@@ -91,10 +119,9 @@ export default function PipelinePage() {
   );
 
   const linhasFiltradas = linhas.filter((l) => {
-    if (filtroCompetencia && l.status?.competencia_referencia !== filtroCompetencia) return false;
     if (filtroCanal !== "todos" && (l.canal_atendimento ?? "") !== filtroCanal) return false;
     if (filtroFornecedor !== "todos" && (l.fornecedor ?? "") !== filtroFornecedor) return false;
-    if (filtroEtapa !== "todos" && (l.status?.etapa_pipeline ?? "") !== filtroEtapa) return false;
+    if (filtroEtapa !== "todos" && (l.etapa_pipeline ?? "") !== filtroEtapa) return false;
     return true;
   });
 
@@ -138,15 +165,15 @@ export default function PipelinePage() {
 
   function exportar() {
     exportCsv(
-      "pipeline.csv",
+      usandoHistorico ? `pipeline_${competencia.trim().replace("/", "-")}.csv` : "pipeline.csv",
       linhasFiltradas.map((l) => ({
         municipio: l.municipio,
         fornecedor: l.fornecedor ?? "",
         canal_atendimento: l.canal_atendimento ?? "",
-        cnd_status: l.status?.cnd_status ?? "",
-        ratificacao_status: l.status?.ratificacao_status ?? "",
-        analista: l.status?.analista ?? "",
-        etapa_pipeline: l.status?.etapa_pipeline ?? "",
+        cnd_status: l.cnd_status ?? "",
+        ratificacao_status: l.ratificacao_status ?? "",
+        analista: l.analista ?? "",
+        etapa_pipeline: l.etapa_pipeline ?? "",
       }))
     );
   }
@@ -160,7 +187,9 @@ export default function PipelinePage() {
     <RequireAuth>
       <main className="flex-1 px-6 py-6">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Pipeline — 295 Municípios</h1>
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+            Pipeline — 295 Municípios{usandoHistorico ? ` (competência ${competencia.trim()})` : ""}
+          </h1>
           <button
             onClick={exportar}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -171,35 +200,23 @@ export default function PipelinePage() {
 
         <div className="mb-4 flex flex-wrap gap-3">
           <input
-            placeholder="Competência (MM/AAAA)"
-            value={filtroCompetencia}
-            onChange={(e) => setFiltroCompetencia(e.target.value)}
+            placeholder="Competência (MM/AAAA) — vazio = atual"
+            value={competencia}
+            onChange={(e) => setCompetencia(e.target.value)}
             className={inputClass}
           />
-          <select
-            value={filtroCanal}
-            onChange={(e) => setFiltroCanal(e.target.value)}
-            className={inputClass}
-          >
+          <select value={filtroCanal} onChange={(e) => setFiltroCanal(e.target.value)} className={inputClass}>
             <option value="todos">Canal: todos</option>
             {canaisDisponiveis.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <select
-            value={filtroFornecedor}
-            onChange={(e) => setFiltroFornecedor(e.target.value)}
-            className={inputClass}
-          >
+          <select value={filtroFornecedor} onChange={(e) => setFiltroFornecedor(e.target.value)} className={inputClass}>
             <option value="todos">Fornecedor: todos</option>
             <option value="Betha">Betha</option>
             <option value="Concorrente">Concorrente</option>
           </select>
-          <select
-            value={filtroEtapa}
-            onChange={(e) => setFiltroEtapa(e.target.value)}
-            className={inputClass}
-          >
+          <select value={filtroEtapa} onChange={(e) => setFiltroEtapa(e.target.value)} className={inputClass}>
             <option value="todos">Etapa: todas</option>
             {ETAPAS.map((e) => (
               <option key={e.value} value={e.value}>{e.label}</option>
@@ -207,7 +224,15 @@ export default function PipelinePage() {
           </select>
         </div>
 
-        {selecionados.size > 0 && perfil !== "LEITURA" && (
+        {usandoHistorico && (
+          <p className="mb-4 text-xs text-zinc-500">
+            Visualização histórica (somente leitura) — CND, analista e etapa não existem por
+            competência, só ratificação. Limpe o campo de competência para voltar ao estado atual
+            e poder editar.
+          </p>
+        )}
+
+        {selecionados.size > 0 && podeEditar && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-vinho bg-zinc-100 px-3 py-2 dark:bg-zinc-900">
             <span className="text-sm text-zinc-700 dark:text-zinc-300">{selecionados.size} selecionado(s):</span>
             <input
@@ -250,7 +275,7 @@ export default function PipelinePage() {
               <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                 <tr>
                   <th className="px-3 py-2">
-                    {perfil !== "LEITURA" && (
+                    {podeEditar && (
                       <input
                         type="checkbox"
                         checked={selecionados.size === linhasFiltradas.length && linhasFiltradas.length > 0}
@@ -271,7 +296,7 @@ export default function PipelinePage() {
                 {linhasFiltradas.map((l) => (
                   <tr key={l.codigo_ibge} className="border-t border-zinc-200 hover:bg-zinc-100/60 dark:border-zinc-800 dark:hover:bg-zinc-900/60">
                     <td className="px-3 py-2">
-                      {perfil !== "LEITURA" && (
+                      {podeEditar && (
                         <input
                           type="checkbox"
                           checked={selecionados.has(l.codigo_ibge)}
@@ -286,11 +311,11 @@ export default function PipelinePage() {
                     <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">
                       {l.canal_atendimento ?? "Não classificado"}
                     </td>
-                    <td className="px-3 py-2">{cndBadge(l.status?.cnd_status)}</td>
-                    <td className="px-3 py-2">{ratifBadge(l.status?.ratificacao_status)}</td>
-                    <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{l.status?.analista ?? "—"}</td>
+                    <td className="px-3 py-2">{cndBadge(l.cnd_status)}</td>
+                    <td className="px-3 py-2">{ratifBadge(l.ratificacao_status)}</td>
+                    <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{l.analista ?? "—"}</td>
                     <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">
-                      {ETAPAS.find((e) => e.value === l.status?.etapa_pipeline)?.label ?? "—"}
+                      {ETAPAS.find((e) => e.value === l.etapa_pipeline)?.label ?? "—"}
                     </td>
                   </tr>
                 ))}

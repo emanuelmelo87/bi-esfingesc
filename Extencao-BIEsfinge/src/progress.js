@@ -16,8 +16,12 @@ const QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/Extrat
 
 const logEl = document.getElementById("log");
 const modoLabelEl = document.getElementById("modo-label");
-const modo = new URLSearchParams(location.search).get("modo") || "manual";
-modoLabelEl.textContent = "Modo: " + modo;
+const urlParams = new URLSearchParams(location.search);
+const modo = urlParams.get("modo") || "manual";
+// "MM/AAAA" — quando presente, este run busca só essa competência (backfill),
+// sem tocar em status_operacional_atual/snapshots_diarios (que são "estado atual").
+const competenciaAlvo = urlParams.get("competencia") || null;
+modoLabelEl.textContent = "Modo: " + modo + (competenciaAlvo ? " (competência " + competenciaAlvo + ")" : "");
 
 function log(msg, kind) {
   const line = document.createElement("div");
@@ -166,12 +170,19 @@ async function capturarCND(porNomeBusca) {
 
 // Autocontida: roda via chrome.scripting.executeScript dentro da aba, não pode
 // fechar sobre nada do escopo externo (ver nota no topo do arquivo).
-function extractRatificacoesGlobais() {
+//
+// Sem competenciaAlvo: busca só as 295 primeiras linhas (a competência mais
+// recente, já ordenada assim pelo Qlik) — rápido, usado no fluxo normal.
+// Com competenciaAlvo ("MM/AAAA"): pagina a tabela inteira (~9 mil linhas,
+// todo o histórico desde 2024) e filtra só as linhas daquela competência —
+// usado no backfill de uma competência específica.
+function extractRatificacoesGlobais(competenciaAlvo) {
   return new Promise(function (resolve, reject) {
     var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
     var objectId = "WMFemM";
     var ws = new WebSocket("wss://paineistransparencia.tce.sc.gov.br/app/" + appId);
     var msgId = 1;
+    var PAGE_SIZE = 2000;
 
     function call(method, handle, params) {
       return new Promise(function (res, rej) {
@@ -188,6 +199,10 @@ function extractRatificacoesGlobais() {
       });
     }
 
+    function linha(r) {
+      return { anoMes: r[0].qText, nomeMunicipio: r[2].qText, situacao: r[3].qText };
+    }
+
     ws.onerror = function () {
       reject(new Error("Falha ao conectar no WebSocket do Qlik."));
     };
@@ -197,18 +212,36 @@ function extractRatificacoesGlobais() {
           return call("GetObject", openDoc.qReturn.qHandle, [objectId]);
         })
         .then(function (getObj) {
-          return call("GetHyperCubeData", getObj.qReturn.qHandle, [
-            "/qHyperCubeDef",
-            [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }],
-          ]);
+          var objHandle = getObj.qReturn.qHandle;
+          if (!competenciaAlvo) {
+            return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }]]).then(
+              function (dataPage) {
+                return dataPage.qDataPages[0].qMatrix.map(linha);
+              }
+            );
+          }
+          return call("GetLayout", objHandle, []).then(function (layoutRes) {
+            var total = layoutRes.qLayout.qHyperCube.qSize.qcy;
+            var linhas = [];
+            function buscarPagina(top) {
+              var altura = Math.min(PAGE_SIZE, total - top);
+              return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: altura, qWidth: 4 }]]).then(
+                function (dataPage) {
+                  dataPage.qDataPages[0].qMatrix.forEach(function (r) {
+                    var l = linha(r);
+                    if (l.anoMes === competenciaAlvo) linhas.push(l);
+                  });
+                  if (top + altura < total) return buscarPagina(top + altura);
+                  return linhas;
+                }
+              );
+            }
+            return buscarPagina(0);
+          });
         })
-        .then(function (dataPage) {
+        .then(function (linhas) {
           ws.close();
-          resolve(
-            dataPage.qDataPages[0].qMatrix.map(function (r) {
-              return { anoMes: r[0].qText, nomeMunicipio: r[2].qText, situacao: r[3].qText };
-            })
-          );
+          resolve(linhas);
         })
         .catch(function (err) {
           ws.close();
@@ -224,15 +257,21 @@ function mapSituacao(situacaoTexto) {
   return "ausente";
 }
 
-async function capturarRatificacoes(porNomeBusca) {
-  log("Abrindo Ratificações Globais em aba oculta...");
+async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
+  log(
+    competenciaAlvo
+      ? "Abrindo Ratificações Globais para a competência " + competenciaAlvo + "..."
+      : "Abrindo Ratificações Globais em aba oculta..."
+  );
   const tab = await abrirAbaOculta(RATIFICACOES_URL);
   const [{ result: rows }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: extractRatificacoesGlobais,
+    args: [competenciaAlvo || null],
   });
   await fecharAba(tab);
-  log("Ratificações: " + rows.length + " linhas (competência " + (rows[0] ? rows[0].anoMes : "?") + ").");
+  const competencia = competenciaAlvo || (rows[0] ? rows[0].anoMes : null);
+  log("Ratificações: " + rows.length + " linhas (competência " + (competencia || "?") + ").");
 
   const porIbge = new Map();
   let semMatch = 0;
@@ -249,7 +288,7 @@ async function capturarRatificacoes(porNomeBusca) {
     });
   }
   log("Ratificações: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-  return porIbge;
+  return { porIbge, competencia };
 }
 
 // ── Componente 2 — Status de Módulos por Área (restrito, precisa de login
@@ -501,11 +540,12 @@ function statusArea(area, doc) {
   return algumFalhou ? "pendente" : "ok";
 }
 
-async function capturarModulos(porNomeBusca) {
+async function capturarModulos(porNomeBusca, competenciaAlvo) {
+  const vazio = { porIbge: new Map(), competencia: null };
   const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
   if (!tce_matricula || !tce_senha) {
     log("Módulos por área: credenciais do TCE não configuradas — pulando.", "info");
-    return new Map();
+    return vazio;
   }
 
   log("Fazendo login no TCE Virtual...");
@@ -522,14 +562,14 @@ async function capturarModulos(porNomeBusca) {
     if (aindaLogin) {
       await fecharAba(loginTab);
       log("Login no TCE falhou — verifique a matrícula/senha configuradas.", "err");
-      return new Map();
+      return vazio;
     }
   }
   const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
   if (!jwt) {
     await fecharAba(loginTab);
     log("Não foi possível ler o token de sessão do TCE.", "err");
-    return new Map();
+    return vazio;
   }
   log("Login no TCE confirmado. Obtendo ticket Qlik...", "ok");
   const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
@@ -537,12 +577,15 @@ async function capturarModulos(porNomeBusca) {
 
   if (!ticket || typeof ticket !== "string") {
     log("Ticket Qlik inválido.", "err");
-    return new Map();
+    return vazio;
   }
 
-  const hoje = new Date();
-  const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-  const periodo = String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+  let periodo = competenciaAlvo;
+  if (!periodo) {
+    const hoje = new Date();
+    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    periodo = String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+  }
 
   log("Abrindo Qlik de módulos (período " + periodo + ")...");
   const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
@@ -555,7 +598,7 @@ async function capturarModulos(porNomeBusca) {
 
   if (!rawData || rawData.error) {
     log("Módulos: " + (rawData ? rawData.error : "sem resposta do Qlik") + ".", "err");
-    return new Map();
+    return vazio;
   }
   log("Módulos: " + rawData.length + " linhas raspadas.");
 
@@ -601,7 +644,7 @@ async function capturarModulos(porNomeBusca) {
     porIbge.set(municipio.codigo_ibge, { modulos });
   }
   log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-  return porIbge;
+  return { porIbge, competencia: periodo };
 }
 
 // ── Gravação combinada no Firestore ──────────────────────────────────────
@@ -625,6 +668,31 @@ async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
   }
   await batch.commit();
   log("Gravados " + porIbge.size + " documentos em status_operacional_atual.", "ok");
+  return porIbge.size;
+}
+
+function competenciaParaId(competencia) {
+  const [mes, ano] = competencia.split("/");
+  return ano + "-" + mes;
+}
+
+async function gravarStatusPorCompetencia(competencia, porIbge, porIbgeMunicipios) {
+  if (!competencia || porIbge.size === 0) return 0;
+  const idCompetencia = competenciaParaId(competencia);
+  const batch = writeBatch(db);
+  for (const [codigoIbge, campos] of porIbge) {
+    const municipio = porIbgeMunicipios.get(codigoIbge);
+    batch.set(
+      doc(db, "status_por_competencia", idCompetencia + "_" + codigoIbge),
+      Object.assign(
+        { codigo_ibge: codigoIbge, municipio: municipio ? municipio.nome : "", competencia: competencia, atualizado_em: serverTimestamp() },
+        campos
+      ),
+      { merge: true }
+    );
+  }
+  await batch.commit();
+  log("Gravados " + porIbge.size + " documentos em status_por_competencia (" + competencia + ").", "ok");
   return porIbge.size;
 }
 
@@ -670,12 +738,36 @@ async function main() {
 
     const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
 
+    if (competenciaAlvo) {
+      // Backfill de uma competência específica: não mexe em status_operacional_atual
+      // nem em snapshots_diarios (que representam o "estado atual"), só acumula
+      // histórico em status_por_competencia. CND não entra — não tem esse conceito.
+      const ratif = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
+      const modulos = await capturarModulos(porNomeBusca, competenciaAlvo);
+      const totalRatif = await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
+      const totalModulos = await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+
+      await chrome.storage.local.set({
+        last_execution: {
+          resumo: "Backfill " + competenciaAlvo + ": " + totalRatif + " ratificações, " + totalModulos + " módulos",
+          timestamp: Date.now(),
+        },
+      });
+      log("Concluído.", "ok");
+      if (modo === "alarme") setTimeout(function () { window.close(); }, 2000);
+      return;
+    }
+
     const cndPorIbge = await capturarCND(porNomeBusca);
-    const ratifPorIbge = await capturarRatificacoes(porNomeBusca);
-    const modulosPorIbge = await capturarModulos(porNomeBusca);
-    const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratifPorIbge), modulosPorIbge);
+    const ratif = await capturarRatificacoes(porNomeBusca);
+    const modulos = await capturarModulos(porNomeBusca);
+    const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
     const totalSnapshot = await gravarSnapshotsDiarios();
+    // Acumula a competência "atual" de cada fonte no histórico também, pra ir
+    // formando a série de status_por_competencia sem precisar de backfill manual.
+    await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
+    await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
 
     await chrome.storage.local.set({
       last_execution: {

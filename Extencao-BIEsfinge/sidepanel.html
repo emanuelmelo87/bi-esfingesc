@@ -94,6 +94,14 @@
       <div class="exec-time" id="exec-timestamp"></div>
     </div>
 
+    <label>Competência (opcional)</label>
+    <input type="text" id="competencia-backfill" placeholder="MM/AAAA — deixe em branco para o normal">
+    <div style="font-size:10px;color:#777;line-height:1.4;margin-bottom:8px">
+      Em branco: captura o mês anterior (módulos) e a competência mais recente
+      (ratificação), como sempre. Preenchido: busca só essa competência e grava
+      no histórico, sem alterar o status atual — use pra completar meses passados.
+    </div>
+
     <button class="btn-sync" id="btn-sync">Sincronizar agora</button>
     <div class="status" id="sync-status"></div>
   </div>

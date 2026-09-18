@@ -37,6 +37,10 @@ service cloud.firestore {
       allow read, write: if isBethaUser();
     }
 
+    match /status_por_competencia/{id} {
+      allow read, write: if isBethaUser();
+    }
+
     match /atribuicoes_municipios/{id} {
       allow read: if isBethaUser();
       allow write: if isBethaUser() && isAdmin();
