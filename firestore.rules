@@ -1,13 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function emailDoUsuario() {
+      return request.auth.token.email.lower();
+    }
+
+    function isActive() {
+      let ref = /databases/$(database)/documents/usuarios/$(emailDoUsuario());
+      return !exists(ref) || get(ref).data.ativo != false;
+    }
+
     function isBethaUser() {
       return request.auth != null
-        && request.auth.token.email.matches('.*@betha[.]com[.]br$');
+        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+        && isActive();
+    }
+
+    function isAdmin() {
+      let ref = /databases/$(database)/documents/usuarios/$(emailDoUsuario());
+      return exists(ref)
+        && get(ref).data.perfil == 'ADMIN_GERAL'
+        && get(ref).data.ativo == true;
     }
 
     match /municipios/{id} {
-      allow read, write: if isBethaUser();
+      allow read: if isBethaUser();
+      allow write: if isBethaUser() && isAdmin();
     }
 
     match /status_operacional_atual/{id} {
@@ -16,6 +35,34 @@ service cloud.firestore {
 
     match /snapshots_diarios/{id} {
       allow read, write: if isBethaUser();
+    }
+
+    match /atribuicoes_municipios/{id} {
+      allow read: if isBethaUser();
+      allow write: if isBethaUser() && isAdmin();
+    }
+
+    match /usuarios/{email} {
+      allow read: if request.auth != null
+        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+        && (emailDoUsuario() == email || isAdmin());
+
+      allow create: if request.auth != null
+        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+        && emailDoUsuario() == email
+        && request.resource.data.email == email
+        && request.resource.data.perfil == 'LEITURA'
+        && request.resource.data.ativo == true;
+
+      allow update: if request.auth != null
+        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+        && (
+          (emailDoUsuario() == email
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimo_login']))
+          || isAdmin()
+        );
+
+      allow delete: if false;
     }
   }
 }

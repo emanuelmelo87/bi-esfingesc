@@ -6,6 +6,7 @@ export type Municipio = {
   nome_busca: string;
   fornecedor: "Betha" | "Concorrente" | null;
   canal_atendimento: string | null;
+  monitoramento_ativo?: boolean; // ausente/undefined = tratado como true
 };
 
 export type ModuloStatus = {
@@ -48,4 +49,9 @@ export type StatusOperacionalAtual = {
   competencia_referencia: string | null;
 
   atualizado_em: Timestamp;
+};
+
+export type SnapshotDiario = StatusOperacionalAtual & {
+  data: string; // "YYYY-MM-DD"
+  timestamp_execucao: Timestamp;
 };

@@ -4,14 +4,21 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 
-const NAV_LINKS = [
+const BASE_LINKS = [
   { href: "/", label: "Início" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/matriz", label: "Matriz de Módulos" },
+  { href: "/evolucao", label: "Evolução" },
+];
+
+const ADMIN_LINKS = [
+  { href: "/admin/municipios", label: "Municípios (Admin)" },
+  { href: "/admin/usuarios", label: "Usuários (Admin)" },
+  { href: "/admin/permissoes", label: "Permissões (Admin)" },
 ];
 
 export default function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading, error, signIn } = useAuth();
+  const { user, loading, error, signIn, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -43,10 +50,12 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
+  const links = isAdmin ? [...BASE_LINKS, ...ADMIN_LINKS] : BASE_LINKS;
+
   return (
     <>
-      <nav className="flex gap-4 border-b border-zinc-800 px-6 py-3 text-sm">
-        {NAV_LINKS.map((link) => (
+      <nav className="flex flex-wrap gap-4 border-b border-zinc-800 px-6 py-3 text-sm">
+        {links.map((link) => (
           <Link key={link.href} href={link.href} className="text-zinc-300 hover:text-white">
             {link.label}
           </Link>

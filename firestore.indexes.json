@@ -1,4 +1,13 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "snapshots_diarios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "codigo_ibge", "order": "ASCENDING" },
+        { "fieldPath": "data", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }
