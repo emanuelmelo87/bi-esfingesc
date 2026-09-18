@@ -440,6 +440,7 @@ const MOD_SLUG = {
   "Relação Folha/Liquidação": "relacao_folha_liquidacao",
   "Relação Tributário/Contábil - Impostos": "relacao_tributario_impostos",
   "Relação Tributário/Contábil - Taxas": "relacao_tributario_taxas",
+  "Situações de Obras/Serviços de Engenharia em Atraso": "situacoes_obras_engenharia",
   "Tributário": "tributario",
 };
 const AREA_POR_CAMPO = {
@@ -452,6 +453,9 @@ const AREA_POR_CAMPO = {
   relacao_tributario_impostos: "tributos",
   relacao_tributario_taxas: "tributos",
   tributario: "tributos",
+  // Não existe campo "Contratos" no Qlik do TCE — este é o mais próximo
+  // (obras/serviços de engenharia em atraso), usado como proxy por pedido do usuário.
+  situacoes_obras_engenharia: "contratos",
 };
 // somente/exceto: a quais tipos de entidade o campo se aplica; ok(v): valor válido.
 const REGRAS_MODULO = {
@@ -464,6 +468,8 @@ const REGRAS_MODULO = {
   relacao_tributario_impostos: { somente: ["Prefeitura"], ok: (v) => v > 0 },
   relacao_tributario_taxas: { somente: ["Prefeitura"], ok: (v) => v > 0 },
   tributario: { somente: ["Prefeitura"], ok: (v) => v > 0 },
+  // Aplica a todas as entidades; "ok" aqui é 0 pendências (não ">0", o inverso dos outros campos).
+  situacoes_obras_engenharia: { ok: (v) => v === 0 },
 };
 
 function detectarTipoEntidade(nomeUnidade) {
@@ -583,7 +589,7 @@ async function capturarModulos(porNomeBusca) {
     }
     const prefeitura = entidades.find((d) => d.entidade === "Prefeitura");
     const modulos = {};
-    for (const area of ["contabil", "folha", "tributos"]) {
+    for (const area of ["contabil", "folha", "tributos", "contratos"]) {
       if (prefeitura) {
         modulos[area] = { status: statusArea(area, prefeitura), atualizado_em: serverTimestamp() };
       } else {
@@ -592,7 +598,6 @@ async function capturarModulos(porNomeBusca) {
         modulos[area] = { status: pior, atualizado_em: serverTimestamp() };
       }
     }
-    modulos.contratos = { status: null, atualizado_em: null }; // fonte não identificada — ver risco #2 do plano
     porIbge.set(municipio.codigo_ibge, { modulos });
   }
   log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");

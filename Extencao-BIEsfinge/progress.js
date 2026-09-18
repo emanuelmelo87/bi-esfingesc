@@ -31607,6 +31607,7 @@ This typically indicates that your device does not have a healthy Internet conne
     "Rela\xE7\xE3o Folha/Liquida\xE7\xE3o": "relacao_folha_liquidacao",
     "Rela\xE7\xE3o Tribut\xE1rio/Cont\xE1bil - Impostos": "relacao_tributario_impostos",
     "Rela\xE7\xE3o Tribut\xE1rio/Cont\xE1bil - Taxas": "relacao_tributario_taxas",
+    "Situa\xE7\xF5es de Obras/Servi\xE7os de Engenharia em Atraso": "situacoes_obras_engenharia",
     "Tribut\xE1rio": "tributario"
   };
   var AREA_POR_CAMPO = {
@@ -31618,7 +31619,10 @@ This typically indicates that your device does not have a healthy Internet conne
     relacao_folha_liquidacao: "folha",
     relacao_tributario_impostos: "tributos",
     relacao_tributario_taxas: "tributos",
-    tributario: "tributos"
+    tributario: "tributos",
+    // Não existe campo "Contratos" no Qlik do TCE — este é o mais próximo
+    // (obras/serviços de engenharia em atraso), usado como proxy por pedido do usuário.
+    situacoes_obras_engenharia: "contratos"
   };
   var REGRAS_MODULO = {
     assinatura_balancete_razao: { exceto: ["CI"], ok: (v2) => v2 === 2 },
@@ -31629,7 +31633,9 @@ This typically indicates that your device does not have a healthy Internet conne
     relacao_folha_liquidacao: { exceto: ["CI", "Outros"], ok: (v2) => v2 > 0 },
     relacao_tributario_impostos: { somente: ["Prefeitura"], ok: (v2) => v2 > 0 },
     relacao_tributario_taxas: { somente: ["Prefeitura"], ok: (v2) => v2 > 0 },
-    tributario: { somente: ["Prefeitura"], ok: (v2) => v2 > 0 }
+    tributario: { somente: ["Prefeitura"], ok: (v2) => v2 > 0 },
+    // Aplica a todas as entidades; "ok" aqui é 0 pendências (não ">0", o inverso dos outros campos).
+    situacoes_obras_engenharia: { ok: (v2) => v2 === 0 }
   };
   function detectarTipoEntidade(nomeUnidade) {
     const n2 = (nomeUnidade || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -31732,7 +31738,7 @@ This typically indicates that your device does not have a healthy Internet conne
       }
       const prefeitura = entidades.find((d) => d.entidade === "Prefeitura");
       const modulos = {};
-      for (const area of ["contabil", "folha", "tributos"]) {
+      for (const area of ["contabil", "folha", "tributos", "contratos"]) {
         if (prefeitura) {
           modulos[area] = { status: statusArea(area, prefeitura), atualizado_em: serverTimestamp() };
         } else {
@@ -31741,7 +31747,6 @@ This typically indicates that your device does not have a healthy Internet conne
           modulos[area] = { status: pior, atualizado_em: serverTimestamp() };
         }
       }
-      modulos.contratos = { status: null, atualizado_em: null };
       porIbge.set(municipio.codigo_ibge, { modulos });
     }
     log("M\xF3dulos: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
