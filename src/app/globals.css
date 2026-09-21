@@ -13,6 +13,12 @@
   --apple-title: #1d1d1f;
   --apple-secondary: #6e6e73;
   --apple-muted: #86868b;
+
+  /* Cores de status pra gráficos (bom/ruim) — validadas com o validador de
+     paleta do skill dataviz (contraste + separação CVD) contra a superfície
+     clara/escura dos cards. Usadas via var() no fill dos gráficos recharts. */
+  --chart-bom: #10b981;
+  --chart-ruim: #ef4444;
 }
 
 .dark {
@@ -22,16 +28,18 @@
   --apple-title: #f5f5f7;
   --apple-secondary: #a1a1a6;
   --apple-muted: #8e8e93;
+  --chart-bom: #059669;
+  --chart-ruim: #ef4444;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-open-sans);
   --font-mono: var(--font-geist-mono);
 
-  --color-vinho: #6b1124;
-  --color-vinho-hover: #82152c;
+  --color-vinho: #0861ff;
+  --color-vinho-hover: #409cff;
   --color-cinza-escuro: #1e1e1e;
 
   --color-apple-canvas: var(--apple-canvas);

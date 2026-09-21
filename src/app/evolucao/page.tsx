@@ -17,11 +17,22 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import RequireAuth from "@/components/RequireAuth";
+import FonteDados from "@/components/FonteDados";
+import { ratifEnviado, ratifLabel } from "@/lib/ratificacao";
 import type { Municipio, SnapshotDiario } from "@/types/municipio";
 
+// Mesmo critério de "enviado" usado no resto do app (Home, Status por Módulo,
+// Ratificação Geral): quitado (no prazo) ou atrasado já conta como concluído,
+// só "ausente" (nunca enviado) fica pendente.
 function isDone(s: SnapshotDiario): boolean {
-  return s.ratificacao_status === "quitado" || s.etapa_pipeline === "concluido";
+  return ratifEnviado(s.ratificacao_status);
 }
+
+const RATIF_COR: Record<string, string> = {
+  quitado: "#059669",
+  atrasado: "#d97706",
+  ausente: "#dc2626",
+};
 
 function mesAtual(): string {
   const hoje = new Date();
@@ -47,13 +58,6 @@ async function buscarSnapshotsDoMes(mes: string): Promise<SnapshotDiario[]> {
   );
   return snap.docs.map((d) => d.data() as SnapshotDiario);
 }
-
-const ETAPA_COR: Record<string, string> = {
-  concluido: "#059669",
-  em_andamento: "#d97706",
-  aguardando_cliente: "#a1a1aa",
-  nao_iniciado: "#71717a",
-};
 
 export default function EvolucaoPage() {
   const { user } = useAuth();
@@ -164,10 +168,11 @@ export default function EvolucaoPage() {
     <RequireAuth>
       <main className="flex-1 px-6 py-6">
         <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Evolução Temporal</h1>
-        <p className="mb-4 text-sm text-apple-secondary">
-          Histórico diário a partir dos snapshots — &ldquo;concluído&rdquo; = ratificação quitada ou
-          etapa do pipeline marcada como concluída.
+        <p className="mb-1 text-sm text-apple-secondary">
+          Histórico diário a partir dos snapshots — &ldquo;concluído&rdquo; = ratificação enviada (no
+          prazo ou atrasada; só &ldquo;ausente&rdquo; fica pendente).
         </p>
+        <FonteDados colecoes={["municipios", "snapshots_diarios"]} />
 
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <input
@@ -202,7 +207,7 @@ export default function EvolucaoPage() {
                       type="monotone"
                       dataKey="atual"
                       name={mes}
-                      stroke="#6b1124"
+                      stroke="#0861ff"
                       strokeWidth={2}
                       dot={false}
                       connectNulls
@@ -239,7 +244,7 @@ export default function EvolucaoPage() {
                     <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="fechamentos" fill="#6b1124" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="fechamentos" fill="#0861ff" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -249,6 +254,9 @@ export default function EvolucaoPage() {
               <h2 className="mb-2 text-sm font-semibold text-apple-title">
                 Linha do tempo por município
               </h2>
+              <p className="mb-2 text-xs text-apple-muted">
+                Situação da ratificação geral capturada em cada snapshot diário do mês.
+              </p>
               <div className="relative mb-3 max-w-sm">
                 <input
                   placeholder="Buscar município por nome ou código IBGE..."
@@ -280,6 +288,24 @@ export default function EvolucaoPage() {
 
               {municipioSelecionado && (
                 <div className="apple-glass-card rounded-[22px] p-4">
+                  <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-apple-secondary">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: RATIF_COR.quitado }} />
+                      Ratificado no prazo
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: RATIF_COR.atrasado }} />
+                      Enviado fora do prazo
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: RATIF_COR.ausente }} />
+                      Ausente
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-sm bg-zinc-400" />
+                      Sem dado
+                    </span>
+                  </div>
                   {timeline.length === 0 ? (
                     <p className="text-sm text-apple-secondary">
                       Sem snapshots para {municipioSelecionado.nome} neste mês.
@@ -289,9 +315,9 @@ export default function EvolucaoPage() {
                       {timeline.map((s) => (
                         <div
                           key={s.data}
-                          title={`${s.data}: ${s.etapa_pipeline ?? "sem etapa"}`}
+                          title={`${s.data}: ${ratifLabel(s.ratificacao_status)}`}
                           className="flex h-8 w-8 items-center justify-center rounded text-xs font-medium text-white"
-                          style={{ backgroundColor: ETAPA_COR[s.etapa_pipeline ?? ""] ?? "#71717a" }}
+                          style={{ backgroundColor: s.ratificacao_status ? RATIF_COR[s.ratificacao_status] ?? "#71717a" : "#a1a1aa" }}
                         >
                           {Number(s.data.slice(8, 10))}
                         </div>

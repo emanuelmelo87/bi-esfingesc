@@ -1,0 +1,2067 @@
+[
+  {
+    "nome": "Abdon Batista",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Água Doce",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Águas de Chapecó",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Águas Mornas",
+    "fornecedor": "Betha",
+    "canal": "DIGITAL",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Alfredo Wagner",
+    "fornecedor": "Betha",
+    "canal": "DIGITAL",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Anchieta",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Angelina",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Anitápolis",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Antônio Carlos",
+    "fornecedor": "Betha",
+    "canal": "DIGITAL",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Armazém",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Atalanta",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Balneário Gaivota",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Balneário Rincão",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Bandeirante",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Bela Vista do Toldo",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Belmonte",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Bom Jardim da Serra",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Bom Jesus",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Braço do Norte",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Braço do Trombudo",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Brunópolis",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Campo Alegre",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "Campo Belo do Sul",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Campos Novos",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Canelinha",
+    "fornecedor": "Betha",
+    "canal": "DIGITAL",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Capinzal",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Celso Ramos",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Cocal do Sul",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Cordilheira Alta",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Coronel Freitas",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Coronel Martins",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMNOROESTE",
+    "associacao_regional": "Associação dos Municípios do Noroeste de Santa Catarina"
+  },
+  {
+    "nome": "Correia Pinto",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Criciúma",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Cunhataí",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Curitibanos",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "AMURC",
+    "associacao_regional": "Associação dos Municípios da Região do Contestado"
+  },
+  {
+    "nome": "Descanso",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Dionísio Cerqueira",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Dona Emma",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Entre Rios",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Ermo",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Erval Velho",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Faxinal dos Guedes",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Flor do Sertão",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Florianópolis",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Formosa do Sul",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Forquilhinha",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Frei Rogério",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMURC",
+    "associacao_regional": "Associação dos Municípios da Região do Contestado"
+  },
+  {
+    "nome": "Galvão",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMNOROESTE",
+    "associacao_regional": "Associação dos Municípios do Noroeste de Santa Catarina"
+  },
+  {
+    "nome": "Grão Pará",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESG",
+    "associacao_regional": "Associação dos Municípios da Região de Tubarão (AMESG)"
+  },
+  {
+    "nome": "Herval d'Oeste",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Ibiam",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Ibicaré",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Ilhota",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Imaruí",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Imbuia",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Iomerê",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Ipira",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Ipuaçu",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Ipumirim",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Iraceminha",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Irati",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Jaborá",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Jaraguá do Sul",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "Joaçaba",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Jupiá",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMNOROESTE",
+    "associacao_regional": "Associação dos Municípios do Noroeste de Santa Catarina"
+  },
+  {
+    "nome": "Lages",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Laguna",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Lajeado Grande",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Lauro Müller",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Leoberto Leal",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Lindóia do Sul",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Luzerna",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Macieira",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Major Gercino",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Major Vieira",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Maracajá",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Maravilha",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Marema",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Matos Costa",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Mondaí",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Monte Carlo",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Monte Castelo",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Morro Grande",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Nova Trento",
+    "fornecedor": "Betha",
+    "canal": "Urbis",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Nova Veneza",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Novo Horizonte",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMNOROESTE",
+    "associacao_regional": "Associação dos Municípios do Noroeste de Santa Catarina"
+  },
+  {
+    "nome": "Orleans",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESG",
+    "associacao_regional": "Associação dos Municípios da Região de Tubarão (AMESG)"
+  },
+  {
+    "nome": "Otacílio Costa",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Painel",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Palmitos",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Passo de Torres",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Passos Maia",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Paulo Lopes",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Pedras Grandes",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESG",
+    "associacao_regional": "Associação dos Municípios da Região de Tubarão (AMESG)"
+  },
+  {
+    "nome": "Petrolândia",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Piratuba",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Ponte Alta",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Ponte Alta do Norte",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMURC",
+    "associacao_regional": "Associação dos Municípios da Região do Contestado"
+  },
+  {
+    "nome": "Ponte Serrada",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Porto União",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Pouso Redondo",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Presidente Castello Branco",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Quilombo",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Rancho Queimado",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Rio Fortuna",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Rio Rufino",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Saltinho",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Salto Veloso",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Sangão",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Santa Cecília",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMURC",
+    "associacao_regional": "Associação dos Municípios da Região do Contestado"
+  },
+  {
+    "nome": "Santa Terezinha",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Santa Terezinha do Progresso",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Santiago do Sul",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Santo Amaro da Imperatriz",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "São Bernardino",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMNOROESTE",
+    "associacao_regional": "Associação dos Municípios do Noroeste de Santa Catarina"
+  },
+  {
+    "nome": "São Bonifácio",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "São Cristóvão do Sul",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMURC",
+    "associacao_regional": "Associação dos Municípios da Região do Contestado"
+  },
+  {
+    "nome": "São Domingos",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "São João Batista",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/SP",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "São João do Oeste",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "São Joaquim",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "São José do Cerrito",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "São Lourenço do Oeste",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMNOROESTE",
+    "associacao_regional": "Associação dos Municípios do Noroeste de Santa Catarina"
+  },
+  {
+    "nome": "São Ludgero",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESG",
+    "associacao_regional": "Associação dos Municípios da Região de Tubarão (AMESG)"
+  },
+  {
+    "nome": "São Martinho",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "São Miguel da Boa Vista",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "São Miguel do Oeste",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Schroeder",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "Siderópolis",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Sombrio",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Tangará",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Tigrinhos",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Treze de Maio",
+    "fornecedor": "Betha",
+    "canal": "Pequenas Contas",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Trombudo Central",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Turvo",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Sul",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "União do Oeste",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Urubici",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Urussanga",
+    "fornecedor": "Betha",
+    "canal": "Portifólio SC/MG",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Vargeão",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Vargem",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Vargem Bonita",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Oeste",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Vidal Ramos",
+    "fornecedor": "Betha",
+    "canal": "Médias Contas - Granfpolis",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Xanxerê",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Xavantina",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Xaxim",
+    "fornecedor": "Betha",
+    "canal": "FAEE",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Abelardo Luz",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Agrolândia",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Agronômica",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Alto Bela Vista",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Anita Garibaldi",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Apiúna",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Arabutã",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Araquari",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "Araranguá",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Arroio Trinta",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Arvoredo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Ascurra",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Aurora",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Balneário Arroio do Silva",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Balneário Barra do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "Balneário Camboriú",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Balneário Piçarras",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Barra Bonita",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Barra Velha",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "Benedito Novo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Biguaçu",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Blumenau",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Bocaina do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Bom Jesus do Oeste",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Bom Retiro",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Bombinhas",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Botuverá",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Brusque",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Caibi",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Calmon",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Camboriú",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Campo Erê",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Canoinhas",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Capivari de Baixo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Capão Alto",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Catanduvas",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Caxambu do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Caçador",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Cerro Negro",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Chapadão do Lageado",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Chapecó",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Concórdia",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Corupá",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "Cunha Porã",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Doutor Pedrinho",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Fraiburgo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Garopaba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Garuva",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "Gaspar",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Governador Celso Ramos",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Gravatal",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESG",
+    "associacao_regional": "Associação dos Municípios da Região de Tubarão (AMESG)"
+  },
+  {
+    "nome": "Guabiruba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Guaraciaba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Guaramirim",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "Guarujá do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Guatambu",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Ibirama",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Imbituba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Indaial",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Iporã do Oeste",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Irani",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Irineópolis",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Itaiópolis",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Itajaí",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Itapema",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Itapiranga",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Itapoá",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "Ituporanga",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Itá",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Içara",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Jacinto Machado",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Jaguaruna",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Jardinópolis",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Joinville",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "José Boiteux",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Lacerdópolis",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Laurentino",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Lebon Régis",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Lontras",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Luiz Alves",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Mafra",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Massaranduba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "Meleiro",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Mirim Doce",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Modelo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Morro da Fumaça",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Navegantes",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Nova Erechim",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Nova Itaberaba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Ouro",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Ouro Verde",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAI",
+    "associacao_regional": "Associação dos Municípios do Alto Irani"
+  },
+  {
+    "nome": "Paial",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Palhoça",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Palma Sola",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Palmeira",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Papanduva",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Paraíso",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Penha",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Peritiba",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Pescaria Brava",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Pinhalzinho",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Pinheiro Preto",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Planalto Alegre",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Pomerode",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Porto Belo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMFRI",
+    "associacao_regional": "Associação dos Municípios da Região da Foz do Rio Itajaí"
+  },
+  {
+    "nome": "Praia Grande",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Presidente Getúlio",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Presidente Nereu",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Princesa",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Rio Negrinho",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "Rio das Antas",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Rio do Campo",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Rio do Oeste",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Rio do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Rio dos Cedros",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Riqueza",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Rodeio",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Romelândia",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Salete",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Santa Helena",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Santa Rosa de Lima",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Santa Rosa do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Saudades",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMERIOS",
+    "associacao_regional": "Associação dos Municípios do Entre Rios"
+  },
+  {
+    "nome": "Seara",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAUC",
+    "associacao_regional": "Associação dos Municípios do Alto Uruguai Catarinense"
+  },
+  {
+    "nome": "Serra Alta",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "Sul Brasil",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "São Bento do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "São Carlos",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  },
+  {
+    "nome": "São Francisco do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUNESC",
+    "associacao_regional": "Associação dos Municípios do Nordeste de Santa Catarina"
+  },
+  {
+    "nome": "São José",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "São José do Cedro",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "São João do Itaperiú",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMVALI",
+    "associacao_regional": "Associação dos Municípios do Vale do Itapocu"
+  },
+  {
+    "nome": "São João do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "São Pedro de Alcântara",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Taió",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Tijucas",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "GRANFPOLIS",
+    "associacao_regional": "Associação dos Municípios da Região da Grande Florianópolis"
+  },
+  {
+    "nome": "Timbé do Sul",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMESC",
+    "associacao_regional": "Associação dos Municípios do Extremo Sul Catarinense"
+  },
+  {
+    "nome": "Timbó",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMVI",
+    "associacao_regional": "Associação dos Municípios do Médio Vale do Itajaí"
+  },
+  {
+    "nome": "Timbó Grande",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Treviso",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMREC",
+    "associacao_regional": "Associação dos Municípios da Região Carbonífera"
+  },
+  {
+    "nome": "Treze Tílias",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMMOC",
+    "associacao_regional": "Associação dos Municípios do Meio Oeste Catarinense"
+  },
+  {
+    "nome": "Três Barras",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLANORTE",
+    "associacao_regional": "Associação dos Municípios do Planalto Norte Catarinense"
+  },
+  {
+    "nome": "Tubarão",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMUREL",
+    "associacao_regional": "Associação dos Municípios da Região de Laguna"
+  },
+  {
+    "nome": "Tunápolis",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMEOSC",
+    "associacao_regional": "Associação dos Municípios do Extremo Oeste Catarinense"
+  },
+  {
+    "nome": "Urupema",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMURES",
+    "associacao_regional": "Associação dos Municípios da Região Serrana"
+  },
+  {
+    "nome": "Videira",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMARP",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Rio do Peixe"
+  },
+  {
+    "nome": "Vitor Meireles",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Witmarsum",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMAVI",
+    "associacao_regional": "Associação dos Municípios do Alto Vale do Itajaí"
+  },
+  {
+    "nome": "Zortéa",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMPLASC",
+    "associacao_regional": "Associação dos Municípios do Planalto Sul de Santa Catarina"
+  },
+  {
+    "nome": "Águas Frias",
+    "fornecedor": "Concorrente",
+    "canal": "Concorrente",
+    "sigla_associacao": "AMOSC",
+    "associacao_regional": "Associação dos Municípios do Oeste de Santa Catarina"
+  }
+]

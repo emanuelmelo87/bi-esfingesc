@@ -13,15 +13,52 @@ const RATIFICACOES_URL =
 const TCE_LOGIN_URL = "https://virtual.tce.sc.gov.br/login";
 const TCE_TICKET_API = "https://api.virtual.tce.sc.gov.br/sgi/rest/usuarios/ticketQlik";
 const QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
+// App "Ratificações de Remessa" — dá a data real de transmissão (campo
+// datahorainiciotransmissao_original), que o painel público (WMFemM) não tem.
+const RATIF_DATAS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/appRatificacao/index.html";
+const RATIF_DATAS_APP_ID = "7264eedd-8003-4537-82c9-c038e8012279";
 
 const logEl = document.getElementById("log");
 const modoLabelEl = document.getElementById("modo-label");
 const urlParams = new URLSearchParams(location.search);
 const modo = urlParams.get("modo") || "manual";
-// "MM/AAAA" — quando presente, este run busca só essa competência (backfill),
-// sem tocar em status_operacional_atual/snapshots_diarios (que são "estado atual").
-const competenciaAlvo = urlParams.get("competencia") || null;
-modoLabelEl.textContent = "Modo: " + modo + (competenciaAlvo ? " (competência " + competenciaAlvo + ")" : "");
+// "MM/AAAA" a "MM/AAAA" — quando presente, este run busca cada competência do
+// período (backfill), sem tocar em status_operacional_atual/snapshots_diarios
+// (que são "estado atual"). "competencia" sozinho ainda funciona (1 mês só),
+// pra não quebrar um link/atalho antigo.
+const competenciaInicioParam = urlParams.get("competencia_inicio") || urlParams.get("competencia") || null;
+const competenciaFimParam = urlParams.get("competencia_fim") || competenciaInicioParam;
+
+// "MM/AAAA" -> AAAA*12+MM, pra comparar/iterar competências cronologicamente.
+function competenciaParaChave(competencia) {
+  const [mes, ano] = competencia.split("/").map(Number);
+  return ano * 12 + mes;
+}
+
+// Lista "MM/AAAA" de inicio até fim, inclusive, em ordem cronológica (aceita
+// os dois parâmetros trocados e corrige sozinho).
+function listarCompetencias(inicio, fim) {
+  let chaveInicio = competenciaParaChave(inicio);
+  let chaveFim = competenciaParaChave(fim);
+  if (chaveInicio > chaveFim) [chaveInicio, chaveFim] = [chaveFim, chaveInicio];
+  const lista = [];
+  for (let chave = chaveInicio; chave <= chaveFim; chave++) {
+    const ano = Math.floor((chave - 1) / 12);
+    const mes = chave - ano * 12;
+    lista.push(String(mes).padStart(2, "0") + "/" + ano);
+  }
+  return lista;
+}
+
+const competenciasAlvo = competenciaInicioParam ? listarCompetencias(competenciaInicioParam, competenciaFimParam) : null;
+modoLabelEl.textContent =
+  "Modo: " +
+  modo +
+  (competenciasAlvo
+    ? competenciasAlvo.length > 1
+      ? " (competências " + competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1] + ")"
+      : " (competência " + competenciasAlvo[0] + ")"
+    : "");
 
 function log(msg, kind) {
   const line = document.createElement("div");
@@ -171,11 +208,13 @@ async function capturarCND(porNomeBusca) {
 // Autocontida: roda via chrome.scripting.executeScript dentro da aba, não pode
 // fechar sobre nada do escopo externo (ver nota no topo do arquivo).
 //
-// Sem competenciaAlvo: busca só as 295 primeiras linhas (a competência mais
-// recente, já ordenada assim pelo Qlik) — rápido, usado no fluxo normal.
-// Com competenciaAlvo ("MM/AAAA"): pagina a tabela inteira (~9 mil linhas,
-// todo o histórico desde 2024) e filtra só as linhas daquela competência —
-// usado no backfill de uma competência específica.
+// Sempre recebe uma competenciaAlvo explícita ("MM/AAAA") — pagina a tabela
+// inteira (~9 mil linhas, todo o histórico desde 2024) e filtra só as linhas
+// daquela competência. Existiu um "atalho" que pegava só as 295 primeiras
+// linhas assumindo que era a competência mais recente já ordenada pelo Qlik;
+// removido porque essa suposição era falsa — o TCE já tem linhas pra
+// competência do mês corrente (ainda em curso, sem prazo vencido) misturadas
+// no topo, o que gravava status pra um mês que ainda nem fechou.
 function extractRatificacoesGlobais(competenciaAlvo) {
   return new Promise(function (resolve, reject) {
     var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
@@ -213,13 +252,6 @@ function extractRatificacoesGlobais(competenciaAlvo) {
         })
         .then(function (getObj) {
           var objHandle = getObj.qReturn.qHandle;
-          if (!competenciaAlvo) {
-            return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qHeight: 295, qWidth: 4 }]]).then(
-              function (dataPage) {
-                return dataPage.qDataPages[0].qMatrix.map(linha);
-              }
-            );
-          }
           return call("GetLayout", objHandle, []).then(function (layoutRes) {
             var total = layoutRes.qLayout.qHyperCube.qSize.qcy;
             var linhas = [];
@@ -257,21 +289,25 @@ function mapSituacao(situacaoTexto) {
   return "ausente";
 }
 
+// "MM/AAAA" do mês anterior ao atual — competência "corrente" por convenção
+// do projeto (o mês em curso ainda não fechou pra fins de captura).
+function competenciaMesAnterior() {
+  const hoje = new Date();
+  const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  return String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+}
+
 async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
-  log(
-    competenciaAlvo
-      ? "Abrindo Ratificações Globais para a competência " + competenciaAlvo + "..."
-      : "Abrindo Ratificações Globais em aba oculta..."
-  );
+  const competencia = competenciaAlvo || competenciaMesAnterior();
+  log("Abrindo Ratificações Globais para a competência " + competencia + "...");
   const tab = await abrirAbaOculta(RATIFICACOES_URL);
   const [{ result: rows }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: extractRatificacoesGlobais,
-    args: [competenciaAlvo || null],
+    args: [competencia],
   });
   await fecharAba(tab);
-  const competencia = competenciaAlvo || (rows[0] ? rows[0].anoMes : null);
-  log("Ratificações: " + rows.length + " linhas (competência " + (competencia || "?") + ").");
+  log("Ratificações: " + rows.length + " linhas (competência " + competencia + ").");
 
   const porIbge = new Map();
   let semMatch = 0;
@@ -496,20 +532,25 @@ const AREA_POR_CAMPO = {
   // (obras/serviços de engenharia em atraso), usado como proxy por pedido do usuário.
   situacoes_obras_engenharia: "contratos",
 };
-// somente/exceto: a quais tipos de entidade o campo se aplica; ok(v): valor válido.
+// somente/exceto: a quais tipos de entidade o campo se aplica; ok(v): valor
+// válido; req: descrição legível da exigência, usada só pra explicar
+// pendências em tela (não entra na lógica).
 const REGRAS_MODULO = {
-  assinatura_balancete_razao: { exceto: ["CI"], ok: (v) => v === 2 },
-  execucao_orcamentaria: { exceto: ["CI"], ok: (v) => v > 0 },
-  gestao_fiscal: { somente: ["CM", "CI"], ok: (v) => v > 0 },
-  planejamento: { somente: ["CI"], ok: (v) => v > 0 },
-  registros_contabeis: { exceto: ["CI"], ok: (v) => v > 0 },
-  relacao_folha_liquidacao: { exceto: ["CI", "Outros"], ok: (v) => v > 0 },
-  relacao_tributario_impostos: { somente: ["Prefeitura"], ok: (v) => v > 0 },
-  relacao_tributario_taxas: { somente: ["Prefeitura"], ok: (v) => v > 0 },
-  tributario: { somente: ["Prefeitura"], ok: (v) => v > 0 },
+  assinatura_balancete_razao: { exceto: ["CI"], ok: (v) => v === 2, req: "exatamente 2 pacotes" },
+  execucao_orcamentaria: { exceto: ["CI"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  gestao_fiscal: { somente: ["CM", "CI"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  planejamento: { somente: ["CI"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  registros_contabeis: { exceto: ["CI"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  relacao_folha_liquidacao: { exceto: ["CI", "Outros"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  relacao_tributario_impostos: { somente: ["Prefeitura"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  relacao_tributario_taxas: { somente: ["Prefeitura"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
+  tributario: { somente: ["Prefeitura"], ok: (v) => v > 0, req: "ao menos 1 pacote" },
   // Aplica a todas as entidades; "ok" aqui é 0 pendências (não ">0", o inverso dos outros campos).
-  situacoes_obras_engenharia: { ok: (v) => v === 0 },
+  situacoes_obras_engenharia: { ok: (v) => v === 0, req: "0 obras/serviços em atraso" },
 };
+
+// slug de campo → nome legível (inverso de MOD_SLUG), pra explicar pendências.
+const NOME_POR_CAMPO = Object.fromEntries(Object.entries(MOD_SLUG).map(([nome, slug]) => [slug, nome]));
 
 function detectarTipoEntidade(nomeUnidade) {
   const n = (nomeUnidade || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -540,12 +581,37 @@ function statusArea(area, doc) {
   return algumFalhou ? "pendente" : "ok";
 }
 
-async function capturarModulos(porNomeBusca, competenciaAlvo) {
-  const vazio = { porIbge: new Map(), competencia: null };
+const TIPO_ENTIDADE_LABEL = { CM: "Câmara", CI: "Controle Interno", Prefeitura: "Prefeitura", Consorcio: "Consórcio", Outros: "Outros" };
+
+// Pendências de uma área cruzando TODAS as entidades (UGs) do município —
+// cada item é um campo que falhou (ou nunca foi enviado) pra uma UG
+// específica. Usado só pra explicar o "pendente" em tela, não decide status.
+function pendenciasArea(area, entidades) {
+  const pendencias = [];
+  for (const doc of entidades) {
+    const campos = Object.keys(AREA_POR_CAMPO).filter((c) => AREA_POR_CAMPO[c] === area && campoAplica(c, doc.entidade));
+    for (const c of campos) {
+      const v = doc[c];
+      const ok = v !== null && v !== undefined && REGRAS_MODULO[c].ok(v);
+      if (ok) continue;
+      pendencias.push({
+        campo: NOME_POR_CAMPO[c] || c,
+        entidade: TIPO_ENTIDADE_LABEL[doc.entidade] || doc.entidade,
+        valor: v === null || v === undefined ? null : v,
+        requisito: REGRAS_MODULO[c].req || "",
+      });
+    }
+  }
+  return pendencias;
+}
+
+// Login + ticket Qlik, compartilhado entre capturarModulos e
+// capturarDatasRatificacao (evita logar duas vezes no TCE Virtual).
+async function obterTicketQlik() {
   const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
   if (!tce_matricula || !tce_senha) {
-    log("Módulos por área: credenciais do TCE não configuradas — pulando.", "info");
-    return vazio;
+    log("TCE Virtual: credenciais não configuradas — pulando captura restrita (módulos/datas).", "info");
+    return null;
   }
 
   log("Fazendo login no TCE Virtual...");
@@ -562,14 +628,14 @@ async function capturarModulos(porNomeBusca, competenciaAlvo) {
     if (aindaLogin) {
       await fecharAba(loginTab);
       log("Login no TCE falhou — verifique a matrícula/senha configuradas.", "err");
-      return vazio;
+      return null;
     }
   }
   const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
   if (!jwt) {
     await fecharAba(loginTab);
     log("Não foi possível ler o token de sessão do TCE.", "err");
-    return vazio;
+    return null;
   }
   log("Login no TCE confirmado. Obtendo ticket Qlik...", "ok");
   const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
@@ -577,15 +643,16 @@ async function capturarModulos(porNomeBusca, competenciaAlvo) {
 
   if (!ticket || typeof ticket !== "string") {
     log("Ticket Qlik inválido.", "err");
-    return vazio;
+    return null;
   }
+  return ticket;
+}
 
-  let periodo = competenciaAlvo;
-  if (!periodo) {
-    const hoje = new Date();
-    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-    periodo = String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
-  }
+async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
+  const vazio = { porIbge: new Map(), competencia: null };
+  if (!ticket) return vazio;
+
+  const periodo = competenciaAlvo || competenciaMesAnterior();
 
   log("Abrindo Qlik de módulos (período " + periodo + ")...");
   const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
@@ -633,18 +700,165 @@ async function capturarModulos(porNomeBusca, competenciaAlvo) {
     const prefeitura = entidades.find((d) => d.entidade === "Prefeitura");
     const modulos = {};
     for (const area of ["contabil", "folha", "tributos", "contratos"]) {
+      let status;
       if (prefeitura) {
-        modulos[area] = { status: statusArea(area, prefeitura), atualizado_em: serverTimestamp() };
+        status = statusArea(area, prefeitura);
       } else {
         const statusEntidades = entidades.map((d) => statusArea(area, d)).filter(Boolean);
-        const pior = statusEntidades.includes("pendente") ? "pendente" : statusEntidades[0] || null;
-        modulos[area] = { status: pior, atualizado_em: serverTimestamp() };
+        status = statusEntidades.includes("pendente") ? "pendente" : statusEntidades[0] || null;
       }
+      modulos[area] = { status, pendencias: pendenciasArea(area, entidades), atualizado_em: serverTimestamp() };
     }
     porIbge.set(municipio.codigo_ibge, { modulos });
   }
   log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
   return { porIbge, competencia: periodo };
+}
+
+// ── Componente 2b — data real de envio da ratificação (restrito) ─────────
+// A pergunta que interessa não é só "no prazo ou não", é "foi enviado" — o
+// painel público (WMFemM) só dá a situação, não a data. Este objeto Qlik
+// (app "Ratificações de Remessa", mesmo ticket do login de módulos) dá a
+// data máxima de transmissão por município pra uma competência.
+
+// appId, anomes ("AAAAMM"). Retorna [{municipio, data:"DD/MM/YYYY"|null}] ou {error}.
+function extractDatasRatificacaoQlik(appId, anomes) {
+  return new Promise(function (resolve) {
+    var ws = new WebSocket("wss://paineis.tce.sc.gov.br/custom/app/" + appId);
+    var msgId = 1, cubeHandle = null, allRows = [], totalRows = 0;
+    var PAGE_SIZE = 2000;
+    var fase = "open";
+    var timer = setTimeout(function () {
+      try { ws.close(); } catch (e) {}
+      resolve({ error: "Timeout — sessão Qlik expirou" });
+    }, 120000);
+
+    function send(msg) { ws.send(JSON.stringify(msg)); }
+
+    ws.onopen = function () {
+      send({ jsonrpc: "2.0", id: msgId++, method: "OpenDoc", handle: -1, params: [appId] });
+    };
+    ws.onerror = function () {
+      clearTimeout(timer);
+      resolve({ error: "Erro WebSocket — autenticação Qlik inválida" });
+    };
+    ws.onmessage = function (e) {
+      var d = JSON.parse(e.data);
+      if (d.method) return;
+
+      if (fase === "open") {
+        if (d.error || !d.result || !d.result.qReturn) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "OpenDoc falhou" });
+          return;
+        }
+        var docHandle = d.result.qReturn.qHandle;
+        fase = "cube";
+        send({
+          jsonrpc: "2.0", id: msgId++, method: "CreateSessionObject", handle: docHandle,
+          params: [{
+            qInfo: { qType: "datas-ratif-extract" },
+            qHyperCubeDef: {
+              qDimensions: [{ qDef: { qFieldDefs: ["nome_ente"] } }],
+              qMeasures: [
+                { qDef: { qDef: "Date(Max({<anomes={'" + anomes + "'}>} datahorainiciotransmissao_original), 'DD/MM/YYYY')" } },
+              ],
+              qSuppressMissing: true,
+              qInitialDataFetch: [{ qTop: 0, qLeft: 0, qHeight: 0, qWidth: 2 }],
+            },
+          }],
+        });
+      } else if (fase === "cube") {
+        if (d.error || !d.result || !d.result.qReturn) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "CreateSessionObject falhou" });
+          return;
+        }
+        cubeHandle = d.result.qReturn.qHandle;
+        fase = "layout";
+        send({ jsonrpc: "2.0", id: msgId++, method: "GetLayout", handle: cubeHandle, params: [] });
+      } else if (fase === "layout") {
+        if (d.error || !d.result || !d.result.qLayout) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "GetLayout falhou" });
+          return;
+        }
+        var sz = d.result.qLayout.qHyperCube && d.result.qLayout.qHyperCube.qSize;
+        if (!sz || sz.qcy === 0) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve([]);
+          return;
+        }
+        totalRows = sz.qcy;
+        fase = "fetch";
+        fetchPage(0);
+      } else if (fase === "fetch") {
+        if (d.error || !d.result || !d.result.qDataPages) {
+          clearTimeout(timer); try { ws.close(); } catch (ex) {}
+          resolve({ error: (d.error && d.error.message) || "GetHyperCubeData falhou" });
+          return;
+        }
+        var pg = d.result.qDataPages[0];
+        if (pg && pg.qMatrix.length > 0) pg.qMatrix.forEach(function (r) { allRows.push(r); });
+        if (allRows.length < totalRows) fetchPage(allRows.length);
+        else finish();
+      }
+    };
+
+    function fetchPage(top) {
+      var h = Math.min(PAGE_SIZE, totalRows - top);
+      send({ jsonrpc: "2.0", id: msgId++, method: "GetHyperCubeData", handle: cubeHandle, params: ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: h, qWidth: 2 }]] });
+    }
+    function finish() {
+      clearTimeout(timer); try { ws.close(); } catch (ex) {}
+      resolve(allRows.map(function (row) {
+        var data = (row[1].qText || "").trim();
+        return { municipio: (row[0].qText || "").trim(), data: data && data !== "-" ? data : null };
+      }));
+    }
+  });
+}
+
+async function capturarDatasRatificacao(porNomeBusca, ticket, competencia) {
+  const porIbge = new Map();
+  if (!ticket || !competencia) return porIbge;
+  const [mes, ano] = competencia.split("/");
+  if (!mes || !ano) return porIbge;
+  const anomes = ano + mes;
+
+  log("Abrindo Qlik de datas de envio da ratificação (competência " + competencia + ")...");
+  const tab = await abrirAbaOculta(RATIF_DATAS_URL + "?qlikTicket=" + ticket);
+  const [{ result: rows }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: extractDatasRatificacaoQlik,
+    args: [RATIF_DATAS_APP_ID, anomes],
+  });
+  await fecharAba(tab);
+
+  if (!rows || rows.error) {
+    log("Datas de envio: " + (rows && rows.error ? rows.error : "sem dados") + ".", "warn");
+    return porIbge;
+  }
+  let semMatch = 0;
+  for (const row of rows) {
+    if (!row.data) continue;
+    const municipio = resolverMunicipio(row.municipio, porNomeBusca);
+    if (!municipio) {
+      semMatch++;
+      continue;
+    }
+    porIbge.set(municipio.codigo_ibge, row.data);
+  }
+  log("Datas de envio: " + porIbge.size + " municípios" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+  return porIbge;
+}
+
+// Enriquece o mapa de ratificação (in place) com a data de envio, quando houver.
+function aplicarDatasEnvio(porIbgeRatif, datas) {
+  for (const [ibge, data] of datas) {
+    const atual = porIbgeRatif.get(ibge) || {};
+    porIbgeRatif.set(ibge, Object.assign({}, atual, { ratificacao_data_envio: data }));
+  }
 }
 
 // ── Gravação combinada no Firestore ──────────────────────────────────────
@@ -737,19 +951,31 @@ async function main() {
     }
 
     const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
+    const ticket = await obterTicketQlik();
 
-    if (competenciaAlvo) {
-      // Backfill de uma competência específica: não mexe em status_operacional_atual
+    if (competenciasAlvo) {
+      // Backfill de um período de competências: não mexe em status_operacional_atual
       // nem em snapshots_diarios (que representam o "estado atual"), só acumula
-      // histórico em status_por_competencia. CND não entra — não tem esse conceito.
-      const ratif = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
-      const modulos = await capturarModulos(porNomeBusca, competenciaAlvo);
-      const totalRatif = await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
-      const totalModulos = await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+      // histórico em status_por_competencia, uma competência de cada vez. CND não
+      // entra — não tem esse conceito.
+      let totalRatifSoma = 0;
+      let totalModulosSoma = 0;
+      for (const competenciaAlvo of competenciasAlvo) {
+        const ratif = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
+        const modulos = await capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+        const datasEnvio = await capturarDatasRatificacao(porNomeBusca, ticket, ratif.competencia);
+        aplicarDatasEnvio(ratif.porIbge, datasEnvio);
+        totalRatifSoma += await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
+        totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+      }
 
+      const rotuloPeriodo =
+        competenciasAlvo.length > 1
+          ? competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1]
+          : competenciasAlvo[0];
       await chrome.storage.local.set({
         last_execution: {
-          resumo: "Backfill " + competenciaAlvo + ": " + totalRatif + " ratificações, " + totalModulos + " módulos",
+          resumo: "Backfill " + rotuloPeriodo + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos",
           timestamp: Date.now(),
         },
       });
@@ -760,7 +986,9 @@ async function main() {
 
     const cndPorIbge = await capturarCND(porNomeBusca);
     const ratif = await capturarRatificacoes(porNomeBusca);
-    const modulos = await capturarModulos(porNomeBusca);
+    const modulos = await capturarModulos(porNomeBusca, undefined, ticket);
+    const datasEnvio = await capturarDatasRatificacao(porNomeBusca, ticket, ratif.competencia);
+    aplicarDatasEnvio(ratif.porIbge, datasEnvio);
     const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
     const totalSnapshot = await gravarSnapshotsDiarios();

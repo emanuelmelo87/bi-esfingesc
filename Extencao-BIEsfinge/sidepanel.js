@@ -19,16 +19,31 @@ document.getElementById("btn-signout").addEventListener("click", function () {
 });
 
 document.getElementById("btn-sync").addEventListener("click", function () {
-  var competencia = document.getElementById("competencia-backfill").value.trim();
-  if (competencia && !/^\d{2}\/\d{4}$/.test(competencia)) {
-    document.getElementById("sync-status").textContent = "Competência precisa estar no formato MM/AAAA.";
+  var re = /^\d{2}\/\d{4}$/;
+  var inicio = document.getElementById("competencia-inicio").value.trim();
+  var fim = document.getElementById("competencia-fim").value.trim();
+  if (inicio && !re.test(inicio)) {
+    document.getElementById("sync-status").textContent = "Competência inicial precisa estar no formato MM/AAAA.";
+    document.getElementById("sync-status").className = "status err";
+    return;
+  }
+  if (fim && !re.test(fim)) {
+    document.getElementById("sync-status").textContent = "Competência final precisa estar no formato MM/AAAA.";
+    document.getElementById("sync-status").className = "status err";
+    return;
+  }
+  if (fim && !inicio) {
+    document.getElementById("sync-status").textContent = "Preencha também a competência inicial.";
     document.getElementById("sync-status").className = "status err";
     return;
   }
   document.getElementById("sync-status").textContent = "Abrindo captura...";
   document.getElementById("sync-status").className = "status";
   var url = chrome.runtime.getURL("progress.html") + "?modo=manual";
-  if (competencia) url += "&competencia=" + encodeURIComponent(competencia);
+  if (inicio) {
+    url += "&competencia_inicio=" + encodeURIComponent(inicio);
+    url += "&competencia_fim=" + encodeURIComponent(fim || inicio);
+  }
   chrome.tabs.create({ url: url });
 });
 
@@ -102,7 +117,31 @@ document.getElementById("btn-save-sched").addEventListener("click", function () 
     document.getElementById("sched-status").className = "status err";
     return;
   }
-  chrome.runtime.sendMessage({ action: "setup_alarms", times: scheduleTimes, days: scheduleDays });
+  var re = /^\d{2}\/\d{4}$/;
+  var compInicio = document.getElementById("sched-competencia-inicio").value.trim();
+  var compFim = document.getElementById("sched-competencia-fim").value.trim();
+  if (compInicio && !re.test(compInicio)) {
+    document.getElementById("sched-status").textContent = "Competência inicial precisa estar no formato MM/AAAA.";
+    document.getElementById("sched-status").className = "status err";
+    return;
+  }
+  if (compFim && !re.test(compFim)) {
+    document.getElementById("sched-status").textContent = "Competência final precisa estar no formato MM/AAAA.";
+    document.getElementById("sched-status").className = "status err";
+    return;
+  }
+  if (compFim && !compInicio) {
+    document.getElementById("sched-status").textContent = "Preencha também a competência inicial.";
+    document.getElementById("sched-status").className = "status err";
+    return;
+  }
+  chrome.runtime.sendMessage({
+    action: "setup_alarms",
+    times: scheduleTimes,
+    days: scheduleDays,
+    competenciaInicio: compInicio || null,
+    competenciaFim: compInicio ? (compFim || compInicio) : null,
+  });
   document.getElementById("sched-status").textContent = "Agendamento salvo.";
   document.getElementById("sched-status").className = "status ok";
 });
@@ -144,7 +183,7 @@ chrome.storage.local.get(["tce_matricula"], function (data) {
 
 // ── Estado inicial + reatividade ────────────────────────────────────
 chrome.storage.local.get(
-  ["auth_status", "last_execution", "schedule_times", "schedule_days"],
+  ["auth_status", "last_execution", "schedule_times", "schedule_days", "schedule_competencia_inicio", "schedule_competencia_fim"],
   function (data) {
     renderAuth(data.auth_status);
     renderLastExecution(data.last_execution);
@@ -154,6 +193,8 @@ chrome.storage.local.get(
     document.querySelectorAll(".day-btn").forEach(function (btn) {
       btn.classList.toggle("active", scheduleDays.includes(parseInt(btn.dataset.day)));
     });
+    if (data.schedule_competencia_inicio) document.getElementById("sched-competencia-inicio").value = data.schedule_competencia_inicio;
+    if (data.schedule_competencia_fim) document.getElementById("sched-competencia-fim").value = data.schedule_competencia_fim;
   }
 );
 

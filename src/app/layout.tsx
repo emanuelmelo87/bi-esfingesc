@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Open_Sans, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const openSans = Open_Sans({
+  variable: "--font-open-sans",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
 });
@@ -32,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${openSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

@@ -7,9 +7,10 @@ const TONES = {
 
 export type Tone = keyof typeof TONES;
 
-export default function StatusBadge({ label, tone }: { label: string; tone: Tone }) {
+export default function StatusBadge({ label, tone, title }: { label: string; tone: Tone; title?: string }) {
   return (
     <span
+      title={title}
       className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${TONES[tone]}`}
     >
       {label}

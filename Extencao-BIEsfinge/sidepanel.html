@@ -9,18 +9,18 @@
     .header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; }
     .header img { width: 28px; height: 28px; border-radius: 6px; }
     h2 { font-size: 14px; color: #fff; }
-    h2 span { color: #6B1124; }
+    h2 span { color: #0861ff; }
 
     .tab-bar { display: flex; margin: 12px 16px 0; border-bottom: 1px solid #333; }
     .tab-btn { flex: 1; padding: 8px 0; background: transparent; border: none; border-bottom: 2px solid transparent;
       color: #777; font-size: 11px; font-weight: 700; cursor: pointer; margin-bottom: -1px; }
-    .tab-btn.active { color: #d13a56; border-bottom-color: #d13a56; }
+    .tab-btn.active { color: #409cff; border-bottom-color: #409cff; }
 
     .tab-pane { display: none; padding: 12px 16px 16px; }
     .tab-pane.active { display: block; }
 
     .section { background: #262626; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
-    .section-title { font-size: 10px; color: #d13a56; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .section-title { font-size: 10px; color: #409cff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
     label { font-size: 11px; color: #aaa; display: block; margin-bottom: 3px; margin-top: 8px; }
     input { width: 100%; background: #141414; border: 1px solid #3a3a3a; border-radius: 6px; color: #fff; padding: 6px 8px; font-size: 12px; }
     button { width: 100%; padding: 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 6px; }
@@ -31,16 +31,16 @@
     #auth-card { background: #262626; border: 1px solid #3a3a3a; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
     #auth-card.signed-in { border-color: #238636; }
     .auth-email { font-size: 12px; font-weight: 600; color: #fff; }
-    .btn-signin { background: #6B1124; color: #fff; }
+    .btn-signin { background: #0861ff; color: #fff; }
     .btn-signout { background: #333; color: #ccc; font-size: 11px; padding: 6px; }
-    .btn-sync { background: linear-gradient(135deg, #6B1124, #82152c); color: #fff; font-size: 13px; padding: 11px; }
+    .btn-sync { background: linear-gradient(135deg, #0861ff, #409cff); color: #fff; font-size: 13px; padding: 11px; }
     .btn-save { background: #238636; color: #fff; }
     .btn-cancel { background: #333; color: #888; font-size: 11px; padding: 6px; }
 
     .item-list { margin: 6px 0; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
     .sched-item { display: flex; align-items: center; justify-content: space-between;
       background: #141414; border: 1px solid #3a3a3a; border-radius: 6px; padding: 5px 8px; }
-    .sched-item span { font-size: 13px; font-weight: 600; color: #d13a56; }
+    .sched-item span { font-size: 13px; font-weight: 600; color: #409cff; }
     .sched-item button { width: auto; padding: 2px 8px; background: #3a1a1a; color: #f85149;
       border: 1px solid #5a2020; border-radius: 4px; font-size: 11px; margin: 0; }
     .add-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
@@ -94,12 +94,16 @@
       <div class="exec-time" id="exec-timestamp"></div>
     </div>
 
-    <label>Competência (opcional)</label>
-    <input type="text" id="competencia-backfill" placeholder="MM/AAAA — deixe em branco para o normal">
+    <label>Competência inicial (opcional)</label>
+    <input type="text" id="competencia-inicio" placeholder="MM/AAAA — deixe em branco para o normal">
+    <label>Competência final (opcional)</label>
+    <input type="text" id="competencia-fim" placeholder="MM/AAAA — igual à inicial se vazio">
     <div style="font-size:10px;color:#777;line-height:1.4;margin-bottom:8px">
       Em branco: captura o mês anterior (módulos) e a competência mais recente
-      (ratificação), como sempre. Preenchido: busca só essa competência e grava
-      no histórico, sem alterar o status atual — use pra completar meses passados.
+      (ratificação), como sempre. Preenchido: busca cada competência do período
+      (inicial até final) e grava no histórico, sem alterar o status atual —
+      use pra completar vários meses passados de uma vez. Deixe a final em
+      branco pra buscar só a inicial.
     </div>
 
     <button class="btn-sync" id="btn-sync">Sincronizar agora</button>
@@ -123,6 +127,23 @@
         <div class="day-btn" data-day="4">Qui</div>
         <div class="day-btn" data-day="5">Sex</div>
         <div class="day-btn" data-day="6">Sáb</div>
+      </div>
+      <div class="days-label">Competências (opcional):</div>
+      <div style="display:flex; gap:6px;">
+        <div style="flex:1">
+          <label style="margin-top:0">Inicial</label>
+          <input type="text" id="sched-competencia-inicio" placeholder="MM/AAAA">
+        </div>
+        <div style="flex:1">
+          <label style="margin-top:0">Final</label>
+          <input type="text" id="sched-competencia-fim" placeholder="MM/AAAA">
+        </div>
+      </div>
+      <div style="font-size:10px;color:#777;line-height:1.4;margin-top:6px">
+        O agendamento continua rodando sempre, nos horários/dias acima. Em
+        branco: cada disparo captura normal (mês atual). Preenchido: cada
+        disparo roda o backfill desse período de competências — útil pra
+        reforçar/reconferir um intervalo específico automaticamente.
       </div>
       <button class="btn-save" id="btn-save-sched" style="margin-top:10px">Salvar agendamento</button>
       <button class="btn-cancel" id="btn-cancel-sched">Cancelar todos</button>

@@ -13,28 +13,42 @@ chrome.alarms.onAlarm.addListener(function (alarm) {
   if (!alarm.name.startsWith(ALARM_PREFIX)) return;
   console.log("[Radar e-Sfinge] Alarme disparado:", alarm.name);
 
-  chrome.storage.local.get(["schedule_days"], function (data) {
+  chrome.storage.local.get(["schedule_days", "schedule_competencia_inicio", "schedule_competencia_fim"], function (data) {
     var days = data.schedule_days && data.schedule_days.length ? data.schedule_days : [0, 1, 2, 3, 4, 5, 6];
     var hoje = new Date().getDay();
     if (!days.includes(hoje)) {
       console.log("[Radar e-Sfinge] Dia", hoje, "não está nos dias agendados — pulando.");
       return;
     }
-    chrome.tabs.create({ url: chrome.runtime.getURL("progress.html") + "?modo=alarme", active: false });
+    var url = chrome.runtime.getURL("progress.html") + "?modo=alarme";
+    if (data.schedule_competencia_inicio) {
+      url += "&competencia_inicio=" + encodeURIComponent(data.schedule_competencia_inicio);
+      url += "&competencia_fim=" + encodeURIComponent(data.schedule_competencia_fim || data.schedule_competencia_inicio);
+    }
+    chrome.tabs.create({ url: url, active: false });
   });
 });
 
 chrome.runtime.onStartup.addListener(function () {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(function () {});
-  chrome.storage.local.get(["schedule_enabled", "schedule_times", "schedule_days"], function (data) {
-    if (data.schedule_enabled && data.schedule_times && data.schedule_times.length) {
-      setupAlarms(data.schedule_times, data.schedule_days || [0, 1, 2, 3, 4, 5, 6]);
+  chrome.storage.local.get(
+    ["schedule_enabled", "schedule_times", "schedule_days"],
+    function (data) {
+      if (data.schedule_enabled && data.schedule_times && data.schedule_times.length) {
+        setupAlarms(data.schedule_times, data.schedule_days || [0, 1, 2, 3, 4, 5, 6]);
+      }
     }
-  });
+  );
 });
 
 chrome.runtime.onMessage.addListener(function (msg) {
-  if (msg.action === "setup_alarms") setupAlarms(msg.times, msg.days || [0, 1, 2, 3, 4, 5, 6]);
+  if (msg.action === "setup_alarms") {
+    setupAlarms(msg.times, msg.days || [0, 1, 2, 3, 4, 5, 6]);
+    chrome.storage.local.set({
+      schedule_competencia_inicio: msg.competenciaInicio || null,
+      schedule_competencia_fim: msg.competenciaFim || null,
+    });
+  }
   if (msg.action === "cancel_alarms") clearAllAlarms();
 });
 
@@ -59,11 +73,11 @@ function clearAllAlarms(cb) {
 function setupAlarms(times, days) {
   days = days || [0, 1, 2, 3, 4, 5, 6];
   clearAllAlarms(function () {
+    var now = new Date();
     times.forEach(function (hhmm) {
       var parts = hhmm.split(":");
       var hour = parseInt(parts[0]);
       var min = parseInt(parts[1] || "0");
-      var now = new Date();
       var next = new Date();
       next.setHours(hour, min, 0, 0);
       if (next <= now) next.setDate(next.getDate() + 1);

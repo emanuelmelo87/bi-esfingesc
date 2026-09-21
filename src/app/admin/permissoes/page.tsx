@@ -1,6 +1,5 @@
 const CAPACIDADES = [
-  { label: "Ver Pipeline / Matriz / Evolução", ADMIN_GERAL: true, GESTOR_CANAL: true, ANALISTA: true, LEITURA: true },
-  { label: "Editar atribuição no Pipeline (lote)", ADMIN_GERAL: true, GESTOR_CANAL: true, ANALISTA: true, LEITURA: false },
+  { label: "Ver Ratificação Geral / Status por Módulo / Evolução", ADMIN_GERAL: true, GESTOR_CANAL: true, ANALISTA: true, LEITURA: true },
   { label: "Gerenciar municípios (Tela 4)", ADMIN_GERAL: true, GESTOR_CANAL: false, ANALISTA: false, LEITURA: false },
   { label: "Gerenciar usuários (Tela 5)", ADMIN_GERAL: true, GESTOR_CANAL: false, ANALISTA: false, LEITURA: false },
   { label: "Restrição por canal (planejado)", ADMIN_GERAL: false, GESTOR_CANAL: true, ANALISTA: false, LEITURA: false },

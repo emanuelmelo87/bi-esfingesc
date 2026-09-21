@@ -10,6 +10,7 @@ export type StatusPorCompetencia = {
   competencia: string; // "MM/AAAA" — mesmo formato usado no filtro do Pipeline
   ratificacao_status?: "quitado" | "atrasado" | "ausente" | null;
   ratificacao_atualizado_em?: Timestamp | null;
+  ratificacao_data_envio?: string | null; // "DD/MM/YYYY" real, do TCE (Ratificações de Remessa)
   modulos?: Modulos;
   atualizado_em: Timestamp;
 };

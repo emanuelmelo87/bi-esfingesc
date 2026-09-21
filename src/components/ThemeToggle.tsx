@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconMonitor, IconMoon, IconSun } from "@/components/icons";
 
 type Tema = "claro" | "escuro" | "sistema";
 
@@ -10,7 +11,7 @@ function aplicarTema(tema: Tema) {
   document.documentElement.classList.toggle("dark", escuro);
 }
 
-export default function ThemeToggle() {
+function useTema() {
   const [tema, setTema] = useState<Tema>("sistema");
 
   useEffect(() => {
@@ -35,6 +36,12 @@ export default function ThemeToggle() {
     aplicarTema(novoTema);
   }
 
+  return { tema, escolher };
+}
+
+export default function ThemeToggle() {
+  const { tema, escolher } = useTema();
+
   const opcoes: { value: Tema; label: string }[] = [
     { value: "claro", label: "Claro" },
     { value: "escuro", label: "Escuro" },
@@ -57,5 +64,24 @@ export default function ThemeToggle() {
         </button>
       ))}
     </div>
+  );
+}
+
+const ORDEM: Tema[] = ["claro", "escuro", "sistema"];
+const LABELS: Record<Tema, string> = { claro: "Claro", escuro: "Escuro", sistema: "Sistema" };
+
+export function ThemeToggleCompact() {
+  const { tema, escolher } = useTema();
+  const proximo = ORDEM[(ORDEM.indexOf(tema) + 1) % ORDEM.length];
+  const IconeAtual = tema === "claro" ? IconSun : tema === "escuro" ? IconMoon : IconMonitor;
+
+  return (
+    <button
+      onClick={() => escolher(proximo)}
+      title={`Tema: ${LABELS[tema]} (clique pra alternar)`}
+      className="flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-500 transition-all duration-200 ease-out hover:scale-110 hover:bg-white/[0.08] hover:text-white active:scale-95"
+    >
+      <IconeAtual className="h-5 w-5" />
+    </button>
   );
 }
