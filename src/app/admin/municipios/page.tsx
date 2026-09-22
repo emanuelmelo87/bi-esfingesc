@@ -7,6 +7,7 @@ import type { Municipio } from "@/types/municipio";
 import clientesBetha from "@/data/clientes-betha.json";
 import populacaoTop30 from "@/data/populacao-top30.json";
 import FonteDados from "@/components/FonteDados";
+import ContadorResultados from "@/components/ContadorResultados";
 
 function normalizar(nome: string) {
   return nome
@@ -187,8 +188,11 @@ export default function AdminMunicipiosPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Controle de Municípios</h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Controle de Municípios</h1>
+          <ContadorResultados mostrando={municipiosFiltrados.length} total={municipios.length} />
+        </div>
         <div className="flex shrink-0 gap-2">
           <button
             onClick={importarClientesBetha}

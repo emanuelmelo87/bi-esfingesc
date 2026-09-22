@@ -31193,8 +31193,6 @@ This typically indicates that your device does not have a healthy Internet conne
   var RATIFICACOES_URL = "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
   var TCE_LOGIN_URL = "https://virtual.tce.sc.gov.br/login";
   var QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
-  var RATIF_DATAS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/appRatificacao/index.html";
-  var RATIF_DATAS_APP_ID = "7264eedd-8003-4537-82c9-c038e8012279";
   var logEl = document.getElementById("log");
   var modoLabelEl = document.getElementById("modo-label");
   var urlParams = new URLSearchParams(location.search);
@@ -31341,10 +31339,10 @@ This typically indicates that your device does not have a healthy Internet conne
   function extractRatificacoesGlobais(competenciaAlvo) {
     return new Promise(function(resolve, reject) {
       var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
-      var objectId = "WMFemM";
+      var objectId = "a76276a9-7638-4c81-96a6-b504100f7457";
       var ws = new WebSocket("wss://paineistransparencia.tce.sc.gov.br/app/" + appId);
       var msgId = 1;
-      var PAGE_SIZE = 2e3;
+      var ALTURA_PAGINA = 100;
       function call(method, handle, params) {
         return new Promise(function(res, rej) {
           var id = msgId++;
@@ -31359,8 +31357,11 @@ This typically indicates that your device does not have a healthy Internet conne
           ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, handle, params }));
         });
       }
-      function linha(r2) {
-        return { anoMes: r2[0].qText, nomeMunicipio: r2[2].qText, situacao: r2[3].qText };
+      function classificar(valor, cor) {
+        if (valor === "Ausente") return "ausente";
+        if (cor && cor.indexOf("51,102,255") >= 0) return "quitado";
+        if (cor && cor.indexOf("255,51,51") >= 0) return "atrasado";
+        return "atrasado";
       }
       ws.onerror = function() {
         reject(new Error("Falha ao conectar no WebSocket do Qlik."));
@@ -31371,22 +31372,45 @@ This typically indicates that your device does not have a healthy Internet conne
         }).then(function(getObj) {
           var objHandle = getObj.qReturn.qHandle;
           return call("GetLayout", objHandle, []).then(function(layoutRes) {
-            var total = layoutRes.qLayout.qHyperCube.qSize.qcy;
-            var linhas = [];
-            function buscarPagina(top) {
-              var altura = Math.min(PAGE_SIZE, total - top);
-              return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: altura, qWidth: 4 }]]).then(
-                function(dataPage) {
-                  dataPage.qDataPages[0].qMatrix.forEach(function(r2) {
-                    var l2 = linha(r2);
-                    if (l2.anoMes === competenciaAlvo) linhas.push(l2);
-                  });
-                  if (top + altura < total) return buscarPagina(top + altura);
-                  return linhas;
+            var tamanho = layoutRes.qLayout.qHyperCube.qSize;
+            var totalColunas = tamanho.qcx;
+            var totalMunicipios = tamanho.qcy;
+            return call("GetHyperCubePivotData", objHandle, ["/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qWidth: totalColunas, qHeight: 1 }]]).then(
+              function(pagina0) {
+                var colunas = pagina0.qDataPages[0].qTop;
+                var colIndex = -1;
+                for (var i2 = 0; i2 < colunas.length; i2++) {
+                  if (colunas[i2].qText === competenciaAlvo) {
+                    colIndex = i2;
+                    break;
+                  }
                 }
-              );
-            }
-            return buscarPagina(0);
+                if (colIndex < 0) return [];
+                var linhas = [];
+                function buscarPagina(top) {
+                  var altura = Math.min(ALTURA_PAGINA, totalMunicipios - top);
+                  return call("GetHyperCubePivotData", objHandle, ["/qHyperCubeDef", [{ qTop: top, qLeft: colIndex, qWidth: 1, qHeight: altura }]]).then(
+                    function(dataPage) {
+                      var pg = dataPage.qDataPages[0];
+                      pg.qLeft.forEach(function(municipioNo, i3) {
+                        var cell = pg.qData[i3] && pg.qData[i3][0];
+                        if (!cell) return;
+                        var valor = cell.qText;
+                        var cor = cell.qAttrExps && cell.qAttrExps.qValues[0] && cell.qAttrExps.qValues[0].qText;
+                        linhas.push({
+                          nomeMunicipio: municipioNo.qText,
+                          situacao: classificar(valor, cor),
+                          data: valor === "Ausente" ? null : valor
+                        });
+                      });
+                      if (top + altura < totalMunicipios) return buscarPagina(top + altura);
+                      return linhas;
+                    }
+                  );
+                }
+                return buscarPagina(0);
+              }
+            );
           });
         }).then(function(linhas) {
           ws.close();
@@ -31397,11 +31421,6 @@ This typically indicates that your device does not have a healthy Internet conne
         });
       };
     });
-  }
-  function mapSituacao(situacaoTexto) {
-    if (situacaoTexto.indexOf("No Prazo") >= 0) return "quitado";
-    if (situacaoTexto.indexOf("Fora do Prazo") >= 0) return "atrasado";
-    return "ausente";
   }
   function competenciaMesAnterior() {
     const hoje = /* @__PURE__ */ new Date();
@@ -31429,7 +31448,8 @@ This typically indicates that your device does not have a healthy Internet conne
         continue;
       }
       porIbge.set(municipio.codigo_ibge, {
-        ratificacao_status: mapSituacao(row.situacao),
+        ratificacao_status: row.situacao,
+        ratificacao_data_envio: row.data,
         ratificacao_atualizado_em: serverTimestamp()
       });
     }
@@ -31820,169 +31840,6 @@ This typically indicates that your device does not have a healthy Internet conne
     log("M\xF3dulos: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
     return { porIbge, competencia: periodo };
   }
-  function extractDatasRatificacaoQlik(appId, anomes) {
-    return new Promise(function(resolve) {
-      var ws = new WebSocket("wss://paineis.tce.sc.gov.br/custom/app/" + appId);
-      var msgId = 1, cubeHandle = null, allRows = [], totalRows = 0;
-      var PAGE_SIZE = 2e3;
-      var fase = "open";
-      var timer = setTimeout(function() {
-        try {
-          ws.close();
-        } catch (e2) {
-        }
-        resolve({ error: "Timeout \u2014 sess\xE3o Qlik expirou" });
-      }, 12e4);
-      function send(msg) {
-        ws.send(JSON.stringify(msg));
-      }
-      ws.onopen = function() {
-        send({ jsonrpc: "2.0", id: msgId++, method: "OpenDoc", handle: -1, params: [appId] });
-      };
-      ws.onerror = function() {
-        clearTimeout(timer);
-        resolve({ error: "Erro WebSocket \u2014 autentica\xE7\xE3o Qlik inv\xE1lida" });
-      };
-      ws.onmessage = function(e2) {
-        var d = JSON.parse(e2.data);
-        if (d.method) return;
-        if (fase === "open") {
-          if (d.error || !d.result || !d.result.qReturn) {
-            clearTimeout(timer);
-            try {
-              ws.close();
-            } catch (ex) {
-            }
-            resolve({ error: d.error && d.error.message || "OpenDoc falhou" });
-            return;
-          }
-          var docHandle = d.result.qReturn.qHandle;
-          fase = "cube";
-          send({
-            jsonrpc: "2.0",
-            id: msgId++,
-            method: "CreateSessionObject",
-            handle: docHandle,
-            params: [{
-              qInfo: { qType: "datas-ratif-extract" },
-              qHyperCubeDef: {
-                qDimensions: [{ qDef: { qFieldDefs: ["nome_ente"] } }],
-                qMeasures: [
-                  { qDef: { qDef: "Date(Max({<anomes={'" + anomes + "'}>} datahorainiciotransmissao_original), 'DD/MM/YYYY')" } }
-                ],
-                qSuppressMissing: true,
-                qInitialDataFetch: [{ qTop: 0, qLeft: 0, qHeight: 0, qWidth: 2 }]
-              }
-            }]
-          });
-        } else if (fase === "cube") {
-          if (d.error || !d.result || !d.result.qReturn) {
-            clearTimeout(timer);
-            try {
-              ws.close();
-            } catch (ex) {
-            }
-            resolve({ error: d.error && d.error.message || "CreateSessionObject falhou" });
-            return;
-          }
-          cubeHandle = d.result.qReturn.qHandle;
-          fase = "layout";
-          send({ jsonrpc: "2.0", id: msgId++, method: "GetLayout", handle: cubeHandle, params: [] });
-        } else if (fase === "layout") {
-          if (d.error || !d.result || !d.result.qLayout) {
-            clearTimeout(timer);
-            try {
-              ws.close();
-            } catch (ex) {
-            }
-            resolve({ error: d.error && d.error.message || "GetLayout falhou" });
-            return;
-          }
-          var sz = d.result.qLayout.qHyperCube && d.result.qLayout.qHyperCube.qSize;
-          if (!sz || sz.qcy === 0) {
-            clearTimeout(timer);
-            try {
-              ws.close();
-            } catch (ex) {
-            }
-            resolve([]);
-            return;
-          }
-          totalRows = sz.qcy;
-          fase = "fetch";
-          fetchPage(0);
-        } else if (fase === "fetch") {
-          if (d.error || !d.result || !d.result.qDataPages) {
-            clearTimeout(timer);
-            try {
-              ws.close();
-            } catch (ex) {
-            }
-            resolve({ error: d.error && d.error.message || "GetHyperCubeData falhou" });
-            return;
-          }
-          var pg = d.result.qDataPages[0];
-          if (pg && pg.qMatrix.length > 0) pg.qMatrix.forEach(function(r2) {
-            allRows.push(r2);
-          });
-          if (allRows.length < totalRows) fetchPage(allRows.length);
-          else finish();
-        }
-      };
-      function fetchPage(top) {
-        var h = Math.min(PAGE_SIZE, totalRows - top);
-        send({ jsonrpc: "2.0", id: msgId++, method: "GetHyperCubeData", handle: cubeHandle, params: ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: h, qWidth: 2 }]] });
-      }
-      function finish() {
-        clearTimeout(timer);
-        try {
-          ws.close();
-        } catch (ex) {
-        }
-        resolve(allRows.map(function(row) {
-          var data = (row[1].qText || "").trim();
-          return { municipio: (row[0].qText || "").trim(), data: data && data !== "-" ? data : null };
-        }));
-      }
-    });
-  }
-  async function capturarDatasRatificacao(porNomeBusca, ticket, competencia) {
-    const porIbge = /* @__PURE__ */ new Map();
-    if (!ticket || !competencia) return porIbge;
-    const [mes, ano] = competencia.split("/");
-    if (!mes || !ano) return porIbge;
-    const anomes = ano + mes;
-    log("Abrindo Qlik de datas de envio da ratifica\xE7\xE3o (compet\xEAncia " + competencia + ")...");
-    const tab = await abrirAbaOculta(RATIF_DATAS_URL + "?qlikTicket=" + ticket);
-    const [{ result: rows }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: extractDatasRatificacaoQlik,
-      args: [RATIF_DATAS_APP_ID, anomes]
-    });
-    await fecharAba(tab);
-    if (!rows || rows.error) {
-      log("Datas de envio: " + (rows && rows.error ? rows.error : "sem dados") + ".", "warn");
-      return porIbge;
-    }
-    let semMatch = 0;
-    for (const row of rows) {
-      if (!row.data) continue;
-      const municipio = resolverMunicipio(row.municipio, porNomeBusca);
-      if (!municipio) {
-        semMatch++;
-        continue;
-      }
-      porIbge.set(municipio.codigo_ibge, row.data);
-    }
-    log("Datas de envio: " + porIbge.size + " munic\xEDpios" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    return porIbge;
-  }
-  function aplicarDatasEnvio(porIbgeRatif, datas) {
-    for (const [ibge, data] of datas) {
-      const atual = porIbgeRatif.get(ibge) || {};
-      porIbgeRatif.set(ibge, Object.assign({}, atual, { ratificacao_data_envio: data }));
-    }
-  }
   async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
     if (porIbge.size === 0) {
       log("Nada para gravar.");
@@ -32065,8 +31922,6 @@ This typically indicates that your device does not have a healthy Internet conne
         for (const competenciaAlvo of competenciasAlvo) {
           const ratif2 = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
           const modulos2 = await capturarModulos(porNomeBusca, competenciaAlvo, ticket);
-          const datasEnvio2 = await capturarDatasRatificacao(porNomeBusca, ticket, ratif2.competencia);
-          aplicarDatasEnvio(ratif2.porIbge, datasEnvio2);
           totalRatifSoma += await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
           totalModulosSoma += await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
         }
@@ -32086,8 +31941,6 @@ This typically indicates that your device does not have a healthy Internet conne
       const cndPorIbge = await capturarCND(porNomeBusca);
       const ratif = await capturarRatificacoes(porNomeBusca);
       const modulos = await capturarModulos(porNomeBusca, void 0, ticket);
-      const datasEnvio = await capturarDatasRatificacao(porNomeBusca, ticket, ratif.competencia);
-      aplicarDatasEnvio(ratif.porIbge, datasEnvio);
       const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
       const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
       const totalSnapshot = await gravarSnapshotsDiarios();

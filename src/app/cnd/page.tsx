@@ -8,6 +8,7 @@ import { exportCsv } from "@/lib/csv";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge, { type Tone } from "@/components/StatusBadge";
 import FonteDados from "@/components/FonteDados";
+import ContadorResultados from "@/components/ContadorResultados";
 import type { Municipio, StatusOperacionalAtual } from "@/types/municipio";
 
 function diasParaVencer(cndValidade: string | null | undefined): number | null {
@@ -183,14 +184,20 @@ export default function CndPage() {
   return (
     <RequireAuth>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">CND</h1>
-          <button
-            onClick={exportar}
-            className="rounded-full border border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-          >
-            Exportar CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <ContadorResultados
+              mostrando={aba === "geral" ? geralFiltrado.length : rankingFiltrado.length}
+              total={aba === "geral" ? municipios.length : ranking.length}
+            />
+            <button
+              onClick={exportar}
+              className="rounded-full border border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+            >
+              Exportar CSV
+            </button>
+          </div>
         </div>
         <p className="mb-1 text-sm text-apple-secondary">
           Fornecedor, empresa de software e situação da CND por município — visão geral de todos

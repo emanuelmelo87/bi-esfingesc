@@ -8,6 +8,7 @@ import { exportCsv } from "@/lib/csv";
 import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
+import ContadorResultados from "@/components/ContadorResultados";
 import { IconFilter, IconTrash } from "@/components/icons";
 import { compararCompetencias } from "@/lib/competencia";
 import { passaFiltroEnvio, ratifEnviado, ratifTitle, type FiltroEnvio } from "@/lib/ratificacao";
@@ -138,14 +139,17 @@ export default function RatificacaoGeralPage() {
   return (
     <RequireAuth>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Ratificação Geral</h1>
-          <button
-            onClick={exportar}
-            className="rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-          >
-            Exportar CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <ContadorResultados mostrando={linhas.length} total={municipios.length} />
+            <button
+              onClick={exportar}
+              className="rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+            >
+              Exportar CSV
+            </button>
+          </div>
         </div>
         <p className="mb-4 text-sm text-apple-secondary">
           Histórico de ratificação cruzando todas as competências, capturado automaticamente pela

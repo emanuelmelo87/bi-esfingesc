@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import FonteDados from "@/components/FonteDados";
+import ContadorResultados from "@/components/ContadorResultados";
 import type { Perfil, Usuario } from "@/types/usuario";
 
 const PERFIS: Perfil[] = ["ADMIN_GERAL", "GESTOR_CANAL", "ANALISTA", "LEITURA"];
@@ -39,7 +40,10 @@ export default function AdminUsuariosPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Gestão de Usuários</h1>
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Gestão de Usuários</h1>
+        <ContadorResultados mostrando={usuarios.length} total={usuarios.length} label="usuários" />
+      </div>
       <FonteDados colecoes={["usuarios"]} />
 
       {carregando ? (

@@ -6,17 +6,19 @@ const CND_URL =
   "https://virtual.tce.sc.gov.br/esfinge-web/esfinge-online/administracao/certidao/consulta-geral";
 const RATIFICACOES_URL =
   "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
-// appId "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b", objeto "WMFemM" (Ano/Mês, Ranking, Nome
-// Municipio, Situação) — hardcoded dentro de extractRatificacoesGlobais, que roda injetada
-// numa aba e não pode fechar sobre constantes deste escopo.
+// appId "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b", objeto pivot-table
+// "a76276a9-7638-4c81-96a6-b504100f7457" (dims Nome Municipio × Mês/Ano, medida
+// text(data_final_formatada)) — hardcoded dentro de extractRatificacoesGlobais,
+// que roda injetada numa aba e não pode fechar sobre constantes deste escopo.
+// Usamos esse pivot em vez do objeto "WMFemM" (tabela Ano/Mês, Ranking, Nome
+// Municipio, Situação) porque o WMFemM só é populado depois que a competência
+// fecha — pra competência em curso ele não tem nenhuma linha, mesmo quando
+// municípios já ratificaram. O pivot já traz a competência em curso (com data
+// real de ratificação por célula), então virou a única fonte.
 
 const TCE_LOGIN_URL = "https://virtual.tce.sc.gov.br/login";
 const TCE_TICKET_API = "https://api.virtual.tce.sc.gov.br/sgi/rest/usuarios/ticketQlik";
 const QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
-// App "Ratificações de Remessa" — dá a data real de transmissão (campo
-// datahorainiciotransmissao_original), que o painel público (WMFemM) não tem.
-const RATIF_DATAS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/appRatificacao/index.html";
-const RATIF_DATAS_APP_ID = "7264eedd-8003-4537-82c9-c038e8012279";
 
 const logEl = document.getElementById("log");
 const modoLabelEl = document.getElementById("modo-label");
@@ -208,20 +210,18 @@ async function capturarCND(porNomeBusca) {
 // Autocontida: roda via chrome.scripting.executeScript dentro da aba, não pode
 // fechar sobre nada do escopo externo (ver nota no topo do arquivo).
 //
-// Sempre recebe uma competenciaAlvo explícita ("MM/AAAA") — pagina a tabela
-// inteira (~9 mil linhas, todo o histórico desde 2024) e filtra só as linhas
-// daquela competência. Existiu um "atalho" que pegava só as 295 primeiras
-// linhas assumindo que era a competência mais recente já ordenada pelo Qlik;
-// removido porque essa suposição era falsa — o TCE já tem linhas pra
-// competência do mês corrente (ainda em curso, sem prazo vencido) misturadas
-// no topo, o que gravava status pra um mês que ainda nem fechou.
+// Sempre recebe uma competenciaAlvo explícita ("MM/AAAA"). Primeiro acha o
+// índice da coluna (eixo Mês/Ano) que bate com a competência pedida; se não
+// existir ainda no painel, resolve lista vazia (não é erro — só significa que
+// o TCE ainda não abriu aquela competência). Depois pagina o eixo dos
+// municípios pedindo só aquela coluna.
 function extractRatificacoesGlobais(competenciaAlvo) {
   return new Promise(function (resolve, reject) {
     var appId = "0e41d18b-45c4-4fef-94d4-ec0eee70fe5b";
-    var objectId = "WMFemM";
+    var objectId = "a76276a9-7638-4c81-96a6-b504100f7457";
     var ws = new WebSocket("wss://paineistransparencia.tce.sc.gov.br/app/" + appId);
     var msgId = 1;
-    var PAGE_SIZE = 2000;
+    var ALTURA_PAGINA = 100;
 
     function call(method, handle, params) {
       return new Promise(function (res, rej) {
@@ -238,8 +238,16 @@ function extractRatificacoesGlobais(competenciaAlvo) {
       });
     }
 
-    function linha(r) {
-      return { anoMes: r[0].qText, nomeMunicipio: r[2].qText, situacao: r[3].qText };
+    // Cor da célula (qAttrExps) além do texto — mais confiável que tentar
+    // adivinhar "no prazo"/"fora do prazo" só pela data. RGB(51,102,255) =
+    // azul (no prazo), RGB(255,51,51) = vermelho (fora do prazo); qualquer
+    // outra cor com data presente cai em "atrasado" (mais seguro que
+    // "ausente", já que existe uma data real).
+    function classificar(valor, cor) {
+      if (valor === "Ausente") return "ausente";
+      if (cor && cor.indexOf("51,102,255") >= 0) return "quitado";
+      if (cor && cor.indexOf("255,51,51") >= 0) return "atrasado";
+      return "atrasado";
     }
 
     ws.onerror = function () {
@@ -253,22 +261,46 @@ function extractRatificacoesGlobais(competenciaAlvo) {
         .then(function (getObj) {
           var objHandle = getObj.qReturn.qHandle;
           return call("GetLayout", objHandle, []).then(function (layoutRes) {
-            var total = layoutRes.qLayout.qHyperCube.qSize.qcy;
-            var linhas = [];
-            function buscarPagina(top) {
-              var altura = Math.min(PAGE_SIZE, total - top);
-              return call("GetHyperCubeData", objHandle, ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: altura, qWidth: 4 }]]).then(
-                function (dataPage) {
-                  dataPage.qDataPages[0].qMatrix.forEach(function (r) {
-                    var l = linha(r);
-                    if (l.anoMes === competenciaAlvo) linhas.push(l);
-                  });
-                  if (top + altura < total) return buscarPagina(top + altura);
-                  return linhas;
+            var tamanho = layoutRes.qLayout.qHyperCube.qSize;
+            var totalColunas = tamanho.qcx;
+            var totalMunicipios = tamanho.qcy;
+            return call("GetHyperCubePivotData", objHandle, ["/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qWidth: totalColunas, qHeight: 1 }]]).then(
+              function (pagina0) {
+                var colunas = pagina0.qDataPages[0].qTop;
+                var colIndex = -1;
+                for (var i = 0; i < colunas.length; i++) {
+                  if (colunas[i].qText === competenciaAlvo) {
+                    colIndex = i;
+                    break;
+                  }
                 }
-              );
-            }
-            return buscarPagina(0);
+                if (colIndex < 0) return [];
+
+                var linhas = [];
+                function buscarPagina(top) {
+                  var altura = Math.min(ALTURA_PAGINA, totalMunicipios - top);
+                  return call("GetHyperCubePivotData", objHandle, ["/qHyperCubeDef", [{ qTop: top, qLeft: colIndex, qWidth: 1, qHeight: altura }]]).then(
+                    function (dataPage) {
+                      var pg = dataPage.qDataPages[0];
+                      pg.qLeft.forEach(function (municipioNo, i) {
+                        var cell = pg.qData[i] && pg.qData[i][0];
+                        if (!cell) return;
+                        var valor = cell.qText;
+                        var cor = cell.qAttrExps && cell.qAttrExps.qValues[0] && cell.qAttrExps.qValues[0].qText;
+                        linhas.push({
+                          nomeMunicipio: municipioNo.qText,
+                          situacao: classificar(valor, cor),
+                          data: valor === "Ausente" ? null : valor,
+                        });
+                      });
+                      if (top + altura < totalMunicipios) return buscarPagina(top + altura);
+                      return linhas;
+                    }
+                  );
+                }
+                return buscarPagina(0);
+              }
+            );
           });
         })
         .then(function (linhas) {
@@ -281,12 +313,6 @@ function extractRatificacoesGlobais(competenciaAlvo) {
         });
     };
   });
-}
-
-function mapSituacao(situacaoTexto) {
-  if (situacaoTexto.indexOf("No Prazo") >= 0) return "quitado";
-  if (situacaoTexto.indexOf("Fora do Prazo") >= 0) return "atrasado";
-  return "ausente";
 }
 
 // "MM/AAAA" do mês anterior ao atual — competência "corrente" por convenção
@@ -319,7 +345,8 @@ async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
       continue;
     }
     porIbge.set(municipio.codigo_ibge, {
-      ratificacao_status: mapSituacao(row.situacao),
+      ratificacao_status: row.situacao,
+      ratificacao_data_envio: row.data,
       ratificacao_atualizado_em: serverTimestamp(),
     });
   }
@@ -605,8 +632,8 @@ function pendenciasArea(area, entidades) {
   return pendencias;
 }
 
-// Login + ticket Qlik, compartilhado entre capturarModulos e
-// capturarDatasRatificacao (evita logar duas vezes no TCE Virtual).
+// Login + ticket Qlik, usado por capturarModulos (única fonte que ainda
+// precisa de login restrito — ratificação e sua data já são públicas).
 async function obterTicketQlik() {
   const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
   if (!tce_matricula || !tce_senha) {
@@ -715,152 +742,6 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
   return { porIbge, competencia: periodo };
 }
 
-// ── Componente 2b — data real de envio da ratificação (restrito) ─────────
-// A pergunta que interessa não é só "no prazo ou não", é "foi enviado" — o
-// painel público (WMFemM) só dá a situação, não a data. Este objeto Qlik
-// (app "Ratificações de Remessa", mesmo ticket do login de módulos) dá a
-// data máxima de transmissão por município pra uma competência.
-
-// appId, anomes ("AAAAMM"). Retorna [{municipio, data:"DD/MM/YYYY"|null}] ou {error}.
-function extractDatasRatificacaoQlik(appId, anomes) {
-  return new Promise(function (resolve) {
-    var ws = new WebSocket("wss://paineis.tce.sc.gov.br/custom/app/" + appId);
-    var msgId = 1, cubeHandle = null, allRows = [], totalRows = 0;
-    var PAGE_SIZE = 2000;
-    var fase = "open";
-    var timer = setTimeout(function () {
-      try { ws.close(); } catch (e) {}
-      resolve({ error: "Timeout — sessão Qlik expirou" });
-    }, 120000);
-
-    function send(msg) { ws.send(JSON.stringify(msg)); }
-
-    ws.onopen = function () {
-      send({ jsonrpc: "2.0", id: msgId++, method: "OpenDoc", handle: -1, params: [appId] });
-    };
-    ws.onerror = function () {
-      clearTimeout(timer);
-      resolve({ error: "Erro WebSocket — autenticação Qlik inválida" });
-    };
-    ws.onmessage = function (e) {
-      var d = JSON.parse(e.data);
-      if (d.method) return;
-
-      if (fase === "open") {
-        if (d.error || !d.result || !d.result.qReturn) {
-          clearTimeout(timer); try { ws.close(); } catch (ex) {}
-          resolve({ error: (d.error && d.error.message) || "OpenDoc falhou" });
-          return;
-        }
-        var docHandle = d.result.qReturn.qHandle;
-        fase = "cube";
-        send({
-          jsonrpc: "2.0", id: msgId++, method: "CreateSessionObject", handle: docHandle,
-          params: [{
-            qInfo: { qType: "datas-ratif-extract" },
-            qHyperCubeDef: {
-              qDimensions: [{ qDef: { qFieldDefs: ["nome_ente"] } }],
-              qMeasures: [
-                { qDef: { qDef: "Date(Max({<anomes={'" + anomes + "'}>} datahorainiciotransmissao_original), 'DD/MM/YYYY')" } },
-              ],
-              qSuppressMissing: true,
-              qInitialDataFetch: [{ qTop: 0, qLeft: 0, qHeight: 0, qWidth: 2 }],
-            },
-          }],
-        });
-      } else if (fase === "cube") {
-        if (d.error || !d.result || !d.result.qReturn) {
-          clearTimeout(timer); try { ws.close(); } catch (ex) {}
-          resolve({ error: (d.error && d.error.message) || "CreateSessionObject falhou" });
-          return;
-        }
-        cubeHandle = d.result.qReturn.qHandle;
-        fase = "layout";
-        send({ jsonrpc: "2.0", id: msgId++, method: "GetLayout", handle: cubeHandle, params: [] });
-      } else if (fase === "layout") {
-        if (d.error || !d.result || !d.result.qLayout) {
-          clearTimeout(timer); try { ws.close(); } catch (ex) {}
-          resolve({ error: (d.error && d.error.message) || "GetLayout falhou" });
-          return;
-        }
-        var sz = d.result.qLayout.qHyperCube && d.result.qLayout.qHyperCube.qSize;
-        if (!sz || sz.qcy === 0) {
-          clearTimeout(timer); try { ws.close(); } catch (ex) {}
-          resolve([]);
-          return;
-        }
-        totalRows = sz.qcy;
-        fase = "fetch";
-        fetchPage(0);
-      } else if (fase === "fetch") {
-        if (d.error || !d.result || !d.result.qDataPages) {
-          clearTimeout(timer); try { ws.close(); } catch (ex) {}
-          resolve({ error: (d.error && d.error.message) || "GetHyperCubeData falhou" });
-          return;
-        }
-        var pg = d.result.qDataPages[0];
-        if (pg && pg.qMatrix.length > 0) pg.qMatrix.forEach(function (r) { allRows.push(r); });
-        if (allRows.length < totalRows) fetchPage(allRows.length);
-        else finish();
-      }
-    };
-
-    function fetchPage(top) {
-      var h = Math.min(PAGE_SIZE, totalRows - top);
-      send({ jsonrpc: "2.0", id: msgId++, method: "GetHyperCubeData", handle: cubeHandle, params: ["/qHyperCubeDef", [{ qTop: top, qLeft: 0, qHeight: h, qWidth: 2 }]] });
-    }
-    function finish() {
-      clearTimeout(timer); try { ws.close(); } catch (ex) {}
-      resolve(allRows.map(function (row) {
-        var data = (row[1].qText || "").trim();
-        return { municipio: (row[0].qText || "").trim(), data: data && data !== "-" ? data : null };
-      }));
-    }
-  });
-}
-
-async function capturarDatasRatificacao(porNomeBusca, ticket, competencia) {
-  const porIbge = new Map();
-  if (!ticket || !competencia) return porIbge;
-  const [mes, ano] = competencia.split("/");
-  if (!mes || !ano) return porIbge;
-  const anomes = ano + mes;
-
-  log("Abrindo Qlik de datas de envio da ratificação (competência " + competencia + ")...");
-  const tab = await abrirAbaOculta(RATIF_DATAS_URL + "?qlikTicket=" + ticket);
-  const [{ result: rows }] = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: extractDatasRatificacaoQlik,
-    args: [RATIF_DATAS_APP_ID, anomes],
-  });
-  await fecharAba(tab);
-
-  if (!rows || rows.error) {
-    log("Datas de envio: " + (rows && rows.error ? rows.error : "sem dados") + ".", "warn");
-    return porIbge;
-  }
-  let semMatch = 0;
-  for (const row of rows) {
-    if (!row.data) continue;
-    const municipio = resolverMunicipio(row.municipio, porNomeBusca);
-    if (!municipio) {
-      semMatch++;
-      continue;
-    }
-    porIbge.set(municipio.codigo_ibge, row.data);
-  }
-  log("Datas de envio: " + porIbge.size + " municípios" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-  return porIbge;
-}
-
-// Enriquece o mapa de ratificação (in place) com a data de envio, quando houver.
-function aplicarDatasEnvio(porIbgeRatif, datas) {
-  for (const [ibge, data] of datas) {
-    const atual = porIbgeRatif.get(ibge) || {};
-    porIbgeRatif.set(ibge, Object.assign({}, atual, { ratificacao_data_envio: data }));
-  }
-}
-
 // ── Gravação combinada no Firestore ──────────────────────────────────────
 
 async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
@@ -963,8 +844,6 @@ async function main() {
       for (const competenciaAlvo of competenciasAlvo) {
         const ratif = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
         const modulos = await capturarModulos(porNomeBusca, competenciaAlvo, ticket);
-        const datasEnvio = await capturarDatasRatificacao(porNomeBusca, ticket, ratif.competencia);
-        aplicarDatasEnvio(ratif.porIbge, datasEnvio);
         totalRatifSoma += await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
         totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       }
@@ -987,8 +866,6 @@ async function main() {
     const cndPorIbge = await capturarCND(porNomeBusca);
     const ratif = await capturarRatificacoes(porNomeBusca);
     const modulos = await capturarModulos(porNomeBusca, undefined, ticket);
-    const datasEnvio = await capturarDatasRatificacao(porNomeBusca, ticket, ratif.competencia);
-    aplicarDatasEnvio(ratif.porIbge, datasEnvio);
     const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
     const totalSnapshot = await gravarSnapshotsDiarios();

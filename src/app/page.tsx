@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import RequireAuth from "@/components/RequireAuth";
 import StatTile from "@/components/StatTile";
 import ProportionBar from "@/components/ProportionBar";
+import ContadorResultados from "@/components/ContadorResultados";
 import { todosModulosEnviados, type Municipio, type StatusOperacionalAtual } from "@/types/municipio";
 import type { StatusPorCompetencia } from "@/types/competencia";
 import { ratifEnviado } from "@/lib/ratificacao";
@@ -280,15 +281,18 @@ export default function Home() {
                     Módulos (Contábil/Folha/Contratos/Tributos) e ratificação global, mês a mês
                   </p>
                 </div>
-                <select
-                  value={filtroFornecedorGraficos}
-                  onChange={(e) => setFiltroFornecedorGraficos(e.target.value)}
-                  className="rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
-                >
-                  <option value="todos">Fornecedor: todos</option>
-                  <option value="Betha">Betha</option>
-                  <option value="Concorrente">Concorrente</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <ContadorResultados mostrando={municipiosParaGraficos.length} total={municipios.length} />
+                  <select
+                    value={filtroFornecedorGraficos}
+                    onChange={(e) => setFiltroFornecedorGraficos(e.target.value)}
+                    className="rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
+                  >
+                    <option value="todos">Fornecedor: todos</option>
+                    <option value="Betha">Betha</option>
+                    <option value="Concorrente">Concorrente</option>
+                  </select>
+                </div>
               </div>
 
               {dadosGraficosCompetencia.length === 0 ? (
