@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
+import { useState } from "react";
+import { collection, getDocs, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { IconSpeechBubble } from "@/components/icons";
+import { IconRefresh, IconSpeechBubble } from "@/components/icons";
 import { ratifLabel } from "@/lib/ratificacao";
-import type { StatusOperacionalAtual } from "@/types/municipio";
+import type { StatusPorCompetencia } from "@/types/competencia";
 
 function paraMillis(dataBR: string): number {
   const [d, m, a] = dataBR.split("/").map(Number);
@@ -15,30 +15,61 @@ function paraMillis(dataBR: string): number {
 
 function formatarDataHora(ts: Timestamp | null): string {
   if (!ts) return "—";
-  return ts.toDate().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  // Fixa America/Sao_Paulo em vez do fuso do sistema do usuário — os dados
+  // são sempre de SC, então a hora exibida não deve depender de onde/como o
+  // computador de quem está olhando está configurado.
+  return ts.toDate().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
 }
 
 export default function NovidadesBalao({ variant = "sidebar" }: { variant?: "sidebar" | "mobile" }) {
   const { user } = useAuth();
-  const [status, setStatus] = useState<StatusOperacionalAtual[]>([]);
+  const [porCompetencia, setPorCompetencia] = useState<StatusPorCompetencia[]>([]);
   const [aberto, setAberto] = useState(false);
+  const [carregado, setCarregado] = useState(false);
 
-  useEffect(() => {
+  // status_por_competencia (não status_operacional_atual) — é a coleção que
+  // toda sincronização grava, tanto o modo normal quanto o backfill de uma
+  // competência específica. status_operacional_atual só é tocado no modo
+  // normal, então o balão ficava "vazio" pra quem sempre testa via backfill.
+  // Busca pontual, só quando o balão é aberto pela primeira vez — como ele
+  // fica montado em toda página (sidebar), um onSnapshot aqui reconsultava a
+  // coleção inteira a cada navegação, mesmo sem ninguém nunca abrir o balão.
+  async function carregar() {
     if (!user) return;
-    const unsub = onSnapshot(collection(db, "status_operacional_atual"), (snap) => {
-      setStatus(snap.docs.map((d) => d.data() as StatusOperacionalAtual));
-    });
-    return unsub;
-  }, [user]);
+    const snap = await getDocs(collection(db, "status_por_competencia"));
+    setPorCompetencia(snap.docs.map((d) => d.data() as StatusPorCompetencia));
+    setCarregado(true);
+  }
 
-  const ultimaConsulta = status.reduce<Timestamp | null>((max, s) => {
+  async function abrir() {
+    setAberto(true);
+    if (carregado) return;
+    await carregar();
+  }
+
+  const ultimaConsulta = porCompetencia.reduce<Timestamp | null>((max, s) => {
     if (!s.atualizado_em) return max;
     if (!max || s.atualizado_em.toMillis() > max.toMillis()) return s.atualizado_em;
     return max;
   }, null);
 
-  const ultimosEnvios = [...status]
-    .filter((s): s is StatusOperacionalAtual & { ratificacao_data_envio: string } => !!s.ratificacao_data_envio)
+  // Um envio por município (o mais recente entre as competências capturadas
+  // dele), senão o mesmo município repete uma vez por competência na lista.
+  const maisRecentePorMunicipio = new Map<string, StatusPorCompetencia & { ratificacao_data_envio: string }>();
+  for (const s of porCompetencia) {
+    if (!s.ratificacao_data_envio) continue;
+    const atual = maisRecentePorMunicipio.get(s.codigo_ibge);
+    if (!atual || paraMillis(s.ratificacao_data_envio) > paraMillis(atual.ratificacao_data_envio)) {
+      maisRecentePorMunicipio.set(s.codigo_ibge, { ...s, ratificacao_data_envio: s.ratificacao_data_envio });
+    }
+  }
+  const ultimosEnvios = [...maisRecentePorMunicipio.values()]
     .sort((a, b) => paraMillis(b.ratificacao_data_envio) - paraMillis(a.ratificacao_data_envio))
     .slice(0, 8);
 
@@ -55,7 +86,7 @@ export default function NovidadesBalao({ variant = "sidebar" }: { variant?: "sid
     <div className="relative">
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={() => (aberto ? setAberto(false) : abrir())}
         aria-label="Novidades"
         title="Novidades — últimos dados atualizados"
         className={botaoClass}
@@ -70,9 +101,19 @@ export default function NovidadesBalao({ variant = "sidebar" }: { variant?: "sid
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="text-[13px] font-semibold text-apple-title">Novidades</h3>
-              <span className="text-[10px] whitespace-nowrap text-apple-muted">
-                Consultado {formatarDataHora(ultimaConsulta)}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] whitespace-nowrap text-apple-muted">
+                  Consultado {formatarDataHora(ultimaConsulta)}
+                </span>
+                <button
+                  type="button"
+                  onClick={carregar}
+                  title="Atualizar"
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-apple-muted transition hover:bg-black/[0.05] hover:text-apple-title dark:hover:bg-white/[0.08]"
+                >
+                  <IconRefresh className="h-3 w-3" />
+                </button>
+              </div>
             </div>
             <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">
               Últimos envios de ratificação

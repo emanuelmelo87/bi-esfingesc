@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, onSnapshot, query, where, writeBatch } from "firebase/firestore";
+import { collection, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { exportCsv } from "@/lib/csv";
@@ -9,7 +9,7 @@ import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
-import { IconFilter, IconTrash } from "@/components/icons";
+import { IconFilter, IconRefresh, IconTrash } from "@/components/icons";
 import { compararCompetencias } from "@/lib/competencia";
 import { passaFiltroEnvio, ratifEnviado, ratifTitle, type FiltroEnvio } from "@/lib/ratificacao";
 import type { Municipio } from "@/types/municipio";
@@ -43,22 +43,31 @@ export default function RatificacaoGeralPage() {
     });
   }, [user]);
 
-  useEffect(() => {
+  // Busca pontual (getDocs) em vez de onSnapshot: os dados só mudam quando
+  // alguém roda a extensão, não em tempo real — um "ouvinte ao vivo" nessa
+  // coleção (que só cresce a cada competência nova) consumia cota do
+  // Firestore à toa em cada visita à tela. Botão "Atualizar" recarrega.
+  async function carregarStatus() {
     if (!user) return;
-    const unsub = onSnapshot(collection(db, "status_por_competencia"), (snap) => {
-      const vistas = new Set<string>();
-      const porMunicipio = new Map<string, Map<string, StatusPorCompetencia>>();
-      snap.forEach((d) => {
-        const dados = d.data() as StatusPorCompetencia;
-        vistas.add(dados.competencia);
-        if (!porMunicipio.has(dados.codigo_ibge)) porMunicipio.set(dados.codigo_ibge, new Map());
-        porMunicipio.get(dados.codigo_ibge)!.set(dados.competencia, dados);
-      });
-      setCompetencias([...vistas].sort(compararCompetencias));
-      setHistoricoPorIbge(porMunicipio);
-      setCarregando(false);
+    setCarregando(true);
+    const snap = await getDocs(collection(db, "status_por_competencia"));
+    const vistas = new Set<string>();
+    const porMunicipio = new Map<string, Map<string, StatusPorCompetencia>>();
+    snap.forEach((d) => {
+      const dados = d.data() as StatusPorCompetencia;
+      vistas.add(dados.competencia);
+      if (!porMunicipio.has(dados.codigo_ibge)) porMunicipio.set(dados.codigo_ibge, new Map());
+      porMunicipio.get(dados.codigo_ibge)!.set(dados.competencia, dados);
     });
-    return unsub;
+    setCompetencias([...vistas].sort(compararCompetencias));
+    setHistoricoPorIbge(porMunicipio);
+    setCarregando(false);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    carregarStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   async function apagarCompetencia(competencia: string) {
@@ -143,6 +152,13 @@ export default function RatificacaoGeralPage() {
           <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Ratificação Geral</h1>
           <div className="flex items-center gap-2">
             <ContadorResultados mostrando={linhas.length} total={municipios.length} />
+            <button
+              onClick={carregarStatus}
+              title="Atualizar dados"
+              className="rounded-full border border-black/[0.08] bg-white/80 p-1.5 text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+            >
+              <IconRefresh className="h-4 w-4" />
+            </button>
             <button
               onClick={exportar}
               className="rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +10,7 @@ import RequireAuth from "@/components/RequireAuth";
 import StatTile from "@/components/StatTile";
 import ProportionBar from "@/components/ProportionBar";
 import ContadorResultados from "@/components/ContadorResultados";
+import { IconRefresh } from "@/components/icons";
 import { todosModulosEnviados, type Municipio, type StatusOperacionalAtual } from "@/types/municipio";
 import type { StatusPorCompetencia } from "@/types/competencia";
 import { ratifEnviado } from "@/lib/ratificacao";
@@ -52,40 +53,44 @@ export default function Home() {
     setMunicipios(snap.docs.map((d) => d.data() as Municipio));
   }
 
-  useEffect(() => {
+  // Busca pontual (getDocs) em vez de onSnapshot: os dados só mudam quando
+  // alguém roda a extensão, não em tempo real — um "ouvinte ao vivo" nessas
+  // coleções (que só crescem a cada competência nova) consumia cota do
+  // Firestore à toa em cada visita à tela.
+  async function carregarStatus() {
     if (!user) return;
-    getDocs(collection(db, "municipios")).then((snap) => {
-      setMunicipios(snap.docs.map((d) => d.data() as Municipio));
+    const [statusSnap, competenciaSnap] = await Promise.all([
+      getDocs(collection(db, "status_operacional_atual")),
+      getDocs(collection(db, "status_por_competencia")),
+    ]);
+
+    const proximo = new Map<string, StatusOperacionalAtual>();
+    statusSnap.forEach((d) => proximo.set(d.id, d.data() as StatusOperacionalAtual));
+    setStatusPorIbge(proximo);
+
+    const vistas = new Set<string>();
+    const porMunicipio = new Map<string, Map<string, StatusPorCompetencia>>();
+    competenciaSnap.forEach((d) => {
+      const dados = d.data() as StatusPorCompetencia;
+      vistas.add(dados.competencia);
+      if (!porMunicipio.has(dados.codigo_ibge)) porMunicipio.set(dados.codigo_ibge, new Map());
+      porMunicipio.get(dados.codigo_ibge)!.set(dados.competencia, dados);
     });
-  }, [user]);
+    setCompetenciasDisponiveis([...vistas].sort(compararCompetencias));
+    setHistoricoPorIbge(porMunicipio);
+
+    setAtualizadoEm(new Date());
+    setCarregando(false);
+  }
+
+  async function atualizarTudo() {
+    await Promise.all([carregarMunicipios(), carregarStatus()]);
+  }
 
   useEffect(() => {
-    if (!user) return;
-    const unsub = onSnapshot(collection(db, "status_operacional_atual"), (snap) => {
-      const proximo = new Map<string, StatusOperacionalAtual>();
-      snap.forEach((d) => proximo.set(d.id, d.data() as StatusOperacionalAtual));
-      setStatusPorIbge(proximo);
-      setAtualizadoEm(new Date());
-      setCarregando(false);
-    });
-    return unsub;
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = onSnapshot(collection(db, "status_por_competencia"), (snap) => {
-      const vistas = new Set<string>();
-      const porMunicipio = new Map<string, Map<string, StatusPorCompetencia>>();
-      snap.forEach((d) => {
-        const dados = d.data() as StatusPorCompetencia;
-        vistas.add(dados.competencia);
-        if (!porMunicipio.has(dados.codigo_ibge)) porMunicipio.set(dados.codigo_ibge, new Map());
-        porMunicipio.get(dados.codigo_ibge)!.set(dados.competencia, dados);
-      });
-      setCompetenciasDisponiveis([...vistas].sort(compararCompetencias));
-      setHistoricoPorIbge(porMunicipio);
-    });
-    return unsub;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    atualizarTudo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const status = useMemo(() => [...statusPorIbge.values()], [statusPorIbge]);
@@ -167,29 +172,18 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2.5 self-start sm:self-auto">
             <div className="flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/[0.08] px-3 py-1.5 text-[12px] font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
-              </span>
+              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
               <span>
                 {atualizadoEm
-                  ? `Atualizado ${atualizadoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} `
+                  ? `Consultado ${atualizadoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} `
                   : "Carregando "}
-                <span className="font-normal text-emerald-700/80 dark:text-emerald-400/70">(dados ao vivo)</span>
               </span>
             </div>
             <button
-              onClick={carregarMunicipios}
+              onClick={atualizarTudo}
               className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition-all hover:bg-white active:scale-[0.98] dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
             >
-              <svg className="h-3.5 w-3.5 text-apple-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
+              <IconRefresh className="h-3.5 w-3.5 text-apple-secondary" />
               Atualizar agora
             </button>
           </div>

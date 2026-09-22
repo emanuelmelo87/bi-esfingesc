@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { exportCsv } from "@/lib/csv";
@@ -9,6 +9,7 @@ import RequireAuth from "@/components/RequireAuth";
 import StatusBadge, { type Tone } from "@/components/StatusBadge";
 import FonteDados from "@/components/FonteDados";
 import ContadorResultados from "@/components/ContadorResultados";
+import { IconRefresh } from "@/components/icons";
 import type { Municipio, StatusOperacionalAtual } from "@/types/municipio";
 
 function diasParaVencer(cndValidade: string | null | undefined): number | null {
@@ -82,15 +83,23 @@ export default function CndPage() {
     });
   }, [user]);
 
-  useEffect(() => {
+  // Busca pontual (getDocs) em vez de onSnapshot: os dados só mudam quando
+  // alguém roda a extensão, não em tempo real — um "ouvinte ao vivo" consumia
+  // cota do Firestore à toa em cada visita à tela. Botão "Atualizar" recarrega.
+  async function carregarStatus() {
     if (!user) return;
-    const unsub = onSnapshot(collection(db, "status_operacional_atual"), (snap) => {
-      const proximo = new Map<string, StatusOperacionalAtual>();
-      snap.forEach((d) => proximo.set(d.id, d.data() as StatusOperacionalAtual));
-      setStatusPorIbge(proximo);
-      setCarregando(false);
-    });
-    return unsub;
+    setCarregando(true);
+    const snap = await getDocs(collection(db, "status_operacional_atual"));
+    const proximo = new Map<string, StatusOperacionalAtual>();
+    snap.forEach((d) => proximo.set(d.id, d.data() as StatusOperacionalAtual));
+    setStatusPorIbge(proximo);
+    setCarregando(false);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    carregarStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Aba Geral — todos os 295, com filtros e CND.
@@ -191,6 +200,13 @@ export default function CndPage() {
               mostrando={aba === "geral" ? geralFiltrado.length : rankingFiltrado.length}
               total={aba === "geral" ? municipios.length : ranking.length}
             />
+            <button
+              onClick={carregarStatus}
+              title="Atualizar dados"
+              className="rounded-full border border-black/[0.08] bg-white/80 p-1.5 text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+            >
+              <IconRefresh className="h-4 w-4" />
+            </button>
             <button
               onClick={exportar}
               className="rounded-full border border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
