@@ -24,7 +24,10 @@ const MODULOS = [
   { key: "tributos", label: "Tributos" },
 ] as const;
 
-function moduloBadge(mod: ModuloStatus | null | undefined) {
+function moduloBadge(mod: ModuloStatus | null | undefined, ratificado: boolean) {
+  if (ratificado) {
+    return <StatusBadge label="OK" tone="green" title="Ratificação geral já concluída no TCE — considerado OK" />;
+  }
   if (mod?.status === "ok") return <StatusBadge label="OK" tone="green" />;
   if (mod?.status === "pendente") {
     const titulo = mod.pendencias?.length
@@ -39,8 +42,11 @@ function moduloBadge(mod: ModuloStatus | null | undefined) {
 
 // "ok" nos 4 módulos — diferente de todosModulosEnviados() (que só checa se o
 // TCE reportou *algum* status, "ok" ou "pendente"); aqui é sobre ter passado
-// mesmo na regra de negócio de cada área.
-function todosModulosOk(modulos: Modulos | null | undefined) {
+// mesmo na regra de negócio de cada área. Se a Ratificação Geral já foi
+// concluída no TCE, ela é a fonte oficial e prevalece sobre os campos por
+// módulo (que são um proxy reconstruído e podem estar desatualizados/errados).
+function todosModulosOk(modulos: Modulos | null | undefined, ratificado: boolean) {
+  if (ratificado) return true;
   if (!modulos) return false;
   return MODULOS.every((m) => modulos[m.key]?.status === "ok");
 }
@@ -177,7 +183,7 @@ export default function MatrizPage() {
         dados: competencia ? historicoPorIbge.get(m.codigo_ibge)?.get(competencia) : undefined,
       }))
       .filter(({ dados }) => passaFiltroEnvio(dados?.ratificacao_status, filtroRatificacao))
-      .filter(({ dados }) => passaFiltroBooleano(todosModulosOk(dados?.modulos), filtroModulos))
+      .filter(({ dados }) => passaFiltroBooleano(todosModulosOk(dados?.modulos, ratifEnviado(dados?.ratificacao_status)), filtroModulos))
       .sort((a, b) => a.municipio.nome.localeCompare(b.municipio.nome, "pt-BR"));
   }, [municipios, historicoPorIbge, competencia, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroRatificacao, filtroModulos]);
 
@@ -187,7 +193,7 @@ export default function MatrizPage() {
       linhas.map(({ municipio, dados }) => ({
         municipio: municipio.nome,
         ratificacao_geral: ratifEnviado(dados?.ratificacao_status) ? "SIM" : "NÃO",
-        ratificacao_por_modulo: todosModulosOk(dados?.modulos) ? "SIM" : "NÃO",
+        ratificacao_por_modulo: todosModulosOk(dados?.modulos, ratifEnviado(dados?.ratificacao_status)) ? "SIM" : "NÃO",
         contabil: dados?.modulos?.contabil?.status ?? "",
         folha: dados?.modulos?.folha?.status ?? "",
         contratos: dados?.modulos?.contratos?.status ?? "",
@@ -360,7 +366,7 @@ export default function MatrizPage() {
                     // Situação real do envio: todos os módulos passaram, mas o TCE ainda
                     // não fechou a ratificação geral daquela competência — acontece porque
                     // são duas etapas independentes no e-Sfinge, uma não implica a outra.
-                    const modulosOk = todosModulosOk(dados?.modulos);
+                    const modulosOk = todosModulosOk(dados?.modulos, enviado);
                     const faltaSoRatificar = modulosOk && !enviado;
                     return (
                       <tr
@@ -399,7 +405,7 @@ export default function MatrizPage() {
                         </td>
                         {MODULOS.map((m) => (
                           <td key={m.key} className="px-4 py-3.5">
-                            {moduloBadge(dados?.modulos?.[m.key])}
+                            {moduloBadge(dados?.modulos?.[m.key], enviado)}
                           </td>
                         ))}
                       </tr>
