@@ -14,6 +14,15 @@ function Icon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconSpeechBubble(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5.5h16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H9.5L5 19.8V16H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </Icon>
+  );
+}
+
 export function IconHome(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

@@ -31,7 +31,7 @@ export default function RatificacaoGeralPage() {
   const [carregando, setCarregando] = useState(true);
 
   const [busca, setBusca] = useState("");
-  const [filtroFornecedor, setFiltroFornecedor] = useState("todos");
+  const [filtroFornecedor, setFiltroFornecedor] = useState("Betha");
   const [filtroCanal, setFiltroCanal] = useState("todos");
   const [filtroAssociacao, setFiltroAssociacao] = useState("todos");
   const [filtroPorCompetencia, setFiltroPorCompetencia] = useState<Record<string, FiltroEnvio>>({});

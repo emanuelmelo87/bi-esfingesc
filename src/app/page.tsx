@@ -44,7 +44,7 @@ export default function Home() {
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
   const [historicoPorIbge, setHistoricoPorIbge] = useState<Map<string, Map<string, StatusPorCompetencia>>>(new Map());
   const [competenciasDisponiveis, setCompetenciasDisponiveis] = useState<string[]>([]);
-  const [filtroFornecedorGraficos, setFiltroFornecedorGraficos] = useState("todos");
+  const [filtroFornecedorGraficos, setFiltroFornecedorGraficos] = useState("Betha");
 
   async function carregarMunicipios() {
     if (!user) return;
