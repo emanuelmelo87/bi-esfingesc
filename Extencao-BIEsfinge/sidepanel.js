@@ -37,6 +37,8 @@ document.getElementById("btn-sync").addEventListener("click", function () {
     document.getElementById("sync-status").className = "status err";
     return;
   }
+  chrome.storage.local.set({ ultima_competencia_inicio: inicio, ultima_competencia_fim: fim });
+
   document.getElementById("sync-status").textContent = "Abrindo captura...";
   document.getElementById("sync-status").className = "status";
   var url = chrome.runtime.getURL("progress.html") + "?modo=manual";
@@ -208,10 +210,13 @@ chrome.storage.local.get(
     "auth_status", "last_execution", "schedule_times", "schedule_days",
     "schedule_competencia_inicio", "schedule_competencia_fim",
     "tce_credenciais", "tce_matricula", "tce_senha",
+    "ultima_competencia_inicio", "ultima_competencia_fim",
   ],
   function (data) {
     renderAuth(data.auth_status);
     renderLastExecution(data.last_execution);
+    if (data.ultima_competencia_inicio) document.getElementById("competencia-inicio").value = data.ultima_competencia_inicio;
+    if (data.ultima_competencia_fim) document.getElementById("competencia-fim").value = data.ultima_competencia_fim;
     scheduleTimes = data.schedule_times || [];
     scheduleDays = data.schedule_days || [0, 1, 2, 3, 4, 5, 6];
     renderScheduleList();
