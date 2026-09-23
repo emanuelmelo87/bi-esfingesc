@@ -16,6 +16,7 @@ import {
   IconListChecks,
   IconMenu,
   IconShieldCheck,
+  IconTicket,
   IconTrendingUp,
   IconUsers,
 } from "@/components/icons";
@@ -27,6 +28,7 @@ const BASE_LINKS = [
   { href: "/cnd", label: "CND", icon: IconCertificate },
   { href: "/evolucao", label: "Evolução", icon: IconTrendingUp },
   { href: "/movimentacoes", label: "Movimentações", icon: IconArrowsExchange },
+  { href: "/chamados", label: "Chamados", icon: IconTicket },
 ];
 
 const ADMIN_LINKS = [
