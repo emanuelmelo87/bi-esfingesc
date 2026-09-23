@@ -12,6 +12,7 @@ import { compararCompetencias } from "@/lib/competencia";
 import { ratifLabel, type RatificacaoStatus } from "@/lib/ratificacao";
 import type { Municipio } from "@/types/municipio";
 import type { Movimentacao, TipoMovimentacao } from "@/types/movimentacao";
+import type { Carga } from "@/types/carga";
 
 const LIMITE = 1000;
 
@@ -44,6 +45,10 @@ function formatarQuantidade(valor: string): string {
   return `${valor} pacote${valor === "1" ? "" : "s"}`;
 }
 
+function formatarIso(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+}
+
 function formatarValor(m: Movimentacao, valor: string | null, detalhe: string | null): string {
   if (valor === null) return "Sem dado";
   if (m.fonte === "modulo_item") return valor === "ok" ? "Enviado" : valor.split(", ").map(formatarQuantidade).join(", ");
@@ -60,6 +65,7 @@ export default function MovimentacoesPage() {
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [municipiosPorIbge, setMunicipiosPorIbge] = useState<Map<string, Municipio>>(new Map());
   const [carregando, setCarregando] = useState(true);
+  const [ultimaCarga, setUltimaCarga] = useState<Carga | null>(null);
 
   const [busca, setBusca] = useState("");
   const [filtroFornecedor, setFiltroFornecedor] = useState("Betha");
@@ -73,10 +79,12 @@ export default function MovimentacoesPage() {
   async function carregar() {
     if (!user) return;
     setCarregando(true);
-    const [snapMov, snapMun] = await Promise.all([
+    const [snapMov, snapMun, snapCarga] = await Promise.all([
       getDocs(query(collection(db, "movimentacoes"), orderBy("criado_em", "desc"), limit(LIMITE))),
       getDocs(collection(db, "municipios")),
+      getDocs(query(collection(db, "cargas"), orderBy("concluido_em", "desc"), limit(1))),
     ]);
+    setUltimaCarga(snapCarga.empty ? null : (snapCarga.docs[0].data() as Carga));
     setMovimentacoes(snapMov.docs.map((d) => d.data() as Movimentacao));
     setMunicipiosPorIbge(new Map(snapMun.docs.map((d) => {
       const m = d.data() as Municipio;
@@ -134,6 +142,25 @@ export default function MovimentacoesPage() {
           {LIMITE} mais recentes.
         </p>
 
+        {ultimaCarga && (
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-black/[0.06] bg-white/60 px-4 py-2.5 text-[12px] text-apple-secondary dark:border-white/10 dark:bg-white/[0.03]">
+            <span>
+              <span className="font-semibold text-apple-title">Última carga:</span> {formatarDataHora(ultimaCarga.concluido_em)}
+              {ultimaCarga.periodo ? ` (${ultimaCarga.periodo})` : ""}
+            </span>
+            <span>
+              <span className="font-semibold text-apple-title">{ultimaCarga.totais?.movimentacoes ?? 0}</span> movimentações nessa carga
+            </span>
+            {ultimaCarga.tce_atualizado_em?.ratificacoes && (
+              <span>
+                <span className="font-semibold text-apple-title">TCE atualizou:</span> ratificações em{" "}
+                {formatarIso(ultimaCarga.tce_atualizado_em.ratificacoes)}
+                {ultimaCarga.tce_atualizado_em.modulos ? `, módulos em ${formatarIso(ultimaCarga.tce_atualizado_em.modulos)}` : ""}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar município..." className={inputClass} />
           <select value={filtroFornecedor} onChange={(e) => setFiltroFornecedor(e.target.value)} className={inputClass}>
@@ -171,7 +198,7 @@ export default function MovimentacoesPage() {
         ) : linhas.length === 0 ? (
           <p className="text-apple-secondary">
             {movimentacoes.length === 0
-              ? "Nenhuma movimentação registrada ainda — elas passam a ser geradas a partir da próxima carga de dados."
+              ? "Nenhuma movimentação ainda. Uma carga só encontra diferença quando o TCE atualizou os dados desde a carga anterior — os painéis do TCE atualizam cerca de uma vez por dia."
               : "Nenhuma movimentação com esses filtros."}
           </p>
         ) : (

@@ -10,4 +10,6 @@ export type Carga = {
   status: "sucesso" | "erro";
   erro: string | null;
   totais: Record<string, number> | null;
+  // Última recarga de cada painel do TCE vista na carga (ISO). Ausente em cargas antigas.
+  tce_atualizado_em?: { ratificacoes: string | null; modulos: string | null } | null;
 };

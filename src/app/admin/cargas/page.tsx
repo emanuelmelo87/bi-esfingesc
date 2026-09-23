@@ -13,6 +13,11 @@ function formatarDataHora(ts: Timestamp | null): string {
   return ts.toDate().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
+function formatarIso(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+}
+
 function formatarDuracao(ms: number): string {
   if (!ms && ms !== 0) return "—";
   return (ms / 1000).toFixed(1) + "s";
@@ -75,6 +80,7 @@ export default function AdminCargasPage() {
                   <th className="px-4 py-3">Período</th>
                   <th className="px-4 py-3">Usuário</th>
                   <th className="px-4 py-3">Duração</th>
+                  <th className="px-4 py-3" title="Quando cada painel do TCE foi atualizado pela última vez, visto nesta carga">Dados do TCE de</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-6 py-3">Documentos gravados</th>
                 </tr>
@@ -87,6 +93,16 @@ export default function AdminCargasPage() {
                     <td className="px-4 py-3.5 text-apple-secondary">{c.periodo ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.usuario ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{formatarDuracao(c.duracao_ms)}</td>
+                    <td className="px-4 py-3.5 whitespace-nowrap text-apple-secondary">
+                      {c.tce_atualizado_em ? (
+                        <>
+                          <span className="block">Ratificações: {formatarIso(c.tce_atualizado_em.ratificacoes)}</span>
+                          <span className="block">Módulos: {formatarIso(c.tce_atualizado_em.modulos)}</span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-4 py-3.5">
                       <StatusBadge
                         label={c.status === "sucesso" ? "Sucesso" : "Erro"}

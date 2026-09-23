@@ -253,10 +253,16 @@ function extractRatificacoesGlobais(competenciaAlvo) {
     ws.onerror = function () {
       reject(new Error("Falha ao conectar no WebSocket do Qlik."));
     };
+    // Horário da última recarga do painel no TCE — os dados só mudam quando ele recarrega.
+    var recarga = null;
     ws.onopen = function () {
       call("OpenDoc", -1, [appId])
         .then(function (openDoc) {
-          return call("GetObject", openDoc.qReturn.qHandle, [objectId]);
+          var docHandle = openDoc.qReturn.qHandle;
+          return call("GetAppLayout", docHandle, [])
+            .then(function (app) { recarga = (app.qLayout && app.qLayout.qLastReloadTime) || null; })
+            .catch(function () {})
+            .then(function () { return call("GetObject", docHandle, [objectId]); });
         })
         .then(function (getObj) {
           var objHandle = getObj.qReturn.qHandle;
@@ -305,7 +311,7 @@ function extractRatificacoesGlobais(competenciaAlvo) {
         })
         .then(function (linhas) {
           ws.close();
-          resolve(linhas);
+          resolve({ linhas: linhas, recarga: recarga });
         })
         .catch(function (err) {
           ws.close();
@@ -327,13 +333,14 @@ async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
   const competencia = competenciaAlvo || competenciaMesAnterior();
   log("Abrindo Ratificações Globais para a competência " + competencia + "...");
   const tab = await abrirAbaOculta(RATIFICACOES_URL);
-  const [{ result: rows }] = await chrome.scripting.executeScript({
+  const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: extractRatificacoesGlobais,
     args: [competencia],
   });
   await fecharAba(tab);
-  log("Ratificações: " + rows.length + " linhas (competência " + competencia + ").");
+  const rows = result.linhas;
+  log("Ratificações: " + rows.length + " linhas (competência " + competencia + ")" + (result.recarga ? " — painel do TCE atualizado em " + new Date(result.recarga).toLocaleString("pt-BR") : "") + ".");
 
   const porIbge = new Map();
   let semMatch = 0;
@@ -351,7 +358,8 @@ async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
     });
   }
   log("Ratificações: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-  return { porIbge, competencia };
+  if (result.recarga) tceAtualizadoEm.ratificacoes = result.recarga;
+  return { porIbge, competencia, recarga: result.recarga };
 }
 
 // ── Componente 2 — Status de Módulos por Área (restrito, precisa de login
@@ -435,7 +443,7 @@ function extractQlikModulos(periodo) {
   return new Promise(function (resolve) {
     var appId = "7b7ba237-120c-4c65-9188-65334fc38245";
     var ws = new WebSocket("wss://paineis.tce.sc.gov.br/custom/app/" + appId);
-    var msgId = 1, cubeHandle = null, allRows = [], totalRows = 0;
+    var msgId = 1, cubeHandle = null, docHandle = null, recarga = null, allRows = [], totalRows = 0;
     var PAGE_SIZE = 2000;
     var fase = "open";
     var timer = setTimeout(function () {
@@ -462,7 +470,12 @@ function extractQlikModulos(periodo) {
           resolve({ error: (d.error && d.error.message) || "OpenDoc falhou" });
           return;
         }
-        var docHandle = d.result.qReturn.qHandle;
+        docHandle = d.result.qReturn.qHandle;
+        fase = "reload";
+        send({ jsonrpc: "2.0", id: msgId++, method: "GetAppLayout", handle: docHandle, params: [] });
+      } else if (fase === "reload") {
+        // Horário da última recarga do painel no TCE; se falhar, segue sem ele.
+        recarga = (d.result && d.result.qLayout && d.result.qLayout.qLastReloadTime) || null;
         fase = "cube";
         send({
           jsonrpc: "2.0", id: msgId++, method: "CreateSessionObject", handle: docHandle,
@@ -526,16 +539,19 @@ function extractQlikModulos(periodo) {
     }
     function finish() {
       clearTimeout(timer); try { ws.close(); } catch (ex) {}
-      resolve(allRows.map(function (row) {
-        var qtdNum = row[3] ? row[3].qNum || 0 : 0;
-        return {
-          municipio: (row[0].qText || "").trim(),
-          anoMes: periodo,
-          modulo: (row[1].qText || "").trim(),
-          unidade: (row[2].qText || "").trim(),
-          qtd: isNaN(qtdNum) ? 0 : qtdNum,
-        };
-      }));
+      resolve({
+        recarga: recarga,
+        linhas: allRows.map(function (row) {
+          var qtdNum = row[3] ? row[3].qNum || 0 : 0;
+          return {
+            municipio: (row[0].qText || "").trim(),
+            anoMes: periodo,
+            modulo: (row[1].qText || "").trim(),
+            unidade: (row[2].qText || "").trim(),
+            qtd: isNaN(qtdNum) ? 0 : qtdNum,
+          };
+        }),
+      });
     }
   });
 }
@@ -714,7 +730,7 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
 
   log("Abrindo Qlik de módulos (período " + periodo + ")...");
   const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
-  const [{ result: rawData }] = await chrome.scripting.executeScript({
+  let [{ result: rawData }] = await chrome.scripting.executeScript({
     target: { tabId: qlikTab.id },
     func: extractQlikModulos,
     args: [periodo],
@@ -725,7 +741,9 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
     log("Módulos: " + (rawData ? rawData.error : "sem resposta do Qlik") + ".", "err");
     return vazio;
   }
-  log("Módulos: " + rawData.length + " linhas raspadas.");
+  const recarga = rawData.recarga;
+  rawData = rawData.linhas;
+  log("Módulos: " + rawData.length + " linhas raspadas" + (recarga ? " — painel do TCE atualizado em " + new Date(recarga).toLocaleString("pt-BR") : "") + ".");
 
   // Pivotar em documentos por (município × entidade)
   const docsPorEntidade = new Map();
@@ -770,7 +788,8 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
     porIbge.set(municipio.codigo_ibge, { modulos });
   }
   log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-  return { porIbge, competencia: periodo };
+  if (recarga) tceAtualizadoEm.modulos = recarga;
+  return { porIbge, competencia: periodo, recarga };
 }
 
 // ── Movimentações — diff entre o que já está no banco e o que acabou de ser
@@ -782,6 +801,9 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
 // pra que cada movimentação aponte pra carga que a gerou.
 const cargaRef = doc(collection(db, "cargas"));
 let totalMovimentacoes = 0;
+// Última recarga de cada painel do TCE vista nesta carga — explica um "0
+// movimentações": se o TCE não recarregou desde a carga anterior, não há o que mudar.
+const tceAtualizadoEm = { ratificacoes: null, modulos: null };
 
 function statusModulo(area) {
   return function (d) {
@@ -1019,7 +1041,7 @@ async function gravarSnapshotsDiarios() {
 // que uma carga rodou e o que ela de fato gravou no Firestore.
 async function registrarCarga(campos) {
   try {
-    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp() }, campos));
+    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm }, campos));
   } catch (err) {
     log("Não foi possível registrar a carga em 'cargas': " + err.message, "err");
   }

@@ -31519,9 +31519,16 @@ This typically indicates that your device does not have a healthy Internet conne
       ws.onerror = function() {
         reject(new Error("Falha ao conectar no WebSocket do Qlik."));
       };
+      var recarga = null;
       ws.onopen = function() {
         call("OpenDoc", -1, [appId]).then(function(openDoc) {
-          return call("GetObject", openDoc.qReturn.qHandle, [objectId]);
+          var docHandle = openDoc.qReturn.qHandle;
+          return call("GetAppLayout", docHandle, []).then(function(app2) {
+            recarga = app2.qLayout && app2.qLayout.qLastReloadTime || null;
+          }).catch(function() {
+          }).then(function() {
+            return call("GetObject", docHandle, [objectId]);
+          });
         }).then(function(getObj) {
           var objHandle = getObj.qReturn.qHandle;
           return call("GetLayout", objHandle, []).then(function(layoutRes) {
@@ -31567,7 +31574,7 @@ This typically indicates that your device does not have a healthy Internet conne
           });
         }).then(function(linhas) {
           ws.close();
-          resolve(linhas);
+          resolve({ linhas, recarga });
         }).catch(function(err) {
           ws.close();
           reject(err);
@@ -31584,13 +31591,14 @@ This typically indicates that your device does not have a healthy Internet conne
     const competencia = competenciaAlvo || competenciaMesAnterior();
     log("Abrindo Ratifica\xE7\xF5es Globais para a compet\xEAncia " + competencia + "...");
     const tab = await abrirAbaOculta(RATIFICACOES_URL);
-    const [{ result: rows }] = await chrome.scripting.executeScript({
+    const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: extractRatificacoesGlobais,
       args: [competencia]
     });
     await fecharAba(tab);
-    log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + competencia + ").");
+    const rows = result.linhas;
+    log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + competencia + ")" + (result.recarga ? " \u2014 painel do TCE atualizado em " + new Date(result.recarga).toLocaleString("pt-BR") : "") + ".");
     const porIbge = /* @__PURE__ */ new Map();
     let semMatch = 0;
     for (const row of rows) {
@@ -31607,7 +31615,8 @@ This typically indicates that your device does not have a healthy Internet conne
       });
     }
     log("Ratifica\xE7\xF5es: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    return { porIbge, competencia };
+    if (result.recarga) tceAtualizadoEm.ratificacoes = result.recarga;
+    return { porIbge, competencia, recarga: result.recarga };
   }
   function readTokenFromPage() {
     var t2 = localStorage.getItem("token");
@@ -31691,7 +31700,7 @@ This typically indicates that your device does not have a healthy Internet conne
     return new Promise(function(resolve) {
       var appId = "7b7ba237-120c-4c65-9188-65334fc38245";
       var ws = new WebSocket("wss://paineis.tce.sc.gov.br/custom/app/" + appId);
-      var msgId = 1, cubeHandle = null, allRows = [], totalRows = 0;
+      var msgId = 1, cubeHandle = null, docHandle = null, recarga = null, allRows = [], totalRows = 0;
       var PAGE_SIZE = 2e3;
       var fase = "open";
       var timer = setTimeout(function() {
@@ -31724,7 +31733,11 @@ This typically indicates that your device does not have a healthy Internet conne
             resolve({ error: d.error && d.error.message || "OpenDoc falhou" });
             return;
           }
-          var docHandle = d.result.qReturn.qHandle;
+          docHandle = d.result.qReturn.qHandle;
+          fase = "reload";
+          send({ jsonrpc: "2.0", id: msgId++, method: "GetAppLayout", handle: docHandle, params: [] });
+        } else if (fase === "reload") {
+          recarga = d.result && d.result.qLayout && d.result.qLayout.qLastReloadTime || null;
           fase = "cube";
           send({
             jsonrpc: "2.0",
@@ -31812,16 +31825,19 @@ This typically indicates that your device does not have a healthy Internet conne
           ws.close();
         } catch (ex) {
         }
-        resolve(allRows.map(function(row) {
-          var qtdNum = row[3] ? row[3].qNum || 0 : 0;
-          return {
-            municipio: (row[0].qText || "").trim(),
-            anoMes: periodo,
-            modulo: (row[1].qText || "").trim(),
-            unidade: (row[2].qText || "").trim(),
-            qtd: isNaN(qtdNum) ? 0 : qtdNum
-          };
-        }));
+        resolve({
+          recarga,
+          linhas: allRows.map(function(row) {
+            var qtdNum = row[3] ? row[3].qNum || 0 : 0;
+            return {
+              municipio: (row[0].qText || "").trim(),
+              anoMes: periodo,
+              modulo: (row[1].qText || "").trim(),
+              unidade: (row[2].qText || "").trim(),
+              qtd: isNaN(qtdNum) ? 0 : qtdNum
+            };
+          })
+        });
       }
     });
   }
@@ -31963,7 +31979,7 @@ This typically indicates that your device does not have a healthy Internet conne
     const periodo = competenciaAlvo || competenciaMesAnterior();
     log("Abrindo Qlik de m\xF3dulos (per\xEDodo " + periodo + ")...");
     const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
-    const [{ result: rawData }] = await chrome.scripting.executeScript({
+    let [{ result: rawData }] = await chrome.scripting.executeScript({
       target: { tabId: qlikTab.id },
       func: extractQlikModulos,
       args: [periodo]
@@ -31973,7 +31989,9 @@ This typically indicates that your device does not have a healthy Internet conne
       log("M\xF3dulos: " + (rawData ? rawData.error : "sem resposta do Qlik") + ".", "err");
       return vazio;
     }
-    log("M\xF3dulos: " + rawData.length + " linhas raspadas.");
+    const recarga = rawData.recarga;
+    rawData = rawData.linhas;
+    log("M\xF3dulos: " + rawData.length + " linhas raspadas" + (recarga ? " \u2014 painel do TCE atualizado em " + new Date(recarga).toLocaleString("pt-BR") : "") + ".");
     const docsPorEntidade = /* @__PURE__ */ new Map();
     for (const r2 of rawData) {
       if (!r2.municipio || !r2.modulo) continue;
@@ -32013,10 +32031,12 @@ This typically indicates that your device does not have a healthy Internet conne
       porIbge.set(municipio.codigo_ibge, { modulos });
     }
     log("M\xF3dulos: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    return { porIbge, competencia: periodo };
+    if (recarga) tceAtualizadoEm.modulos = recarga;
+    return { porIbge, competencia: periodo, recarga };
   }
   var cargaRef = doc(collection(db, "cargas"));
   var totalMovimentacoes = 0;
+  var tceAtualizadoEm = { ratificacoes: null, modulos: null };
   function statusModulo(area) {
     return function(d) {
       if (!d.modulos) return void 0;
@@ -32211,7 +32231,7 @@ This typically indicates that your device does not have a healthy Internet conne
   }
   async function registrarCarga(campos) {
     try {
-      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp() }, campos));
+      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm }, campos));
     } catch (err) {
       log("N\xE3o foi poss\xEDvel registrar a carga em 'cargas': " + err.message, "err");
     }
