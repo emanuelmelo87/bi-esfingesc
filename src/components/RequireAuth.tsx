@@ -10,6 +10,7 @@ import NovidadesBalao from "@/components/NovidadesBalao";
 import {
   IconBuilding,
   IconCertificate,
+  IconClock,
   IconGrid,
   IconHome,
   IconListChecks,
@@ -31,6 +32,7 @@ const ADMIN_LINKS = [
   { href: "/admin/municipios", label: "Municípios", icon: IconBuilding, admin: true },
   { href: "/admin/usuarios", label: "Usuários", icon: IconUsers, admin: true },
   { href: "/admin/permissoes", label: "Permissões", icon: IconShieldCheck, admin: true },
+  { href: "/admin/cargas", label: "Controle de Cargas", icon: IconClock, admin: true },
 ];
 
 function LogoMark() {

@@ -1,5 +1,5 @@
 import { signInWithCredential, GoogleAuthProvider, signOut } from "firebase/auth";
-import { collection, getDocs, doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, getDocs, doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { auth, db, ALLOWED_EMAIL_DOMAIN } from "./firebase-config.js";
 
 const CND_URL =
@@ -822,9 +822,30 @@ async function gravarSnapshotsDiarios() {
 
 // ── Orquestração ──────────────────────────────────────────────────────
 
-async function main() {
+// Um doc por execução em "cargas" — histórico rastreável de cada sincronização
+// (hora, quem rodou, quantidade gravada), pra dar visibilidade no app web de
+// que uma carga rodou e o que ela de fato gravou no Firestore.
+async function registrarCarga(campos) {
   try {
-    await signInComContaBetha();
+    await addDoc(collection(db, "cargas"), Object.assign({ concluido_em: serverTimestamp() }, campos));
+  } catch (err) {
+    log("Não foi possível registrar a carga em 'cargas': " + err.message, "err");
+  }
+}
+
+async function main() {
+  const inicioMs = Date.now();
+  let userEmail = null;
+  let tipoCarga = competenciasAlvo ? "backfill" : "sync";
+  let periodoCarga = competenciasAlvo
+    ? competenciasAlvo.length > 1
+      ? competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1]
+      : competenciasAlvo[0]
+    : null;
+
+  try {
+    const user = await signInComContaBetha();
+    userEmail = user.email;
 
     if (modo === "login") {
       log("Login concluído. Pode fechar esta aba.", "ok");
@@ -848,15 +869,21 @@ async function main() {
         totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       }
 
-      const rotuloPeriodo =
-        competenciasAlvo.length > 1
-          ? competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1]
-          : competenciasAlvo[0];
       await chrome.storage.local.set({
         last_execution: {
-          resumo: "Backfill " + rotuloPeriodo + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos",
+          resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos",
           timestamp: Date.now(),
         },
+      });
+      await registrarCarga({
+        tipo: tipoCarga,
+        periodo: periodoCarga,
+        usuario: userEmail,
+        iniciado_em: new Date(inicioMs),
+        duracao_ms: Date.now() - inicioMs,
+        status: "sucesso",
+        erro: null,
+        totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma },
       });
       log("Concluído.", "ok");
       if (modo === "alarme") setTimeout(function () { window.close(); }, 2000);
@@ -866,6 +893,7 @@ async function main() {
     const cndPorIbge = await capturarCND(porNomeBusca);
     const ratif = await capturarRatificacoes(porNomeBusca);
     const modulos = await capturarModulos(porNomeBusca, undefined, ticket);
+    periodoCarga = ratif.competencia || modulos.competencia || null;
     const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
     const totalSnapshot = await gravarSnapshotsDiarios();
@@ -880,11 +908,31 @@ async function main() {
         timestamp: Date.now(),
       },
     });
+    await registrarCarga({
+      tipo: tipoCarga,
+      periodo: periodoCarga,
+      usuario: userEmail,
+      iniciado_em: new Date(inicioMs),
+      duracao_ms: Date.now() - inicioMs,
+      status: "sucesso",
+      erro: null,
+      totais: { cnd: cndPorIbge.size, ratificacoes: ratif.porIbge.size, modulos: modulos.porIbge.size, status_operacional: total, snapshot: totalSnapshot },
+    });
 
     log("Concluído.", "ok");
     if (modo === "alarme") setTimeout(function () { window.close(); }, 2000);
   } catch (err) {
     log("Erro: " + err.message, "err");
+    await registrarCarga({
+      tipo: tipoCarga,
+      periodo: periodoCarga,
+      usuario: userEmail,
+      iniciado_em: new Date(inicioMs),
+      duracao_ms: Date.now() - inicioMs,
+      status: "erro",
+      erro: err.message,
+      totais: null,
+    });
   }
 }
 

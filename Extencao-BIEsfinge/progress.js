@@ -31132,6 +31132,10 @@ This typically indicates that your device does not have a healthy Internet conne
     const t2 = ra(e2.firestore, da), n2 = oa(t2), r2 = new ua(t2);
     return __PRIVATE_validateHasExplicitOrderByForLimitToLast(e2._query), __PRIVATE_firestoreClientGetDocumentsViaSnapshotListener(n2, e2._query).then((n3) => new QuerySnapshot(t2, r2, e2, n3));
   }
+  function addDoc(e2, t2) {
+    const n2 = ra(e2.firestore, da), r2 = doc(e2), s2 = __PRIVATE_applyFirestoreDataConverter(e2.converter, t2), a = la(e2.firestore);
+    return executeWrite(n2, [__PRIVATE_parseSetData(a, "addDoc", r2._key, s2, null !== e2.converter, {}).toMutation(r2._key, Precondition.exists(false))]).then(() => r2);
+  }
   function executeWrite(e2, t2) {
     const n2 = oa(e2);
     return __PRIVATE_firestoreClientWrite(n2, t2);
@@ -31907,9 +31911,21 @@ This typically indicates that your device does not have a healthy Internet conne
     log("Snapshot di\xE1rio gravado: " + total + " munic\xEDpios (" + hoje + ").", "ok");
     return total;
   }
-  async function main() {
+  async function registrarCarga(campos) {
     try {
-      await signInComContaBetha();
+      await addDoc(collection(db, "cargas"), Object.assign({ concluido_em: serverTimestamp() }, campos));
+    } catch (err) {
+      log("N\xE3o foi poss\xEDvel registrar a carga em 'cargas': " + err.message, "err");
+    }
+  }
+  async function main() {
+    const inicioMs = Date.now();
+    let userEmail = null;
+    let tipoCarga = competenciasAlvo ? "backfill" : "sync";
+    let periodoCarga = competenciasAlvo ? competenciasAlvo.length > 1 ? competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1] : competenciasAlvo[0] : null;
+    try {
+      const user = await signInComContaBetha();
+      userEmail = user.email;
       if (modo === "login") {
         log("Login conclu\xEDdo. Pode fechar esta aba.", "ok");
         return;
@@ -31925,12 +31941,21 @@ This typically indicates that your device does not have a healthy Internet conne
           totalRatifSoma += await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
           totalModulosSoma += await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
         }
-        const rotuloPeriodo = competenciasAlvo.length > 1 ? competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1] : competenciasAlvo[0];
         await chrome.storage.local.set({
           last_execution: {
-            resumo: "Backfill " + rotuloPeriodo + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos",
+            resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos",
             timestamp: Date.now()
           }
+        });
+        await registrarCarga({
+          tipo: tipoCarga,
+          periodo: periodoCarga,
+          usuario: userEmail,
+          iniciado_em: new Date(inicioMs),
+          duracao_ms: Date.now() - inicioMs,
+          status: "sucesso",
+          erro: null,
+          totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma }
         });
         log("Conclu\xEDdo.", "ok");
         if (modo === "alarme") setTimeout(function() {
@@ -31941,6 +31966,7 @@ This typically indicates that your device does not have a healthy Internet conne
       const cndPorIbge = await capturarCND(porNomeBusca);
       const ratif = await capturarRatificacoes(porNomeBusca);
       const modulos = await capturarModulos(porNomeBusca, void 0, ticket);
+      periodoCarga = ratif.competencia || modulos.competencia || null;
       const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
       const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
       const totalSnapshot = await gravarSnapshotsDiarios();
@@ -31952,12 +31978,32 @@ This typically indicates that your device does not have a healthy Internet conne
           timestamp: Date.now()
         }
       });
+      await registrarCarga({
+        tipo: tipoCarga,
+        periodo: periodoCarga,
+        usuario: userEmail,
+        iniciado_em: new Date(inicioMs),
+        duracao_ms: Date.now() - inicioMs,
+        status: "sucesso",
+        erro: null,
+        totais: { cnd: cndPorIbge.size, ratificacoes: ratif.porIbge.size, modulos: modulos.porIbge.size, status_operacional: total, snapshot: totalSnapshot }
+      });
       log("Conclu\xEDdo.", "ok");
       if (modo === "alarme") setTimeout(function() {
         window.close();
       }, 2e3);
     } catch (err) {
       log("Erro: " + err.message, "err");
+      await registrarCarga({
+        tipo: tipoCarga,
+        periodo: periodoCarga,
+        usuario: userEmail,
+        iniciado_em: new Date(inicioMs),
+        duracao_ms: Date.now() - inicioMs,
+        status: "erro",
+        erro: err.message,
+        totais: null
+      });
     }
   }
   main();
