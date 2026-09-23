@@ -399,9 +399,14 @@ function fillLoginForm(matricula, senha) {
 }
 
 function callTicketQlik(token) {
+  // Timeout explícito — sem ele, se a API do TCE não responder, a extensão
+  // fica travada nessa etapa pra sempre (sem log de erro, sem "Concluído").
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function () { controller.abort(); }, 20000);
   return fetch("https://api.virtual.tce.sc.gov.br/sgi/rest/usuarios/ticketQlik", {
     method: "GET",
     headers: { auth_token: token },
+    signal: controller.signal,
   })
     .then(function (r) {
       if (!r.ok) return r.text().then(function (t) { throw new Error("ticketQlik " + r.status + ": " + t.slice(0, 100)); });
@@ -416,7 +421,12 @@ function callTicketQlik(token) {
         if (t) return String(t);
       } catch (e) {}
       throw new Error("Nao foi possivel extrair ticket: " + body.slice(0, 100));
-    });
+    })
+    .catch(function (err) {
+      if (err.name === "AbortError") throw new Error("ticketQlik: tempo esgotado (20s) sem resposta do TCE");
+      throw err;
+    })
+    .finally(function () { clearTimeout(timeoutId); });
 }
 
 // periodo: "MM/AAAA". Retorna array de {municipio, anoMes, modulo, unidade, qtd, data_envio}

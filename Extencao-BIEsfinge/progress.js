@@ -31508,9 +31508,14 @@ This typically indicates that your device does not have a healthy Internet conne
     return "botao-nao-encontrado";
   }
   function callTicketQlik(token) {
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() {
+      controller.abort();
+    }, 2e4);
     return fetch("https://api.virtual.tce.sc.gov.br/sgi/rest/usuarios/ticketQlik", {
       method: "GET",
-      headers: { auth_token: token }
+      headers: { auth_token: token },
+      signal: controller.signal
     }).then(function(r2) {
       if (!r2.ok) return r2.text().then(function(t2) {
         throw new Error("ticketQlik " + r2.status + ": " + t2.slice(0, 100));
@@ -31526,6 +31531,11 @@ This typically indicates that your device does not have a healthy Internet conne
       } catch (e2) {
       }
       throw new Error("Nao foi possivel extrair ticket: " + body.slice(0, 100));
+    }).catch(function(err) {
+      if (err.name === "AbortError") throw new Error("ticketQlik: tempo esgotado (20s) sem resposta do TCE");
+      throw err;
+    }).finally(function() {
+      clearTimeout(timeoutId);
     });
   }
   function extractQlikModulos(periodo) {
