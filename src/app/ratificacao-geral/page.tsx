@@ -39,6 +39,8 @@ export default function RatificacaoGeralPage() {
   const [filtroCanal, setFiltroCanal] = useState("todos");
   const [filtroAssociacao, setFiltroAssociacao] = useState("todos");
   const [filtroPorCompetencia, setFiltroPorCompetencia] = useState<Record<string, FiltroEnvio>>({});
+  // "sim" = município com chamado aberto (qualquer área), "nao" = sem.
+  const [filtroChamado, setFiltroChamado] = useState<FiltroEnvio>("todos");
 
   useEffect(() => {
     if (!user) return;
@@ -121,6 +123,7 @@ export default function RatificacaoGeralPage() {
         if (filtroFornecedor !== "todos" && (m.fornecedor ?? "") !== filtroFornecedor) return false;
         if (filtroCanal !== "todos" && (m.canal_atendimento ?? "") !== filtroCanal) return false;
         if (filtroAssociacao !== "todos" && (m.sigla_associacao ?? "") !== filtroAssociacao) return false;
+        if (filtroChamado !== "todos" && (chamadosPorNome.has(m.nome_busca)) !== (filtroChamado === "sim")) return false;
         return true;
       })
       .map((m) => ({
@@ -133,7 +136,7 @@ export default function RatificacaoGeralPage() {
         )
       )
       .sort((a, b) => a.municipio.nome.localeCompare(b.municipio.nome, "pt-BR"));
-  }, [municipios, historicoPorIbge, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroPorCompetencia]);
+  }, [municipios, historicoPorIbge, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroPorCompetencia, filtroChamado, chamadosPorNome]);
 
   function exportar() {
     exportCsv(
@@ -215,7 +218,24 @@ export default function RatificacaoGeralPage() {
               <table className="w-full text-left text-[12px]">
                 <thead>
                   <tr className="border-b border-black/[0.05] bg-black/[0.015] text-[11px] font-medium tracking-wider text-apple-muted uppercase dark:border-white/10 dark:bg-white/[0.02]">
-                    <th className="px-6 py-3">Município</th>
+                    <th className={`px-6 py-2 ${filtroChamado !== "todos" ? "bg-vinho/[0.06] dark:bg-rose-400/10" : ""}`}>
+                      <div>Município</div>
+                      <label className="relative mt-1 inline-flex items-center">
+                        <IconFilter
+                          className={`pointer-events-none absolute left-1 h-2.5 w-2.5 ${filtroChamado !== "todos" ? "text-vinho dark:text-rose-400" : "text-apple-muted"}`}
+                        />
+                        <select
+                          value={filtroChamado}
+                          onChange={(e) => setFiltroChamado(e.target.value as FiltroEnvio)}
+                          title="Filtrar por chamado aberto"
+                          className="cursor-pointer rounded-full border border-black/[0.08] bg-white/90 py-0.5 pr-1.5 pl-4 text-[10px] font-normal normal-case text-apple-title shadow-xs dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
+                        >
+                          <option value="todos">Chamado: todos</option>
+                          <option value="sim">Com chamado</option>
+                          <option value="nao">Sem chamado</option>
+                        </select>
+                      </label>
+                    </th>
                     {competencias.map((c) => {
                       const filtro = filtroPorCompetencia[c] ?? "todos";
                       return (

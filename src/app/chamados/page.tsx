@@ -55,12 +55,15 @@ export default function ChamadosPage() {
   const [feed, setFeed] = useState<FeedChamados | null>(null);
   const [erroFeed, setErroFeed] = useState<string | null>(null);
   const [municipiosPorNome, setMunicipiosPorNome] = useState<Map<string, Municipio>>(new Map());
-  const [statusPorIbge, setStatusPorIbge] = useState<Map<string, StatusPorCompetencia>>(new Map());
+  const [statusPorCompetencia, setStatusPorCompetencia] = useState<Map<string, Map<string, StatusPorCompetencia>>>(new Map());
+  const [competencias, setCompetencias] = useState<string[]>([]);
   const [competencia, setCompetencia] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
 
   const [busca, setBusca] = useState("");
   const [filtroFornecedor, setFiltroFornecedor] = useState("Betha");
+  const [filtroCanal, setFiltroCanal] = useState("todos");
+  const [filtroAssociacao, setFiltroAssociacao] = useState("todos");
   const [filtroArea, setFiltroArea] = useState("todas");
   const [filtroSlo, setFiltroSlo] = useState<FiltroSlo>("todos");
   const [filtroModulo, setFiltroModulo] = useState<FiltroModulo>("todos");
@@ -83,14 +86,37 @@ export default function ChamadosPage() {
       return [m.nome_busca, m];
     })));
 
-    // Cruzamento com a competência mais recente que já tem módulos capturados.
-    const docs = snapStatus.docs.map((d) => d.data() as StatusPorCompetencia);
-    const competencias = [...new Set(docs.filter((d) => d.modulos).map((d) => d.competencia))].sort(compararCompetencias);
-    const maisRecente = competencias[competencias.length - 1] ?? null;
-    setCompetencia(maisRecente);
-    setStatusPorIbge(new Map(docs.filter((d) => d.competencia === maisRecente).map((d) => [d.codigo_ibge, d])));
+    // Cruzamento por competência; abre na mais recente que já tem módulos capturados.
+    const porCompetencia = new Map<string, Map<string, StatusPorCompetencia>>();
+    snapStatus.forEach((d) => {
+      const s = d.data() as StatusPorCompetencia;
+      if (!porCompetencia.has(s.competencia)) porCompetencia.set(s.competencia, new Map());
+      porCompetencia.get(s.competencia)!.set(s.codigo_ibge, s);
+    });
+    const comModulos = [...porCompetencia.keys()]
+      .filter((c) => [...porCompetencia.get(c)!.values()].some((s) => s.modulos))
+      .sort(compararCompetencias);
+    const maisRecente = comModulos[comModulos.length - 1] ?? null;
+    setStatusPorCompetencia(porCompetencia);
+    setCompetencias(comModulos);
+    setCompetencia((atual) => (atual && comModulos.includes(atual) ? atual : maisRecente));
     setCarregando(false);
   }
+
+  const statusPorIbge = useMemo(
+    () => (competencia ? statusPorCompetencia.get(competencia) : undefined) ?? new Map<string, StatusPorCompetencia>(),
+    [statusPorCompetencia, competencia]
+  );
+  const indiceCompetencia = competencia ? competencias.indexOf(competencia) : -1;
+
+  const canais = useMemo(
+    () => [...new Set([...municipiosPorNome.values()].map((m) => m.canal_atendimento).filter((c): c is string => !!c))].sort(),
+    [municipiosPorNome]
+  );
+  const associacoes = useMemo(
+    () => [...new Set([...municipiosPorNome.values()].map((m) => m.sigla_associacao).filter((a): a is string => !!a))].sort(),
+    [municipiosPorNome]
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -115,6 +141,8 @@ export default function ChamadosPage() {
       .filter(({ c, municipio, modulo }) => {
         if (termo && !normalizarNome(c.m || "").includes(termo) && !c.k.toUpperCase().includes(termo)) return false;
         if (filtroFornecedor !== "todos" && (municipio?.fornecedor ?? "") !== filtroFornecedor) return false;
+        if (filtroCanal !== "todos" && (municipio?.canal_atendimento ?? "") !== filtroCanal) return false;
+        if (filtroAssociacao !== "todos" && (municipio?.sigla_associacao ?? "") !== filtroAssociacao) return false;
         if (filtroArea !== "todas" && c.v !== filtroArea) return false;
         if (filtroSlo === "estourado" && !c.br) return false;
         if (filtroSlo === "pausado" && (c.br || !c.paused)) return false;
@@ -123,7 +151,7 @@ export default function ChamadosPage() {
         if (filtroModulo === "ok" && modulo !== "ok") return false;
         return true;
       });
-  }, [feed, municipiosPorNome, statusPorIbge, busca, filtroFornecedor, filtroArea, filtroSlo, filtroModulo]);
+  }, [feed, municipiosPorNome, statusPorIbge, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroArea, filtroSlo, filtroModulo]);
 
   const inputClass =
     "rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100";
@@ -154,44 +182,58 @@ export default function ChamadosPage() {
         </div>
         <p className="mb-4 text-sm text-apple-secondary">
           Chamados abertos de e-Sfinge no Jira Atendimento, cruzados com o status do módulo da mesma área e a
-          ratificação geral {competencia ? `da competência ${competencia}` : "da competência mais recente"}.
+          ratificação geral da competência escolhida.
+          {feed && <> Lista gerada em {formatarDataHora(feed.generatedAt)}.</>}
         </p>
 
-        {feed && (
-          <section aria-label="Filtro do Jira" className="apple-glass-card mb-4 rounded-[22px] p-4">
-            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-[11px] font-bold tracking-wider text-apple-muted uppercase">Filtro que retorna estes chamados</h2>
-              <span className="text-[11px] text-apple-muted">
-                Gerado em {formatarDataHora(feed.generatedAt)} · {feed.total} chamados no Jira
-                {feed.fetched !== feed.total ? ` (${feed.fetched} lidos)` : ""}
-              </span>
-            </div>
-            <dl className="grid gap-x-6 gap-y-2 text-[12px] sm:grid-cols-[auto_1fr]">
-              {clausulas.map((cl, i) => (
-                <div key={i} className="contents">
-                  <dt className="font-semibold text-apple-title">{cl.campo}</dt>
-                  <dd className="text-apple-secondary">
-                    {cl.exceto && <span className="mr-1 font-semibold text-red-600 dark:text-red-400">exceto</span>}
-                    {cl.valores.join(" · ")}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <details className="mt-3">
-              <summary className="cursor-pointer text-[11px] font-medium text-apple-muted hover:text-apple-title">Ver JQL completa</summary>
-              <code className="mt-2 block overflow-x-auto rounded-lg bg-black/[0.04] p-2 font-mono text-[11px] whitespace-pre-wrap text-apple-secondary dark:bg-white/[0.06]">
-                {feed.jql}
-              </code>
-            </details>
-          </section>
-        )}
-
         <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 rounded-full border border-black/[0.08] bg-white/90 py-1 pr-1.5 pl-1 shadow-xs dark:border-white/10 dark:bg-zinc-800" title="Competência usada no cruzamento com módulo e ratificação">
+            <button
+              type="button"
+              onClick={() => indiceCompetencia > 0 && setCompetencia(competencias[indiceCompetencia - 1])}
+              disabled={indiceCompetencia <= 0}
+              className="rounded-full px-2 py-0.5 text-[13px] text-apple-secondary transition hover:bg-black/[0.04] disabled:opacity-30 dark:hover:bg-white/10"
+              title="Competência anterior"
+            >
+              ‹
+            </button>
+            <select
+              value={competencia ?? ""}
+              onChange={(e) => setCompetencia(e.target.value)}
+              className="bg-transparent px-1 text-[12px] font-semibold text-apple-title focus:outline-none dark:text-zinc-100"
+            >
+              {competencias.length === 0 && <option value="">Sem competências</option>}
+              {competencias.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => indiceCompetencia >= 0 && indiceCompetencia < competencias.length - 1 && setCompetencia(competencias[indiceCompetencia + 1])}
+              disabled={indiceCompetencia < 0 || indiceCompetencia >= competencias.length - 1}
+              className="rounded-full px-2 py-0.5 text-[13px] text-apple-secondary transition hover:bg-black/[0.04] disabled:opacity-30 dark:hover:bg-white/10"
+              title="Próxima competência"
+            >
+              ›
+            </button>
+          </div>
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar município ou chamado..." className={inputClass} />
           <select value={filtroFornecedor} onChange={(e) => setFiltroFornecedor(e.target.value)} className={inputClass}>
             <option value="todos">Fornecedor: todos</option>
             <option value="Betha">Betha</option>
             <option value="Concorrente">Concorrente</option>
+          </select>
+          <select value={filtroCanal} onChange={(e) => setFiltroCanal(e.target.value)} className={inputClass}>
+            <option value="todos">Canal: todos</option>
+            {canais.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select value={filtroAssociacao} onChange={(e) => setFiltroAssociacao(e.target.value)} className={inputClass}>
+            <option value="todos">Associação: todas</option>
+            {associacoes.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
           </select>
           <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)} className={inputClass}>
             <option value="todas">Área: todas</option>
@@ -228,6 +270,7 @@ export default function ChamadosPage() {
                   <tr className="border-b border-black/[0.05] bg-black/[0.015] text-[11px] font-medium tracking-wider text-apple-muted uppercase dark:border-white/10 dark:bg-white/[0.02]">
                     <th className="px-6 py-3">Chamado</th>
                     <th className="px-4 py-3">Município</th>
+                    <th className="px-4 py-3">Canal</th>
                     <th className="px-4 py-3">Área</th>
                     <th className="px-4 py-3">Assunto</th>
                     <th className="px-4 py-3">Situação</th>
@@ -239,7 +282,7 @@ export default function ChamadosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
-                  {linhas.map(({ c, status, modulo }) => (
+                  {linhas.map(({ c, municipio, status, modulo }) => (
                     <tr key={c.k} className={`transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${c.br ? "bg-red-50/60 dark:bg-red-500/[0.06]" : ""}`}>
                       <td className="px-6 py-3.5 whitespace-nowrap">
                         <a href={URL_JIRA_CHAMADO + c.k} target="_blank" rel="noopener noreferrer" className="font-mono font-semibold text-vinho hover:underline dark:text-blue-400">
@@ -251,6 +294,7 @@ export default function ChamadosPage() {
                         <span className="font-semibold text-apple-title">{c.m}</span>
                         <span className="mt-0.5 block max-w-[320px] truncate text-[10px] text-apple-muted" title={c.e}>{c.e}</span>
                       </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-apple-secondary">{municipio?.canal_atendimento ?? "—"}</td>
                       <td className="px-4 py-3.5 text-apple-secondary">{c.v}</td>
                       <td className="min-w-[260px] px-4 py-3.5 text-apple-title">
                         <span className="line-clamp-2" title={c.s}>{c.s}</span>
@@ -281,6 +325,26 @@ export default function ChamadosPage() {
               </table>
             </div>
           </div>
+        )}
+
+        {feed && (
+          <details className="mt-6 text-[11px] text-apple-muted">
+            <summary className="w-fit cursor-pointer hover:text-apple-secondary">
+              Filtro do Jira que retorna estes chamados · {feed.total} no Jira{feed.fetched !== feed.total ? ` (${feed.fetched} lidos)` : ""}
+            </summary>
+            <dl className="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-[auto_1fr]">
+              {clausulas.map((cl, i) => (
+                <div key={i} className="contents">
+                  <dt className="font-semibold text-apple-secondary">{cl.campo}</dt>
+                  <dd>
+                    {cl.exceto && <span className="mr-1 font-semibold text-red-600 dark:text-red-400">exceto</span>}
+                    {cl.valores.join(" · ")}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <code className="mt-2 block overflow-x-auto rounded-lg bg-black/[0.04] p-2 font-mono whitespace-pre-wrap dark:bg-white/[0.06]">{feed.jql}</code>
+          </details>
         )}
       </main>
     </RequireAuth>
