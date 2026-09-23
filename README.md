@@ -238,8 +238,12 @@ firestore.rules, firebase.json, next.config.ts
 - **Regras de módulos não são oficiais**: foram deduzidas dos extratos do TCE;
   "Contratos" usa um substituto. Por isso a Ratificação Geral prevalece na tela.
 - **Captura de módulos depende do login no TCE Virtual**: sem credencial válida
-  a carga segue só com CND e ratificação. A chamada do ticket tem timeout de
-  20s (antes travava a tela indefinidamente).
+  a carga segue só com CND e ratificação. O TCE falha de forma intermitente
+  (ticket Qlik vazio, sessão que devolve só 1 município): cada etapa (CND,
+  ratificação, ticket, módulos) é repetida até 5 vezes com espera crescente,
+  com ticket novo a cada tentativa; módulos com menos de 200 municípios contam
+  como falha. Toda aba aberta pela carga é fechada no fim, e a aba do log fecha
+  sozinha 10s depois de uma carga bem-sucedida.
 - **Movimentações**: um município ausente numa captura parcial não vira
   remoção; mas um município capturado com dados incompletos pode gerar uma
   "Remoção" falsa. A primeira carga de uma competência nova gera muitos

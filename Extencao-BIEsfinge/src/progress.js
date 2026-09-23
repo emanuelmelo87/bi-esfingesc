@@ -153,13 +153,23 @@ function extractCNDPublico() {
     .filter(Boolean);
 }
 
+// Toda aba aberta pela carga fica registrada aqui e é fechada no fim (fecharAbasAbertas),
+// mesmo quando uma etapa falha no meio e não chega no fecharAba dela.
+const abasAbertas = new Set();
+
 function abrirAbaOculta(url) {
   return new Promise(function (resolve, reject) {
     chrome.tabs.create({ url: url, active: false }, function (tab) {
       if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      abasAbertas.add(tab.id);
+      const limite = setTimeout(function () {
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        reject(new Error("página não terminou de carregar em 60s: " + url));
+      }, 60000);
       function onUpdated(tabId, info) {
         if (tabId === tab.id && info.status === "complete") {
           chrome.tabs.onUpdated.removeListener(onUpdated);
+          clearTimeout(limite);
           setTimeout(function () { resolve(tab); }, 2500); // settle: renderização Angular
         }
       }
@@ -169,7 +179,48 @@ function abrirAbaOculta(url) {
 }
 
 function fecharAba(tab) {
+  abasAbertas.delete(tab.id);
   return chrome.tabs.remove(tab.id).catch(function () {});
+}
+
+async function fecharAbasAbertas() {
+  for (const id of abasAbertas) await chrome.tabs.remove(id).catch(function () {});
+  abasAbertas.clear();
+}
+
+// ── Tentativas — o TCE falha de forma intermitente (ticket Qlik vazio, sessão
+// WebSocket degradada que devolve poucas linhas). Cada etapa é repetida com
+// espera crescente até dar certo, no máximo MAX_TENTATIVAS vezes.
+// ponytail: limite fixo em vez de "até dar certo" pra uma queda longa do TCE
+// não prender a carga pra sempre; aumentar aqui se 5 não bastar.
+const MAX_TENTATIVAS = 5;
+
+function esperar(ms) {
+  return new Promise(function (r) { setTimeout(r, ms); });
+}
+
+// Repete fn até valido(resultado) ou até acabar as tentativas. Sem sucesso,
+// devolve o último resultado (ou relança o último erro, se a última falhou por erro).
+async function comTentativas(rotulo, fn, valido) {
+  for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
+    const ultima = tentativa === MAX_TENTATIVAS;
+    try {
+      const resultado = await fn();
+      if (!valido || valido(resultado)) return resultado;
+      if (ultima) {
+        log(rotulo + ": ainda incompleto após " + MAX_TENTATIVAS + " tentativas — seguindo com o que veio.", "err");
+        return resultado;
+      }
+      log(rotulo + ": resultado incompleto (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
+    } catch (err) {
+      if (ultima) throw err;
+      log(rotulo + ": " + err.message + " (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
+    }
+    await fecharAbasAbertas();
+    const espera = 5 * tentativa;
+    log("Tentando de novo em " + espera + "s...", "info");
+    await esperar(espera * 1000);
+  }
 }
 
 async function capturarCND(porNomeBusca) {
@@ -679,7 +730,10 @@ async function obterTicketQlik() {
     log("TCE Virtual: nenhuma credencial configurada — pulando captura restrita (módulos/datas).", "info");
     return null;
   }
+  return comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (ticket) => !!ticket);
+}
 
+async function tentarObterTicketQlik(credenciais) {
   log("Fazendo login no TCE Virtual...");
   const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
 
@@ -1073,16 +1127,11 @@ async function main() {
       // nem em snapshots_diarios (que representam o "estado atual"), só acumula
       // histórico em status_por_competencia, uma competência de cada vez. CND não
       // entra — não tem esse conceito.
-      // Ticket Qlik pedido de novo a cada competência (não reaproveitado do loop
-      // inteiro): o ticket é de uso único — reaproveitá-lo entre várias sessões
-      // WS sequenciais fazia as competências seguintes caírem numa sessão anônima/
-      // degradada (poucas linhas) ou falhar de vez no GetHyperCubeData.
       let totalRatifSoma = 0;
       let totalModulosSoma = 0;
       for (const competenciaAlvo of competenciasAlvo) {
-        const ratif = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
-        const ticketModulos = await obterTicketQlik();
-        const modulos = await capturarModulos(porNomeBusca, competenciaAlvo, ticketModulos);
+        const ratif = await comTentativas("Ratificações " + competenciaAlvo, () => capturarRatificacoes(porNomeBusca, competenciaAlvo));
+        const modulos = await capturarModulosComTentativas(porNomeBusca, competenciaAlvo);
         totalRatifSoma += await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
         totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       }
@@ -1104,14 +1153,13 @@ async function main() {
         totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes },
       });
       log("Concluído.", "ok");
-      if (modo === "alarme") setTimeout(function () { window.close(); }, 2000);
+      fecharEstaAba();
       return;
     }
 
-    const cndPorIbge = await capturarCND(porNomeBusca);
-    const ratif = await capturarRatificacoes(porNomeBusca);
-    const ticket = await obterTicketQlik();
-    const modulos = await capturarModulos(porNomeBusca, undefined, ticket);
+    const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m) => m.size > 0);
+    const ratif = await comTentativas("Ratificações", () => capturarRatificacoes(porNomeBusca));
+    const modulos = await capturarModulosComTentativas(porNomeBusca, undefined);
     periodoCarga = ratif.competencia || modulos.competencia || null;
     const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
     const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
@@ -1146,7 +1194,7 @@ async function main() {
     });
 
     log("Concluído.", "ok");
-    if (modo === "alarme") setTimeout(function () { window.close(); }, 2000);
+    fecharEstaAba();
   } catch (err) {
     log("Erro: " + err.message, "err");
     await registrarCarga({
@@ -1159,7 +1207,41 @@ async function main() {
       erro: err.message,
       totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null,
     });
+  } finally {
+    await fecharAbasAbertas();
   }
+}
+
+// Uma captura de módulos boa resolve quase todos os 295 municípios (~290); a
+// sessão degradada do Qlik devolve 1 ou poucos.
+// ponytail: limiar fixo; baixar se o TCE passar a trazer menos municípios de verdade.
+const MIN_MUNICIPIOS_MODULOS = 200;
+
+// Ticket novo a cada tentativa: é de uso único, e reaproveitá-lo fazia a sessão
+// cair degradada ou falhar no GetHyperCubeData.
+function capturarModulosComTentativas(porNomeBusca, competenciaAlvo) {
+  return comTentativas(
+    "Módulos" + (competenciaAlvo ? " " + competenciaAlvo : ""),
+    async () => {
+      const ticket = await obterTicketQlik();
+      if (!ticket) return { porIbge: new Map(), competencia: null, semTicket: true };
+      return capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+    },
+    (r) => r.semTicket || r.porIbge.size >= MIN_MUNICIPIOS_MODULOS
+  );
+}
+
+// Carga terminou bem: fecha a própria aba do log (o resultado fica no Controle
+// de Cargas). Com erro a aba fica aberta pra dar pra ler o que houve.
+function fecharEstaAba() {
+  const segundos = modo === "alarme" ? 2 : 10;
+  log("Esta aba fecha sozinha em " + segundos + "s.", "info");
+  setTimeout(function () {
+    chrome.tabs.getCurrent(function (tab) {
+      if (tab) chrome.tabs.remove(tab.id);
+      else window.close();
+    });
+  }, segundos * 1000);
 }
 
 main();

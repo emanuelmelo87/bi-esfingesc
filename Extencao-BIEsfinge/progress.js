@@ -31440,13 +31440,20 @@ This typically indicates that your device does not have a healthy Internet conne
       };
     }).filter(Boolean);
   }
+  var abasAbertas = /* @__PURE__ */ new Set();
   function abrirAbaOculta(url) {
     return new Promise(function(resolve, reject) {
       chrome.tabs.create({ url, active: false }, function(tab) {
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        abasAbertas.add(tab.id);
+        const limite = setTimeout(function() {
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          reject(new Error("p\xE1gina n\xE3o terminou de carregar em 60s: " + url));
+        }, 6e4);
         function onUpdated(tabId, info) {
           if (tabId === tab.id && info.status === "complete") {
             chrome.tabs.onUpdated.removeListener(onUpdated);
+            clearTimeout(limite);
             setTimeout(function() {
               resolve(tab);
             }, 2500);
@@ -31457,8 +31464,41 @@ This typically indicates that your device does not have a healthy Internet conne
     });
   }
   function fecharAba(tab) {
+    abasAbertas.delete(tab.id);
     return chrome.tabs.remove(tab.id).catch(function() {
     });
+  }
+  async function fecharAbasAbertas() {
+    for (const id of abasAbertas) await chrome.tabs.remove(id).catch(function() {
+    });
+    abasAbertas.clear();
+  }
+  var MAX_TENTATIVAS = 5;
+  function esperar(ms) {
+    return new Promise(function(r2) {
+      setTimeout(r2, ms);
+    });
+  }
+  async function comTentativas(rotulo, fn, valido) {
+    for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
+      const ultima = tentativa === MAX_TENTATIVAS;
+      try {
+        const resultado = await fn();
+        if (!valido || valido(resultado)) return resultado;
+        if (ultima) {
+          log(rotulo + ": ainda incompleto ap\xF3s " + MAX_TENTATIVAS + " tentativas \u2014 seguindo com o que veio.", "err");
+          return resultado;
+        }
+        log(rotulo + ": resultado incompleto (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
+      } catch (err) {
+        if (ultima) throw err;
+        log(rotulo + ": " + err.message + " (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
+      }
+      await fecharAbasAbertas();
+      const espera = 5 * tentativa;
+      log("Tentando de novo em " + espera + "s...", "info");
+      await esperar(espera * 1e3);
+    }
   }
   async function capturarCND(porNomeBusca) {
     log("Abrindo CND p\xFAblica em aba oculta...");
@@ -31935,6 +31975,9 @@ This typically indicates that your device does not have a healthy Internet conne
       log("TCE Virtual: nenhuma credencial configurada \u2014 pulando captura restrita (m\xF3dulos/datas).", "info");
       return null;
     }
+    return comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (ticket) => !!ticket);
+  }
+  async function tentarObterTicketQlik(credenciais) {
     log("Fazendo login no TCE Virtual...");
     const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
     for (let i2 = 0; i2 < credenciais.length; i2++) {
@@ -32253,9 +32296,8 @@ This typically indicates that your device does not have a healthy Internet conne
         let totalRatifSoma = 0;
         let totalModulosSoma = 0;
         for (const competenciaAlvo of competenciasAlvo) {
-          const ratif2 = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
-          const ticketModulos = await obterTicketQlik();
-          const modulos2 = await capturarModulos(porNomeBusca, competenciaAlvo, ticketModulos);
+          const ratif2 = await comTentativas("Ratifica\xE7\xF5es " + competenciaAlvo, () => capturarRatificacoes(porNomeBusca, competenciaAlvo));
+          const modulos2 = await capturarModulosComTentativas(porNomeBusca, competenciaAlvo);
           totalRatifSoma += await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
           totalModulosSoma += await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
         }
@@ -32276,15 +32318,12 @@ This typically indicates that your device does not have a healthy Internet conne
           totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes }
         });
         log("Conclu\xEDdo.", "ok");
-        if (modo === "alarme") setTimeout(function() {
-          window.close();
-        }, 2e3);
+        fecharEstaAba();
         return;
       }
-      const cndPorIbge = await capturarCND(porNomeBusca);
-      const ratif = await capturarRatificacoes(porNomeBusca);
-      const ticket = await obterTicketQlik();
-      const modulos = await capturarModulos(porNomeBusca, void 0, ticket);
+      const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m2) => m2.size > 0);
+      const ratif = await comTentativas("Ratifica\xE7\xF5es", () => capturarRatificacoes(porNomeBusca));
+      const modulos = await capturarModulosComTentativas(porNomeBusca, void 0);
       periodoCarga = ratif.competencia || modulos.competencia || null;
       const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
       const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
@@ -32315,9 +32354,7 @@ This typically indicates that your device does not have a healthy Internet conne
         }
       });
       log("Conclu\xEDdo.", "ok");
-      if (modo === "alarme") setTimeout(function() {
-        window.close();
-      }, 2e3);
+      fecharEstaAba();
     } catch (err) {
       log("Erro: " + err.message, "err");
       await registrarCarga({
@@ -32330,7 +32367,31 @@ This typically indicates that your device does not have a healthy Internet conne
         erro: err.message,
         totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null
       });
+    } finally {
+      await fecharAbasAbertas();
     }
+  }
+  var MIN_MUNICIPIOS_MODULOS = 200;
+  function capturarModulosComTentativas(porNomeBusca, competenciaAlvo) {
+    return comTentativas(
+      "M\xF3dulos" + (competenciaAlvo ? " " + competenciaAlvo : ""),
+      async () => {
+        const ticket = await obterTicketQlik();
+        if (!ticket) return { porIbge: /* @__PURE__ */ new Map(), competencia: null, semTicket: true };
+        return capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+      },
+      (r2) => r2.semTicket || r2.porIbge.size >= MIN_MUNICIPIOS_MODULOS
+    );
+  }
+  function fecharEstaAba() {
+    const segundos = modo === "alarme" ? 2 : 10;
+    log("Esta aba fecha sozinha em " + segundos + "s.", "info");
+    setTimeout(function() {
+      chrome.tabs.getCurrent(function(tab) {
+        if (tab) chrome.tabs.remove(tab.id);
+        else window.close();
+      });
+    }, segundos * 1e3);
   }
   main();
 })();
