@@ -632,47 +632,68 @@ function pendenciasArea(area, entidades) {
   return pendencias;
 }
 
+// Lê a lista de credenciais TCE salva pelo painel; aceita também o formato
+// antigo (tce_matricula/tce_senha únicos), pra não quebrar quem ainda não
+// reabriu o painel depois de atualizar a extensão.
+async function obterCredenciaisTce() {
+  const dados = await chrome.storage.local.get(["tce_credenciais", "tce_matricula", "tce_senha"]);
+  if (dados.tce_credenciais && dados.tce_credenciais.length) return dados.tce_credenciais;
+  if (dados.tce_matricula && dados.tce_senha) return [{ matricula: dados.tce_matricula, senha: dados.tce_senha }];
+  return [];
+}
+
 // Login + ticket Qlik, usado por capturarModulos (única fonte que ainda
 // precisa de login restrito — ratificação e sua data já são públicas).
+// Tenta cada credencial da lista em sequência; se uma falhar no login, segue
+// pra próxima na mesma aba (o formulário continua na tela após uma tentativa
+// mal-sucedida, então só preenche de novo em cima).
 async function obterTicketQlik() {
-  const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
-  if (!tce_matricula || !tce_senha) {
-    log("TCE Virtual: credenciais não configuradas — pulando captura restrita (módulos/datas).", "info");
+  const credenciais = await obterCredenciaisTce();
+  if (credenciais.length === 0) {
+    log("TCE Virtual: nenhuma credencial configurada — pulando captura restrita (módulos/datas).", "info");
     return null;
   }
 
   log("Fazendo login no TCE Virtual...");
   const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
-  const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
-  if (precisaLogar) {
-    await chrome.scripting.executeScript({
-      target: { tabId: loginTab.id },
-      func: fillLoginForm,
-      args: [tce_matricula, tce_senha],
-    });
-    await new Promise((r) => setTimeout(r, 3000));
-    const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
-    if (aindaLogin) {
+
+  for (let i = 0; i < credenciais.length; i++) {
+    const { matricula, senha } = credenciais[i];
+    const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+    if (precisaLogar) {
+      await chrome.scripting.executeScript({
+        target: { tabId: loginTab.id },
+        func: fillLoginForm,
+        args: [matricula, senha],
+      });
+      await new Promise((r) => setTimeout(r, 3000));
+      const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+      if (aindaLogin) {
+        const ultima = i + 1 === credenciais.length;
+        log("Login no TCE falhou para a matrícula " + matricula + (ultima ? "." : " — tentando a próxima credencial..."), "err");
+        continue;
+      }
+    }
+
+    log("Login no TCE confirmado (matrícula " + matricula + "). Obtendo ticket Qlik...", "ok");
+    const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
+    if (!jwt) {
       await fecharAba(loginTab);
-      log("Login no TCE falhou — verifique a matrícula/senha configuradas.", "err");
+      log("Não foi possível ler o token de sessão do TCE.", "err");
       return null;
     }
-  }
-  const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
-  if (!jwt) {
+    const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
     await fecharAba(loginTab);
-    log("Não foi possível ler o token de sessão do TCE.", "err");
-    return null;
+    if (!ticket || typeof ticket !== "string") {
+      log("Ticket Qlik inválido.", "err");
+      return null;
+    }
+    return ticket;
   }
-  log("Login no TCE confirmado. Obtendo ticket Qlik...", "ok");
-  const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
-  await fecharAba(loginTab);
 
-  if (!ticket || typeof ticket !== "string") {
-    log("Ticket Qlik inválido.", "err");
-    return null;
-  }
-  return ticket;
+  await fecharAba(loginTab);
+  log("Login no TCE falhou para todas as credenciais configuradas.", "err");
+  return null;
 }
 
 async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
@@ -853,18 +874,22 @@ async function main() {
     }
 
     const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
-    const ticket = await obterTicketQlik();
 
     if (competenciasAlvo) {
       // Backfill de um período de competências: não mexe em status_operacional_atual
       // nem em snapshots_diarios (que representam o "estado atual"), só acumula
       // histórico em status_por_competencia, uma competência de cada vez. CND não
       // entra — não tem esse conceito.
+      // Ticket Qlik pedido de novo a cada competência (não reaproveitado do loop
+      // inteiro): o ticket é de uso único — reaproveitá-lo entre várias sessões
+      // WS sequenciais fazia as competências seguintes caírem numa sessão anônima/
+      // degradada (poucas linhas) ou falhar de vez no GetHyperCubeData.
       let totalRatifSoma = 0;
       let totalModulosSoma = 0;
       for (const competenciaAlvo of competenciasAlvo) {
         const ratif = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
-        const modulos = await capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+        const ticketModulos = await obterTicketQlik();
+        const modulos = await capturarModulos(porNomeBusca, competenciaAlvo, ticketModulos);
         totalRatifSoma += await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
         totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       }
@@ -892,6 +917,7 @@ async function main() {
 
     const cndPorIbge = await capturarCND(porNomeBusca);
     const ratif = await capturarRatificacoes(porNomeBusca);
+    const ticket = await obterTicketQlik();
     const modulos = await capturarModulos(porNomeBusca, undefined, ticket);
     periodoCarga = ratif.competencia || modulos.competencia || null;
     const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);

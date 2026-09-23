@@ -153,8 +153,35 @@ document.getElementById("btn-cancel-sched").addEventListener("click", function (
   document.getElementById("sched-status").className = "status ok";
 });
 
-// ── Conta TCE ────────────────────────────────────────────────────────
-document.getElementById("btn-save-tce").addEventListener("click", function () {
+// ── Conta TCE — lista de credenciais; se o login falhar com uma, o
+// progress.js tenta a próxima da lista automaticamente (ver obterTicketQlik). ──
+var tceCredenciais = [];
+
+function renderTceList() {
+  var list = document.getElementById("tce-list");
+  list.innerHTML = "";
+  tceCredenciais.forEach(function (cred, i) {
+    var item = document.createElement("div");
+    item.className = "sched-item";
+    item.innerHTML = "<span>" + cred.matricula + "</span>";
+    var btn = document.createElement("button");
+    btn.textContent = "Remover";
+    btn.addEventListener("click", function () {
+      tceCredenciais.splice(i, 1);
+      salvarTceCredenciais();
+    });
+    item.appendChild(btn);
+    list.appendChild(item);
+  });
+}
+
+function salvarTceCredenciais() {
+  chrome.storage.local.set({ tce_credenciais: tceCredenciais }, function () {
+    renderTceList();
+  });
+}
+
+document.getElementById("btn-add-tce").addEventListener("click", function () {
   var matricula = document.getElementById("tce-matricula").value.trim();
   var senha = document.getElementById("tce-senha").value;
   if (!matricula || !senha) {
@@ -162,28 +189,26 @@ document.getElementById("btn-save-tce").addEventListener("click", function () {
     document.getElementById("tce-status").className = "status err";
     return;
   }
-  chrome.storage.local.set({ tce_matricula: matricula, tce_senha: senha }, function () {
-    document.getElementById("tce-status").textContent = "Credencial salva.";
-    document.getElementById("tce-status").className = "status ok";
-  });
-});
-
-document.getElementById("btn-clear-tce").addEventListener("click", function () {
-  chrome.storage.local.remove(["tce_matricula", "tce_senha"], function () {
-    document.getElementById("tce-matricula").value = "";
-    document.getElementById("tce-senha").value = "";
-    document.getElementById("tce-status").textContent = "Credencial removida.";
-    document.getElementById("tce-status").className = "status ok";
-  });
-});
-
-chrome.storage.local.get(["tce_matricula"], function (data) {
-  if (data.tce_matricula) document.getElementById("tce-matricula").value = data.tce_matricula;
+  if (tceCredenciais.some(function (c) { return c.matricula === matricula; })) {
+    document.getElementById("tce-status").textContent = "Essa matrícula já está na lista.";
+    document.getElementById("tce-status").className = "status err";
+    return;
+  }
+  tceCredenciais.push({ matricula: matricula, senha: senha });
+  salvarTceCredenciais();
+  document.getElementById("tce-matricula").value = "";
+  document.getElementById("tce-senha").value = "";
+  document.getElementById("tce-status").textContent = "Credencial adicionada.";
+  document.getElementById("tce-status").className = "status ok";
 });
 
 // ── Estado inicial + reatividade ────────────────────────────────────
 chrome.storage.local.get(
-  ["auth_status", "last_execution", "schedule_times", "schedule_days", "schedule_competencia_inicio", "schedule_competencia_fim"],
+  [
+    "auth_status", "last_execution", "schedule_times", "schedule_days",
+    "schedule_competencia_inicio", "schedule_competencia_fim",
+    "tce_credenciais", "tce_matricula", "tce_senha",
+  ],
   function (data) {
     renderAuth(data.auth_status);
     renderLastExecution(data.last_execution);
@@ -195,6 +220,16 @@ chrome.storage.local.get(
     });
     if (data.schedule_competencia_inicio) document.getElementById("sched-competencia-inicio").value = data.schedule_competencia_inicio;
     if (data.schedule_competencia_fim) document.getElementById("sched-competencia-fim").value = data.schedule_competencia_fim;
+
+    if (data.tce_credenciais && data.tce_credenciais.length) {
+      tceCredenciais = data.tce_credenciais;
+      renderTceList();
+    } else if (data.tce_matricula && data.tce_senha) {
+      // Migração da credencial única salva pela versão anterior da extensão.
+      tceCredenciais = [{ matricula: data.tce_matricula, senha: data.tce_senha }];
+      salvarTceCredenciais();
+      chrome.storage.local.remove(["tce_matricula", "tce_senha"]);
+    }
   }
 );
 

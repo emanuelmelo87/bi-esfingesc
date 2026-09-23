@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Radar e-Sfinge — BI EsfingeSC",
+  "name": "BI Esfinge SC",
   "description": "Captura status de envio e ratificações do TCE-SC para o Radar e-Sfinge BI",
   "version": "0.1.0",
   "permissions": ["storage", "tabs", "scripting", "alarms", "identity", "sidePanel"],

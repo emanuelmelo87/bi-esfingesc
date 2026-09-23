@@ -31748,43 +31748,55 @@ This typically indicates that your device does not have a healthy Internet conne
     }
     return pendencias;
   }
+  async function obterCredenciaisTce() {
+    const dados = await chrome.storage.local.get(["tce_credenciais", "tce_matricula", "tce_senha"]);
+    if (dados.tce_credenciais && dados.tce_credenciais.length) return dados.tce_credenciais;
+    if (dados.tce_matricula && dados.tce_senha) return [{ matricula: dados.tce_matricula, senha: dados.tce_senha }];
+    return [];
+  }
   async function obterTicketQlik() {
-    const { tce_matricula, tce_senha } = await chrome.storage.local.get(["tce_matricula", "tce_senha"]);
-    if (!tce_matricula || !tce_senha) {
-      log("TCE Virtual: credenciais n\xE3o configuradas \u2014 pulando captura restrita (m\xF3dulos/datas).", "info");
+    const credenciais = await obterCredenciaisTce();
+    if (credenciais.length === 0) {
+      log("TCE Virtual: nenhuma credencial configurada \u2014 pulando captura restrita (m\xF3dulos/datas).", "info");
       return null;
     }
     log("Fazendo login no TCE Virtual...");
     const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
-    const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
-    if (precisaLogar) {
-      await chrome.scripting.executeScript({
-        target: { tabId: loginTab.id },
-        func: fillLoginForm,
-        args: [tce_matricula, tce_senha]
-      });
-      await new Promise((r2) => setTimeout(r2, 3e3));
-      const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
-      if (aindaLogin) {
+    for (let i2 = 0; i2 < credenciais.length; i2++) {
+      const { matricula, senha } = credenciais[i2];
+      const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+      if (precisaLogar) {
+        await chrome.scripting.executeScript({
+          target: { tabId: loginTab.id },
+          func: fillLoginForm,
+          args: [matricula, senha]
+        });
+        await new Promise((r2) => setTimeout(r2, 3e3));
+        const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+        if (aindaLogin) {
+          const ultima = i2 + 1 === credenciais.length;
+          log("Login no TCE falhou para a matr\xEDcula " + matricula + (ultima ? "." : " \u2014 tentando a pr\xF3xima credencial..."), "err");
+          continue;
+        }
+      }
+      log("Login no TCE confirmado (matr\xEDcula " + matricula + "). Obtendo ticket Qlik...", "ok");
+      const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
+      if (!jwt) {
         await fecharAba(loginTab);
-        log("Login no TCE falhou \u2014 verifique a matr\xEDcula/senha configuradas.", "err");
+        log("N\xE3o foi poss\xEDvel ler o token de sess\xE3o do TCE.", "err");
         return null;
       }
-    }
-    const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
-    if (!jwt) {
+      const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
       await fecharAba(loginTab);
-      log("N\xE3o foi poss\xEDvel ler o token de sess\xE3o do TCE.", "err");
-      return null;
+      if (!ticket || typeof ticket !== "string") {
+        log("Ticket Qlik inv\xE1lido.", "err");
+        return null;
+      }
+      return ticket;
     }
-    log("Login no TCE confirmado. Obtendo ticket Qlik...", "ok");
-    const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
     await fecharAba(loginTab);
-    if (!ticket || typeof ticket !== "string") {
-      log("Ticket Qlik inv\xE1lido.", "err");
-      return null;
-    }
-    return ticket;
+    log("Login no TCE falhou para todas as credenciais configuradas.", "err");
+    return null;
   }
   async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
     const vazio = { porIbge: /* @__PURE__ */ new Map(), competencia: null };
@@ -31931,13 +31943,13 @@ This typically indicates that your device does not have a healthy Internet conne
         return;
       }
       const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
-      const ticket = await obterTicketQlik();
       if (competenciasAlvo) {
         let totalRatifSoma = 0;
         let totalModulosSoma = 0;
         for (const competenciaAlvo of competenciasAlvo) {
           const ratif2 = await capturarRatificacoes(porNomeBusca, competenciaAlvo);
-          const modulos2 = await capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+          const ticketModulos = await obterTicketQlik();
+          const modulos2 = await capturarModulos(porNomeBusca, competenciaAlvo, ticketModulos);
           totalRatifSoma += await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
           totalModulosSoma += await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
         }
@@ -31965,6 +31977,7 @@ This typically indicates that your device does not have a healthy Internet conne
       }
       const cndPorIbge = await capturarCND(porNomeBusca);
       const ratif = await capturarRatificacoes(porNomeBusca);
+      const ticket = await obterTicketQlik();
       const modulos = await capturarModulos(porNomeBusca, void 0, ticket);
       periodoCarga = ratif.competencia || modulos.competencia || null;
       const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);

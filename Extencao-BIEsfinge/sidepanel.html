@@ -65,7 +65,7 @@
 
   <div class="header">
     <img src="icon.png" alt="Radar e-Sfinge">
-    <h2>Radar <span>e-Sfinge</span></h2>
+    <h2>Carga <span>de dados</span></h2>
   </div>
 
   <div style="padding: 12px 16px 0">
@@ -155,15 +155,16 @@
     <div class="section">
       <div class="section-title">Login TCE Virtual</div>
       <div style="font-size:10px;color:#777;margin-bottom:8px;line-height:1.5">
-        Usada só para a captura restrita (Contábil/Folha/Tributos). Fica salva sem
-        criptografia neste navegador — mesmo padrão da extensão anterior.
+        Usadas só para a captura restrita (Contábil/Folha/Tributos). Ficam salvas sem
+        criptografia neste navegador. Se o login falhar com uma credencial, a
+        extensão tenta automaticamente a próxima da lista.
       </div>
-      <label>Matrícula</label>
+      <div class="item-list" id="tce-list"></div>
+      <label style="margin-top:10px">Matrícula</label>
       <input type="text" id="tce-matricula" placeholder="ex: 8578013921" autocomplete="username">
       <label>Senha</label>
       <input type="password" id="tce-senha" placeholder="senha TCE" autocomplete="new-password">
-      <button class="btn-save" id="btn-save-tce" style="margin-top:10px">Salvar</button>
-      <button class="btn-cancel" id="btn-clear-tce">Remover credencial</button>
+      <button class="btn-save" id="btn-add-tce" style="margin-top:10px">Adicionar credencial</button>
       <div class="status" id="tce-status"></div>
     </div>
   </div>
