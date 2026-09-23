@@ -94,6 +94,8 @@ export default function MatrizPage() {
   const [filtroAssociacao, setFiltroAssociacao] = useState("todos");
   const [filtroRatificacao, setFiltroRatificacao] = useState<FiltroEnvio>("todos");
   const [filtroModulos, setFiltroModulos] = useState<FiltroEnvio>("todos");
+  // Por coluna de módulo: "sim" = com chamado aberto daquela área, "nao" = sem.
+  const [filtroChamado, setFiltroChamado] = useState<Record<string, FiltroEnvio>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -191,8 +193,14 @@ export default function MatrizPage() {
       }))
       .filter(({ dados }) => passaFiltroEnvio(dados?.ratificacao_status, filtroRatificacao))
       .filter(({ dados }) => passaFiltroBooleano(todosModulosOk(dados?.modulos, ratifEnviado(dados?.ratificacao_status)), filtroModulos))
+      .filter(({ municipio }) => {
+        const chamados = chamadosPorNome.get(municipio.nome_busca) ?? [];
+        return MODULOS.every((mod) =>
+          passaFiltroBooleano(chamados.some((c) => MODULO_POR_AREA[c.v] === mod.key), filtroChamado[mod.key] ?? "todos")
+        );
+      })
       .sort((a, b) => a.municipio.nome.localeCompare(b.municipio.nome, "pt-BR"));
-  }, [municipios, historicoPorIbge, competencia, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroRatificacao, filtroModulos]);
+  }, [municipios, historicoPorIbge, competencia, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroRatificacao, filtroModulos, chamadosPorNome, filtroChamado]);
 
   function exportar() {
     exportCsv(
@@ -362,9 +370,29 @@ export default function MatrizPage() {
                         </select>
                       </label>
                     </th>
-                    {MODULOS.map((m) => (
-                      <th key={m.key} className="px-4 py-3">{m.label}</th>
-                    ))}
+                    {MODULOS.map((m) => {
+                      const filtro = filtroChamado[m.key] ?? "todos";
+                      return (
+                        <th key={m.key} className={`px-4 py-2 ${filtro !== "todos" ? "bg-vinho/[0.06] dark:bg-rose-400/10" : ""}`}>
+                          <div>{m.label}</div>
+                          <label className="relative mt-1 inline-flex items-center">
+                            <IconFilter
+                              className={`pointer-events-none absolute left-1 h-2.5 w-2.5 ${filtro !== "todos" ? "text-vinho dark:text-rose-400" : "text-apple-muted"}`}
+                            />
+                            <select
+                              value={filtro}
+                              onChange={(e) => setFiltroChamado((atual) => ({ ...atual, [m.key]: e.target.value as FiltroEnvio }))}
+                              title={`Filtrar ${m.label} por chamado aberto`}
+                              className="cursor-pointer rounded-full border border-black/[0.08] bg-white/90 py-0.5 pr-1.5 pl-4 text-[10px] font-normal normal-case text-apple-title shadow-xs dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
+                            >
+                              <option value="todos">Chamado: todos</option>
+                              <option value="sim">Com chamado</option>
+                              <option value="nao">Sem chamado</option>
+                            </select>
+                          </label>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
