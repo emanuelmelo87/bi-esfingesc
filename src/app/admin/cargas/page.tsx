@@ -42,7 +42,7 @@ export default function AdminCargasPage() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Controle de Cargas</h1>
         <ContadorResultados mostrando={cargas.length} total={cargas.length} label="cargas" />

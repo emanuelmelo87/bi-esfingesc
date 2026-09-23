@@ -9,7 +9,7 @@ const PERFIS = ["ADMIN_GERAL", "GESTOR_CANAL", "ANALISTA", "LEITURA"] as const;
 
 export default function AdminPermissoesPage() {
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Matriz de Permissões (RBAC)</h1>
       <p className="mb-4 max-w-2xl text-sm text-apple-secondary">
         Grade de privilégios pretendida para os 4 perfis. Nesta sprint, só o bloqueio de acesso

@@ -144,7 +144,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-50 border-b border-black/[0.06] bg-white/70 backdrop-blur-2xl lg:hidden dark:border-white/[0.06] dark:bg-zinc-900/70">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+          <div className="flex h-14 items-center justify-between px-4 sm:px-6">
             <div className="flex items-center gap-2.5">
               <LogoMark />
               <div className="flex items-baseline gap-1.5 whitespace-nowrap">
@@ -201,7 +201,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
         {children}
 
         <footer className="mt-auto border-t border-black/[0.05] bg-white/60 py-4 text-[11px] text-apple-muted backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/60">
-          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
             <span>
               <span className="font-semibold text-apple-title">BI eSfinge SC</span> · Ferramenta interna Betha para
               acompanhar a prestação de contas dos municípios de SC ao TCE-SC

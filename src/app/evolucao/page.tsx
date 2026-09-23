@@ -166,7 +166,7 @@ export default function EvolucaoPage() {
 
   return (
     <RequireAuth>
-      <main className="flex-1 px-6 py-6">
+      <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Evolução Temporal</h1>
         <p className="mb-1 text-sm text-apple-secondary">
           Histórico diário a partir dos snapshots — &ldquo;concluído&rdquo; = ratificação enviada (no

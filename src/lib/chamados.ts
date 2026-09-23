@@ -70,10 +70,6 @@ export function chamadosPorMunicipio(issues: Chamado[]): Map<string, Chamado[]> 
   return mapa;
 }
 
-export function resumoChamados(lista: Chamado[]): string {
-  return lista.map((c) => `${c.k} · ${c.v} · ${c.st}${c.br ? " · SLO estourado" : ""}\n${c.s}`).join("\n\n");
-}
-
 export function formatarDuracao(ms: number): string {
   const s = Math.abs(ms) / 1000;
   const d = Math.floor(s / 86400);

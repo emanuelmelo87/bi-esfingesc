@@ -153,7 +153,7 @@ export default function Home() {
 
   return (
     <RequireAuth>
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <main className="w-full min-w-0 flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <section className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-1.5 flex items-center gap-2">

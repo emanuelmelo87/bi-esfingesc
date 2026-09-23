@@ -187,7 +187,7 @@ export default function AdminMunicipiosPage() {
     "rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100";
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Controle de Municípios</h1>
