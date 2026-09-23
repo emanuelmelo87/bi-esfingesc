@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { exportCsv } from "@/lib/csv";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge, { type Tone } from "@/components/StatusBadge";
-import FonteDados from "@/components/FonteDados";
+import { FonteExterna } from "@/components/FonteDados";
 import ContadorResultados from "@/components/ContadorResultados";
 import { IconRefresh } from "@/components/icons";
 import type { Municipio, StatusOperacionalAtual } from "@/types/municipio";
@@ -219,7 +219,7 @@ export default function CndPage() {
           Fornecedor, empresa de software e situação da CND por município — visão geral de todos
           os 295, ou o ranking por habitantes.
         </p>
-        <FonteDados colecoes={["municipios", "status_operacional_atual"]} />
+        <FonteExterna url="https://virtual.tce.sc.gov.br/esfinge-web/esfinge-online/administracao/certidao/consulta-geral" />
 
         <div className="mb-4 flex items-center gap-0.5 rounded-full border border-black/[0.08] bg-white/80 p-0.5 dark:border-white/10 dark:bg-white/5 w-fit">
           {([

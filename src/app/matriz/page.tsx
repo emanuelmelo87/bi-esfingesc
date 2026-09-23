@@ -10,6 +10,7 @@ import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
 import ChamadosIndicador from "@/components/ChamadosIndicador";
+import { FonteExterna } from "@/components/FonteDados";
 import { carregarChamados, chamadosPorMunicipio, MODULO_POR_AREA, type Chamado } from "@/lib/chamados";
 import { IconAlertTriangle, IconFilter, IconRefresh, IconTrash } from "@/components/icons";
 import { compararCompetencias } from "@/lib/competencia";
@@ -242,10 +243,11 @@ export default function MatrizPage() {
             </button>
           </div>
         </div>
-        <p className="mb-4 text-sm text-apple-secondary">
+        <p className="mb-1 text-sm text-apple-secondary">
           Status de envio por área (Contábil, Folha, Contratos, Tributos), por município e por
           competência. Dado consultado no TCE Virtual.
         </p>
+        <FonteExterna url="https://virtual.tce.sc.gov.br/home" />
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1 rounded-full border border-black/[0.08] bg-white/90 py-1 pr-1.5 pl-1 shadow-xs dark:border-white/10 dark:bg-zinc-800">

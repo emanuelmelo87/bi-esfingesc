@@ -26,9 +26,9 @@ const BASE_LINKS = [
   { href: "/matriz", label: "Status por Módulo", icon: IconGrid },
   { href: "/ratificacao-geral", label: "Ratificação Geral", icon: IconListChecks },
   { href: "/cnd", label: "CND", icon: IconCertificate },
+  { href: "/chamados", label: "Chamados", icon: IconTicket },
   { href: "/evolucao", label: "Evolução", icon: IconTrendingUp },
   { href: "/movimentacoes", label: "Movimentações", icon: IconArrowsExchange },
-  { href: "/chamados", label: "Chamados", icon: IconTicket },
 ];
 
 const ADMIN_LINKS = [

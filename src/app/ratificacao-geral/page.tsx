@@ -10,6 +10,7 @@ import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
 import ChamadosIndicador from "@/components/ChamadosIndicador";
+import { FonteExterna } from "@/components/FonteDados";
 import { carregarChamados, chamadosPorMunicipio, type Chamado } from "@/lib/chamados";
 import { IconFilter, IconRefresh, IconTrash } from "@/components/icons";
 import { compararCompetencias } from "@/lib/competencia";
@@ -174,10 +175,11 @@ export default function RatificacaoGeralPage() {
             </button>
           </div>
         </div>
-        <p className="mb-4 text-sm text-apple-secondary">
+        <p className="mb-1 text-sm text-apple-secondary">
           Histórico de ratificação cruzando todas as competências, capturado automaticamente pela
           extensão a cada sincronização.
         </p>
+        <FonteExterna url="https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html" />
 
         <div className="mb-4 flex flex-wrap gap-3">
           <input
