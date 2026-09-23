@@ -32070,6 +32070,48 @@ This typically indicates that your device does not have a healthy Internet conne
         detalhe_novo: detalheNovo
       });
     }
+    if (fontes.includes("modulo")) movimentos.push(...detectarMovimentacoesItens(anterior, novo));
+    return movimentos;
+  }
+  var ROTULO_AREA = { contabil: "Cont\xE1bil", folha: "Folha", contratos: "Contratos", tributos: "Tributos" };
+  function pendenciasPorItem(area) {
+    const porItem = /* @__PURE__ */ new Map();
+    for (const p2 of area.pendencias) {
+      const chave = p2.campo + " (" + p2.entidade + ")";
+      if (!porItem.has(chave)) porItem.set(chave, { valores: [], requisito: p2.requisito || null });
+      porItem.get(chave).valores.push(p2.valor === null ? "n\xE3o enviado" : String(p2.valor));
+    }
+    for (const item of porItem.values()) item.valores.sort();
+    return porItem;
+  }
+  function detectarMovimentacoesItens(anterior, novo) {
+    const movimentos = [];
+    if (!anterior || !anterior.modulos || !novo.modulos) return movimentos;
+    for (const area of Object.keys(ROTULO_AREA)) {
+      const antes = anterior.modulos[area];
+      const agora = novo.modulos[area];
+      if (!antes || !agora || !Array.isArray(antes.pendencias) || !Array.isArray(agora.pendencias)) continue;
+      const itensAntes = pendenciasPorItem(antes);
+      const itensAgora = pendenciasPorItem(agora);
+      for (const chave of /* @__PURE__ */ new Set([...itensAntes.keys(), ...itensAgora.keys()])) {
+        const a = itensAntes.get(chave);
+        const n2 = itensAgora.get(chave);
+        const valorAnterior = a ? a.valores.join(", ") : "ok";
+        const valorNovo = n2 ? n2.valores.join(", ") : "ok";
+        if (valorAnterior === valorNovo) continue;
+        movimentos.push({
+          fonte: "modulo_item",
+          campo: ROTULO_AREA[area],
+          item: chave,
+          requisito: (n2 || a).requisito,
+          tipo: !n2 ? "envio" : !a ? "remocao" : "alteracao",
+          valor_anterior: valorAnterior,
+          valor_novo: valorNovo,
+          detalhe_anterior: null,
+          detalhe_novo: null
+        });
+      }
+    }
     return movimentos;
   }
   async function gravarMovimentacoes(movimentos) {

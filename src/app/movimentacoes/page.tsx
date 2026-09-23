@@ -39,8 +39,14 @@ function formatarDataHora(ts: Timestamp | null): string {
   });
 }
 
+function formatarQuantidade(valor: string): string {
+  if (valor === "não enviado") return "Não enviado";
+  return `${valor} pacote${valor === "1" ? "" : "s"}`;
+}
+
 function formatarValor(m: Movimentacao, valor: string | null, detalhe: string | null): string {
   if (valor === null) return "Sem dado";
+  if (m.fonte === "modulo_item") return valor === "ok" ? "Enviado" : valor.split(", ").map(formatarQuantidade).join(", ");
   let texto = valor;
   if (m.fonte === "ratificacao") texto = ratifLabel(valor as RatificacaoStatus);
   else if (m.fonte === "modulo") texto = valor === "ok" ? "OK" : "Pendente";
@@ -59,6 +65,7 @@ export default function MovimentacoesPage() {
   const [filtroFornecedor, setFiltroFornecedor] = useState("Betha");
   const [filtroTipo, setFiltroTipo] = useState<"todos" | TipoMovimentacao>("todos");
   const [filtroCampo, setFiltroCampo] = useState("todos");
+  const [filtroNivel, setFiltroNivel] = useState<"todos" | "area" | "item">("todos");
   const [filtroCompetencia, setFiltroCompetencia] = useState("todas");
 
   // Busca pontual + botão Atualizar, mesmo padrão das outras telas: o dado só
@@ -96,10 +103,11 @@ export default function MovimentacoesPage() {
       if (filtroFornecedor !== "todos" && (municipiosPorIbge.get(m.codigo_ibge)?.fornecedor ?? "") !== filtroFornecedor) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCampo !== "todos" && m.campo !== filtroCampo) return false;
+      if (filtroNivel !== "todos" && (m.fonte === "modulo_item") !== (filtroNivel === "item")) return false;
       if (filtroCompetencia !== "todas" && m.competencia !== filtroCompetencia) return false;
       return true;
     });
-  }, [movimentacoes, municipiosPorIbge, busca, filtroFornecedor, filtroTipo, filtroCampo, filtroCompetencia]);
+  }, [movimentacoes, municipiosPorIbge, busca, filtroFornecedor, filtroTipo, filtroCampo, filtroNivel, filtroCompetencia]);
 
   const inputClass =
     "rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100";
@@ -145,6 +153,11 @@ export default function MovimentacoesPage() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          <select value={filtroNivel} onChange={(e) => setFiltroNivel(e.target.value as "todos" | "area" | "item")} className={inputClass}>
+            <option value="todos">Nível: todos</option>
+            <option value="area">Área (status geral)</option>
+            <option value="item">Item do módulo</option>
+          </select>
           <select value={filtroCompetencia} onChange={(e) => setFiltroCompetencia(e.target.value)} className={inputClass}>
             <option value="todas">Competência: todas</option>
             {competencias.map((c) => (
@@ -182,7 +195,14 @@ export default function MovimentacoesPage() {
                       <td className="px-6 py-3.5 whitespace-nowrap text-apple-secondary">{formatarDataHora(m.criado_em)}</td>
                       <td className="px-4 py-3.5 font-semibold text-apple-title">{m.municipio}</td>
                       <td className="px-4 py-3.5 text-apple-secondary">{m.competencia ?? "—"}</td>
-                      <td className="px-4 py-3.5 text-apple-secondary">{m.campo}</td>
+                      <td className="px-4 py-3.5 text-apple-secondary">
+                        {m.campo}
+                        {m.item && (
+                          <span className="mt-0.5 block text-[11px] text-apple-muted" title={m.requisito ? `Exigência: ${m.requisito}` : undefined}>
+                            {m.item}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5">
                         <StatusBadge label={TIPO_BADGE[m.tipo].label} tone={TIPO_BADGE[m.tipo].tone} />
                       </td>

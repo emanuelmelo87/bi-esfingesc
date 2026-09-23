@@ -842,6 +842,58 @@ function detectarMovimentacoes(anterior, novo, fontes) {
       detalhe_novo: detalheNovo,
     });
   }
+  if (fontes.includes("modulo")) movimentos.push(...detectarMovimentacoesItens(anterior, novo));
+  return movimentos;
+}
+
+const ROTULO_AREA = { contabil: "Contábil", folha: "Folha", contratos: "Contratos", tributos: "Tributos" };
+
+// Pendências de uma área agrupadas por "campo (entidade)". A mesma entidade
+// pode aparecer mais de uma vez no município (ex.: dois "Outros"), por isso
+// guarda a lista de valores ordenada em vez de um valor só.
+function pendenciasPorItem(area) {
+  const porItem = new Map();
+  for (const p of area.pendencias) {
+    const chave = p.campo + " (" + p.entidade + ")";
+    if (!porItem.has(chave)) porItem.set(chave, { valores: [], requisito: p.requisito || null });
+    porItem.get(chave).valores.push(p.valor === null ? "não enviado" : String(p.valor));
+  }
+  for (const item of porItem.values()) item.valores.sort();
+  return porItem;
+}
+
+// Item a item dentro de cada área: um item que sai da lista de pendências foi
+// enviado; um que entra deixou de estar ok; um que continua pendente com outra
+// quantidade mudou. Pega o envio parcial que não muda o status da área.
+function detectarMovimentacoesItens(anterior, novo) {
+  const movimentos = [];
+  if (!anterior || !anterior.modulos || !novo.modulos) return movimentos;
+  for (const area of Object.keys(ROTULO_AREA)) {
+    const antes = anterior.modulos[area];
+    const agora = novo.modulos[area];
+    // Doc gravado antes de existir o detalhe de pendências: sem base pra comparar.
+    if (!antes || !agora || !Array.isArray(antes.pendencias) || !Array.isArray(agora.pendencias)) continue;
+    const itensAntes = pendenciasPorItem(antes);
+    const itensAgora = pendenciasPorItem(agora);
+    for (const chave of new Set([...itensAntes.keys(), ...itensAgora.keys()])) {
+      const a = itensAntes.get(chave);
+      const n = itensAgora.get(chave);
+      const valorAnterior = a ? a.valores.join(", ") : "ok";
+      const valorNovo = n ? n.valores.join(", ") : "ok";
+      if (valorAnterior === valorNovo) continue;
+      movimentos.push({
+        fonte: "modulo_item",
+        campo: ROTULO_AREA[area],
+        item: chave,
+        requisito: (n || a).requisito,
+        tipo: !n ? "envio" : !a ? "remocao" : "alteracao",
+        valor_anterior: valorAnterior,
+        valor_novo: valorNovo,
+        detalhe_anterior: null,
+        detalhe_novo: null,
+      });
+    }
+  }
   return movimentos;
 }
 
