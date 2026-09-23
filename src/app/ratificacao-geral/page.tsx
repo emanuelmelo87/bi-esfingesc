@@ -9,6 +9,8 @@ import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
+import ChamadosIndicador from "@/components/ChamadosIndicador";
+import { carregarChamados, chamadosPorMunicipio, type Chamado } from "@/lib/chamados";
 import { IconFilter, IconRefresh, IconTrash } from "@/components/icons";
 import { compararCompetencias } from "@/lib/competencia";
 import { passaFiltroEnvio, ratifEnviado, ratifTitle, type FiltroEnvio } from "@/lib/ratificacao";
@@ -24,6 +26,7 @@ function normalizarBusca(s: string) {
 export default function RatificacaoGeralPage() {
   const { user, isAdmin } = useAuth();
   const [apagando, setApagando] = useState<string | null>(null);
+  const [chamadosPorNome, setChamadosPorNome] = useState<Map<string, Chamado[]>>(new Map());
 
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
   const [historicoPorIbge, setHistoricoPorIbge] = useState<Map<string, Map<string, StatusPorCompetencia>>>(new Map());
@@ -50,6 +53,10 @@ export default function RatificacaoGeralPage() {
   async function carregarStatus() {
     if (!user) return;
     setCarregando(true);
+    // Chamados vêm de um arquivo externo: se ele falhar, a tela segue sem os ícones.
+    carregarChamados()
+      .then((feed) => setChamadosPorNome(chamadosPorMunicipio(feed.issues)))
+      .catch(() => setChamadosPorNome(new Map()));
     const snap = await getDocs(collection(db, "status_por_competencia"));
     const vistas = new Set<string>();
     const porMunicipio = new Map<string, Map<string, StatusPorCompetencia>>();
@@ -255,7 +262,10 @@ export default function RatificacaoGeralPage() {
                 <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
                   {linhas.map(({ municipio, historico }) => (
                     <tr key={municipio.codigo_ibge} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
-                      <td className="px-6 py-3.5 font-semibold whitespace-nowrap text-apple-title">{municipio.nome}</td>
+                      <td className="px-6 py-3.5 font-semibold whitespace-nowrap text-apple-title">
+                        {municipio.nome}
+                        <ChamadosIndicador lista={chamadosPorNome.get(municipio.nome_busca)} />
+                      </td>
                       {competencias.map((c) => {
                         const dado = historico?.get(c);
                         const enviado = ratifEnviado(dado?.ratificacao_status);

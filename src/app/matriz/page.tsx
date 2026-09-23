@@ -9,6 +9,8 @@ import { exportCsv } from "@/lib/csv";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
+import ChamadosIndicador from "@/components/ChamadosIndicador";
+import { carregarChamados, chamadosPorMunicipio, MODULO_POR_AREA, type Chamado } from "@/lib/chamados";
 import { IconAlertTriangle, IconFilter, IconRefresh, IconTrash } from "@/components/icons";
 import { compararCompetencias } from "@/lib/competencia";
 import { passaFiltroEnvio, ratifEnviado, ratifTitle, ratifTone, type FiltroEnvio } from "@/lib/ratificacao";
@@ -84,6 +86,7 @@ export default function MatrizPage() {
   const [competencia, setCompetencia] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [apagando, setApagando] = useState(false);
+  const [chamadosPorNome, setChamadosPorNome] = useState<Map<string, Chamado[]>>(new Map());
 
   const [busca, setBusca] = useState("");
   const [filtroFornecedor, setFiltroFornecedor] = useState("Betha");
@@ -106,6 +109,10 @@ export default function MatrizPage() {
   async function carregarStatus() {
     if (!user) return;
     setCarregando(true);
+    // Chamados vêm de um arquivo externo: se ele falhar, a tela segue sem os ícones.
+    carregarChamados()
+      .then((feed) => setChamadosPorNome(chamadosPorMunicipio(feed.issues)))
+      .catch(() => setChamadosPorNome(new Map()));
     const snap = await getDocs(collection(db, "status_por_competencia"));
     const vistas = new Set<string>();
     const porMunicipio = new Map<string, Map<string, StatusPorCompetencia>>();
@@ -368,6 +375,7 @@ export default function MatrizPage() {
                     // são duas etapas independentes no e-Sfinge, uma não implica a outra.
                     const modulosOk = todosModulosOk(dados?.modulos, enviado);
                     const faltaSoRatificar = modulosOk && !enviado;
+                    const chamados = chamadosPorNome.get(municipio.nome_busca) ?? [];
                     return (
                       <tr
                         key={municipio.codigo_ibge}
@@ -375,7 +383,10 @@ export default function MatrizPage() {
                           faltaSoRatificar ? "bg-amber-50/70 dark:bg-amber-500/[0.07]" : ""
                         }`}
                       >
-                        <td className="px-6 py-3.5 font-semibold text-apple-title">{municipio.nome}</td>
+                        <td className="px-6 py-3.5 font-semibold text-apple-title">
+                          {municipio.nome}
+                          <ChamadosIndicador lista={chamados.filter((c) => !MODULO_POR_AREA[c.v])} />
+                        </td>
                         <td className="px-4 py-3.5">
                           {dados ? (
                             <Link
@@ -406,6 +417,7 @@ export default function MatrizPage() {
                         {MODULOS.map((m) => (
                           <td key={m.key} className="px-4 py-3.5">
                             {moduloBadge(dados?.modulos?.[m.key], enviado)}
+                            <ChamadosIndicador lista={chamados.filter((c) => MODULO_POR_AREA[c.v] === m.key)} />
                           </td>
                         ))}
                       </tr>
