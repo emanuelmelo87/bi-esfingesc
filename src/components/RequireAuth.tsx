@@ -6,8 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import ThemeToggle, { ThemeToggleCompact } from "@/components/ThemeToggle";
-import NovidadesBalao from "@/components/NovidadesBalao";
 import {
+  IconArrowsExchange,
   IconBuilding,
   IconCertificate,
   IconClock,
@@ -26,6 +26,7 @@ const BASE_LINKS = [
   { href: "/ratificacao-geral", label: "Ratificação Geral", icon: IconListChecks },
   { href: "/cnd", label: "CND", icon: IconCertificate },
   { href: "/evolucao", label: "Evolução", icon: IconTrendingUp },
+  { href: "/movimentacoes", label: "Movimentações", icon: IconArrowsExchange },
 ];
 
 const ADMIN_LINKS = [
@@ -129,7 +130,6 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
           )}
         </nav>
         <div className="mt-auto flex flex-col items-center gap-2">
-          <NovidadesBalao variant="sidebar" />
           <ThemeToggleCompact />
           <div
             className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-zinc-600 to-zinc-500 text-[11px] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10 transition-transform duration-200 ease-out hover:scale-110"
@@ -153,7 +153,6 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <NovidadesBalao variant="mobile" />
               <div className="hidden sm:block">
                 <ThemeToggle />
               </div>

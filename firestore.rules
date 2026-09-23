@@ -50,6 +50,10 @@ service cloud.firestore {
       allow read, write: if isBethaUser();
     }
 
+    match /movimentacoes/{id} {
+      allow read, write: if isBethaUser();
+    }
+
     match /usuarios/{email} {
       allow read: if request.auth != null
         && request.auth.token.email.matches('.*@betha[.]com[.]br$')

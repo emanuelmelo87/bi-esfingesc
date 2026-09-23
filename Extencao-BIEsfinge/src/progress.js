@@ -1,5 +1,5 @@
 import { signInWithCredential, GoogleAuthProvider, signOut } from "firebase/auth";
-import { addDoc, collection, getDocs, doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, query, setDoc, where, writeBatch, serverTimestamp } from "firebase/firestore";
 import { auth, db, ALLOWED_EMAIL_DOMAIN } from "./firebase-config.js";
 
 const CND_URL =
@@ -773,6 +773,104 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
   return { porIbge, competencia: periodo };
 }
 
+// ── Movimentações — diff entre o que já está no banco e o que acabou de ser
+// capturado, gravado antes de sobrescrever. Só compara municípios presentes
+// na captura nova: um município ausente (captura parcial/degradada) não vira
+// "remoção" em massa. ─────────────────────────────────────────────────────
+
+// Um doc de carga por execução desta página; o id já existe desde o início
+// pra que cada movimentação aponte pra carga que a gerou.
+const cargaRef = doc(collection(db, "cargas"));
+let totalMovimentacoes = 0;
+
+function statusModulo(area) {
+  return function (d) {
+    if (!d.modulos) return undefined;
+    return d.modulos[area] ? d.modulos[area].status || null : null;
+  };
+}
+
+const CAMPOS_RASTREADOS = [
+  {
+    fonte: "ratificacao",
+    campo: "Ratificação Geral",
+    ler: (d) => (d.ratificacao_status === undefined ? undefined : d.ratificacao_status || null),
+    detalhe: (d) => d.ratificacao_data_envio || null,
+    enviado: (v) => v === "quitado" || v === "atrasado",
+  },
+  { fonte: "modulo", campo: "Contábil", ler: statusModulo("contabil"), enviado: (v) => v === "ok" },
+  { fonte: "modulo", campo: "Folha", ler: statusModulo("folha"), enviado: (v) => v === "ok" },
+  { fonte: "modulo", campo: "Contratos", ler: statusModulo("contratos"), enviado: (v) => v === "ok" },
+  { fonte: "modulo", campo: "Tributos", ler: statusModulo("tributos"), enviado: (v) => v === "ok" },
+  {
+    fonte: "cnd",
+    campo: "CND",
+    ler: (d) => (d.cnd_status === undefined ? undefined : d.cnd_status || null),
+    detalhe: (d) => d.cnd_validade || null,
+    enviado: (v) => v === "regular",
+  },
+];
+
+// "envio": não enviado → enviado (inclui o que ainda não existia no banco);
+// "remocao": enviado → não enviado (ex.: ratificou e depois removeu);
+// "alteracao": continua enviado, mas mudou o valor ou a data.
+// Não enviado → não enviado (ex.: vazio → "ausente") não é movimentação.
+function detectarMovimentacoes(anterior, novo, fontes) {
+  const movimentos = [];
+  for (const c of CAMPOS_RASTREADOS) {
+    if (!fontes.includes(c.fonte)) continue;
+    const valorNovo = c.ler(novo);
+    if (valorNovo === undefined) continue;
+    const lido = anterior ? c.ler(anterior) : undefined;
+    const valorAnterior = lido === undefined ? null : lido;
+    const detalheNovo = c.detalhe ? c.detalhe(novo) : null;
+    const detalheAnterior = c.detalhe && anterior ? c.detalhe(anterior) : null;
+    const enviadoAntes = valorAnterior !== null && c.enviado(valorAnterior);
+    const enviadoAgora = valorNovo !== null && c.enviado(valorNovo);
+    let tipo = null;
+    if (!enviadoAntes && enviadoAgora) tipo = "envio";
+    else if (enviadoAntes && !enviadoAgora) tipo = "remocao";
+    else if (enviadoAntes && enviadoAgora && (valorAnterior !== valorNovo || detalheAnterior !== detalheNovo)) tipo = "alteracao";
+    if (!tipo) continue;
+    movimentos.push({
+      fonte: c.fonte,
+      campo: c.campo,
+      tipo: tipo,
+      valor_anterior: valorAnterior,
+      valor_novo: valorNovo,
+      detalhe_anterior: detalheAnterior,
+      detalhe_novo: detalheNovo,
+    });
+  }
+  return movimentos;
+}
+
+// writeBatch aceita no máximo 500 operações — a 1ª captura de uma competência
+// pode gerar mais que isso (295 municípios × 5 campos).
+async function gravarMovimentacoes(movimentos) {
+  if (movimentos.length === 0) return;
+  for (let i = 0; i < movimentos.length; i += 400) {
+    const batch = writeBatch(db);
+    for (const m of movimentos.slice(i, i + 400)) {
+      batch.set(doc(collection(db, "movimentacoes")), Object.assign({ carga_id: cargaRef.id, criado_em: serverTimestamp() }, m));
+    }
+    await batch.commit();
+  }
+  totalMovimentacoes += movimentos.length;
+  log(movimentos.length + " movimentações registradas.", "ok");
+}
+
+function coletarMovimentacoes(porIbge, anterioresPorIbge, porIbgeMunicipios, competencia, fontes) {
+  const movimentos = [];
+  for (const [codigoIbge, campos] of porIbge) {
+    const municipio = porIbgeMunicipios.get(codigoIbge);
+    for (const m of detectarMovimentacoes(anterioresPorIbge.get(codigoIbge), campos, fontes)) {
+      movimentos.push(Object.assign({ codigo_ibge: codigoIbge, municipio: municipio ? municipio.nome : "", competencia: competencia }, m));
+    }
+  }
+  return movimentos;
+}
+
 // ── Gravação combinada no Firestore ──────────────────────────────────────
 
 async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
@@ -780,6 +878,12 @@ async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
     log("Nada para gravar.");
     return 0;
   }
+  // Ratificação/módulos são comparados por competência (gravarStatusPorCompetencia);
+  // aqui só a CND, que não tem competência.
+  const snapAnterior = await getDocs(collection(db, "status_operacional_atual"));
+  const anteriores = new Map(snapAnterior.docs.map((d) => [d.id, d.data()]));
+  await gravarMovimentacoes(coletarMovimentacoes(porIbge, anteriores, porIbgeMunicipios, null, ["cnd"]));
+
   const batch = writeBatch(db);
   for (const [codigoIbge, campos] of porIbge) {
     const municipio = porIbgeMunicipios.get(codigoIbge);
@@ -805,6 +909,11 @@ function competenciaParaId(competencia) {
 async function gravarStatusPorCompetencia(competencia, porIbge, porIbgeMunicipios) {
   if (!competencia || porIbge.size === 0) return 0;
   const idCompetencia = competenciaParaId(competencia);
+
+  const snapAnterior = await getDocs(query(collection(db, "status_por_competencia"), where("competencia", "==", competencia)));
+  const anteriores = new Map(snapAnterior.docs.map((d) => [d.data().codigo_ibge, d.data()]));
+  await gravarMovimentacoes(coletarMovimentacoes(porIbge, anteriores, porIbgeMunicipios, competencia, ["ratificacao", "modulo"]));
+
   const batch = writeBatch(db);
   for (const [codigoIbge, campos] of porIbge) {
     const municipio = porIbgeMunicipios.get(codigoIbge);
@@ -858,7 +967,7 @@ async function gravarSnapshotsDiarios() {
 // que uma carga rodou e o que ela de fato gravou no Firestore.
 async function registrarCarga(campos) {
   try {
-    await addDoc(collection(db, "cargas"), Object.assign({ concluido_em: serverTimestamp() }, campos));
+    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp() }, campos));
   } catch (err) {
     log("Não foi possível registrar a carga em 'cargas': " + err.message, "err");
   }
@@ -918,7 +1027,7 @@ async function main() {
         duracao_ms: Date.now() - inicioMs,
         status: "sucesso",
         erro: null,
-        totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma },
+        totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes },
       });
       log("Concluído.", "ok");
       if (modo === "alarme") setTimeout(function () { window.close(); }, 2000);
@@ -952,7 +1061,14 @@ async function main() {
       duracao_ms: Date.now() - inicioMs,
       status: "sucesso",
       erro: null,
-      totais: { cnd: cndPorIbge.size, ratificacoes: ratif.porIbge.size, modulos: modulos.porIbge.size, status_operacional: total, snapshot: totalSnapshot },
+      totais: {
+        cnd: cndPorIbge.size,
+        ratificacoes: ratif.porIbge.size,
+        modulos: modulos.porIbge.size,
+        status_operacional: total,
+        snapshot: totalSnapshot,
+        movimentacoes: totalMovimentacoes,
+      },
     });
 
     log("Concluído.", "ok");
@@ -967,7 +1083,7 @@ async function main() {
       duracao_ms: Date.now() - inicioMs,
       status: "erro",
       erro: err.message,
-      totais: null,
+      totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null,
     });
   }
 }

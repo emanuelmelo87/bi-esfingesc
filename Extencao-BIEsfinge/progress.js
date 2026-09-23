@@ -2388,7 +2388,7 @@
           };
         }
       }
-      const query = querystring({
+      const query2 = querystring({
         ...params,
         key: auth2.config.apiKey
       }).slice(1);
@@ -2414,7 +2414,7 @@
       if (auth2.emulatorConfig && isCloudWorkstation(auth2.emulatorConfig.host)) {
         fetchArgs.credentials = "include";
       }
-      return FetchProvider.fetch()(await _getFinalTarget(auth2, auth2.config.apiHost, path, query), fetchArgs);
+      return FetchProvider.fetch()(await _getFinalTarget(auth2, auth2.config.apiHost, path, query2), fetchArgs);
     });
   }
   async function _performFetchWithErrorHandling(auth2, customErrorMap, fetchFn) {
@@ -2466,8 +2466,8 @@
     }
     return serverResponse;
   }
-  async function _getFinalTarget(auth2, host, path, query) {
-    const base = `${host}${path}?${query}`;
+  async function _getFinalTarget(auth2, host, path, query2) {
+    const base = `${host}${path}?${query2}`;
     const authInternal = auth2;
     const finalTarget = authInternal.config.emulator ? _emulatorUrl(auth2.config, base) : `${auth2.config.apiScheme}://${base}`;
     if (CookieAuthProxiedEndpoints.includes(path)) {
@@ -18362,6 +18362,11 @@
         });
     }
   }
+  function __PRIVATE_refValue(e2, t2) {
+    return {
+      referenceValue: `projects/${e2.projectId}/databases/${e2.database}/documents/${t2.path.canonicalString()}`
+    };
+  }
   function isInteger(e2) {
     return !!e2 && "integerValue" in e2;
   }
@@ -19334,6 +19339,10 @@
       const n2 = e2.endAt ? new Bound(e2.endAt.position, e2.endAt.inclusive) : null, r2 = e2.startAt ? new Bound(e2.startAt.position, e2.startAt.inclusive) : null;
       return __PRIVATE_newTarget(e2.path, e2.collectionGroup, t2, e2.filters, e2.limit, n2, r2);
     }
+  }
+  function __PRIVATE_queryWithAddedFilter(e2, t2) {
+    const n2 = e2.filters.concat([t2]);
+    return new __PRIVATE_QueryImpl(e2.path, e2.collectionGroup, e2.explicitOrderBy.slice(), n2, e2.limit, e2.limitType, e2.startAt, e2.endAt);
   }
   function __PRIVATE_queryWithLimit(e2, t2, n2) {
     return new __PRIVATE_QueryImpl(e2.path, e2.collectionGroup, e2.explicitOrderBy.slice(), e2.filters.slice(), t2, n2, e2.startAt, e2.endAt);
@@ -22588,6 +22597,9 @@ Total Duration: ${a - u2}ms`);
     }
     const E = new FieldMask(c2);
     return new ParsedUpdateData(l2, E, o2.fieldTransforms);
+  }
+  function __PRIVATE_parseQueryValue(e2, t2, n2, r2 = false) {
+    return __PRIVATE_parseData(n2, e2.createContext(r2 ? 4 : 3, t2));
   }
   function __PRIVATE_parseData(e2, t2, r2) {
     if (__PRIVATE_looksLikeJsonObject(
@@ -31077,6 +31089,142 @@ This typically indicates that your device does not have a healthy Internet conne
   function __PRIVATE_validateHasExplicitOrderByForLimitToLast(e$1) {
     if ("L" === e$1.limitType && 0 === e$1.explicitOrderBy.length) throw new e(ta.UNIMPLEMENTED, "limitToLast() queries require specifying at least one orderBy() clause");
   }
+  var AppliableConstraint = class {
+  };
+  var QueryConstraint = class extends AppliableConstraint {
+  };
+  function query(e$1, t2, ...n2) {
+    let r2 = [];
+    t2 instanceof AppliableConstraint && r2.push(t2), r2 = r2.concat(n2), function __PRIVATE_validateQueryConstraintArray(e$12) {
+      const t3 = e$12.filter((e2) => e2 instanceof QueryCompositeFilterConstraint).length, n3 = e$12.filter((e2) => e2 instanceof QueryFieldFilterConstraint).length;
+      if (t3 > 1 || t3 > 0 && n3 > 0) throw new e(ta.INVALID_ARGUMENT, "InvalidQuery. When using composite filters, you cannot use more than one filter at the top level. Consider nesting the multiple filters within an `and(...)` statement. For example: change `query(query, where(...), or(...))` to `query(query, and(where(...), or(...)))`.");
+    }(r2);
+    for (const t3 of r2) e$1 = t3._apply(e$1);
+    return e$1;
+  }
+  var QueryFieldFilterConstraint = class _QueryFieldFilterConstraint extends QueryConstraint {
+    /**
+     * @internal
+     */
+    constructor(e2, t2, n2) {
+      super(), this._field = e2, this._op = t2, this._value = n2, /** The type of this query constraint */
+      this.type = "where";
+    }
+    static _create(e2, t2, n2) {
+      return new _QueryFieldFilterConstraint(e2, t2, n2);
+    }
+    _apply(e2) {
+      const t2 = this._parse(e2);
+      return __PRIVATE_validateNewFieldFilter(e2._query, t2), new Query(e2.firestore, e2.converter, __PRIVATE_queryWithAddedFilter(e2._query, t2));
+    }
+    _parse(e$1) {
+      const t2 = la(e$1.firestore), n2 = function __PRIVATE_newQueryFilter(e$12, t3, n3, r2, s2, a, o2) {
+        let i2;
+        if (s2.isKeyField()) {
+          if ("array-contains" === a || "array-contains-any" === a) throw new e(ta.INVALID_ARGUMENT, `Invalid Query. You can't perform '${a}' queries on documentId().`);
+          if ("in" === a || "not-in" === a) {
+            __PRIVATE_validateDisjunctiveFilterElements(o2, a);
+            const t4 = [];
+            for (const n4 of o2) t4.push(__PRIVATE_parseDocumentIdValue(r2, e$12, n4));
+            i2 = {
+              arrayValue: {
+                values: t4
+              }
+            };
+          } else i2 = __PRIVATE_parseDocumentIdValue(r2, e$12, o2);
+        } else "in" !== a && "not-in" !== a && "array-contains-any" !== a || __PRIVATE_validateDisjunctiveFilterElements(o2, a), i2 = __PRIVATE_parseQueryValue(
+          n3,
+          t3,
+          o2,
+          /* allowArrays= */
+          "in" === a || "not-in" === a
+        );
+        const c2 = FieldFilter.create(s2, a, i2);
+        return c2;
+      }(e$1._query, "where", t2, e$1.firestore._databaseId, this._field, this._op, this._value);
+      return n2;
+    }
+  };
+  function where(e2, t2, n2) {
+    const r2 = t2, s2 = K("where", e2);
+    return QueryFieldFilterConstraint._create(s2, r2, n2);
+  }
+  var QueryCompositeFilterConstraint = class _QueryCompositeFilterConstraint extends AppliableConstraint {
+    /**
+     * @internal
+     */
+    constructor(e2, t2) {
+      super(), this.type = e2, this._queryConstraints = t2;
+    }
+    static _create(e2, t2) {
+      return new _QueryCompositeFilterConstraint(e2, t2);
+    }
+    _parse(e2) {
+      const t2 = this._queryConstraints.map((t3) => t3._parse(e2)).filter((e3) => e3.getFilters().length > 0);
+      return 1 === t2.length ? t2[0] : CompositeFilter.create(t2, this._getOperator());
+    }
+    _apply(e2) {
+      const t2 = this._parse(e2);
+      return 0 === t2.getFilters().length ? e2 : (function __PRIVATE_validateNewFilter(e3, t3) {
+        let n2 = e3;
+        const r2 = t3.getFlattenedFilters();
+        for (const e4 of r2) __PRIVATE_validateNewFieldFilter(n2, e4), n2 = __PRIVATE_queryWithAddedFilter(n2, e4);
+      }(e2._query, t2), new Query(e2.firestore, e2.converter, __PRIVATE_queryWithAddedFilter(e2._query, t2)));
+    }
+    _getQueryConstraints() {
+      return this._queryConstraints;
+    }
+    _getOperator() {
+      return "and" === this.type ? "and" : "or";
+    }
+  };
+  function __PRIVATE_parseDocumentIdValue(e$1, t2, n2) {
+    if ("string" == typeof (n2 = getModularInstance(n2))) {
+      if ("" === n2) throw new e(ta.INVALID_ARGUMENT, "Invalid query. When querying with documentId(), you must provide a valid document ID, but it was an empty string.");
+      if (!__PRIVATE_isCollectionGroupQuery(t2) && -1 !== n2.indexOf("/")) throw new e(ta.INVALID_ARGUMENT, `Invalid query. When querying a collection by documentId(), you must provide a plain document ID, but '${n2}' contains a '/' character.`);
+      const r2 = t2.path.child(ResourcePath.fromString(n2));
+      if (!DocumentKey.isDocumentKey(r2)) throw new e(ta.INVALID_ARGUMENT, `Invalid query. When querying a collection group by documentId(), the value provided must result in a valid document path, but '${r2}' is not because it has an odd number of segments (${r2.length}).`);
+      return __PRIVATE_refValue(e$1, new DocumentKey(r2));
+    }
+    if (n2 instanceof aa) return __PRIVATE_refValue(e$1, n2._key);
+    throw new e(ta.INVALID_ARGUMENT, `Invalid query. When querying with documentId(), you must provide a valid string or a DocumentReference, but it was: ${__PRIVATE_valueDescription(n2)}.`);
+  }
+  function __PRIVATE_validateDisjunctiveFilterElements(e$1, t2) {
+    if (!Array.isArray(e$1) || 0 === e$1.length) throw new e(ta.INVALID_ARGUMENT, `Invalid Query. A non-empty array is required for '${t2.toString()}' filters.`);
+  }
+  function __PRIVATE_validateNewFieldFilter(e$1, t2) {
+    const n2 = function __PRIVATE_findOpInsideFilters(e2, t3) {
+      for (const n3 of e2) for (const e3 of n3.getFlattenedFilters()) if (t3.indexOf(e3.op) >= 0) return e3.op;
+      return null;
+    }(e$1.filters, function __PRIVATE_conflictingOps(e2) {
+      switch (e2) {
+        case "!=":
+          return [
+            "!=",
+            "not-in"
+            /* Operator.NOT_IN */
+          ];
+        case "array-contains-any":
+        case "in":
+          return [
+            "not-in"
+            /* Operator.NOT_IN */
+          ];
+        case "not-in":
+          return [
+            "array-contains-any",
+            "in",
+            "not-in",
+            "!="
+            /* Operator.NOT_EQUAL */
+          ];
+        default:
+          return [];
+      }
+    }(t2.op));
+    if (null !== n2)
+      throw n2 === t2.op ? new e(ta.INVALID_ARGUMENT, `Invalid query. You cannot use more than one '${t2.op.toString()}' filter.`) : new e(ta.INVALID_ARGUMENT, `Invalid query. You cannot use '${t2.op.toString()}' filters with '${n2.toString()}' filters.`);
+  }
   var WriteBatch = class {
     /** @hideconstructor */
     constructor(e2, t2) {
@@ -31132,9 +31280,10 @@ This typically indicates that your device does not have a healthy Internet conne
     const t2 = ra(e2.firestore, da), n2 = oa(t2), r2 = new ua(t2);
     return __PRIVATE_validateHasExplicitOrderByForLimitToLast(e2._query), __PRIVATE_firestoreClientGetDocumentsViaSnapshotListener(n2, e2._query).then((n3) => new QuerySnapshot(t2, r2, e2, n3));
   }
-  function addDoc(e2, t2) {
-    const n2 = ra(e2.firestore, da), r2 = doc(e2), s2 = __PRIVATE_applyFirestoreDataConverter(e2.converter, t2), a = la(e2.firestore);
-    return executeWrite(n2, [__PRIVATE_parseSetData(a, "addDoc", r2._key, s2, null !== e2.converter, {}).toMutation(r2._key, Precondition.exists(false))]).then(() => r2);
+  function setDoc(e2, t2, n2) {
+    e2 = ra(e2, aa);
+    const r2 = ra(e2.firestore, da), s2 = __PRIVATE_applyFirestoreDataConverter(e2.converter, t2, n2), a = la(r2);
+    return executeWrite(r2, [__PRIVATE_parseSetData(a, "setDoc", e2._key, s2, null !== e2.converter, n2).toMutation(e2._key, Precondition.none())]);
   }
   function executeWrite(e2, t2) {
     const n2 = oa(e2);
@@ -31866,11 +32015,93 @@ This typically indicates that your device does not have a healthy Internet conne
     log("M\xF3dulos: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
     return { porIbge, competencia: periodo };
   }
+  var cargaRef = doc(collection(db, "cargas"));
+  var totalMovimentacoes = 0;
+  function statusModulo(area) {
+    return function(d) {
+      if (!d.modulos) return void 0;
+      return d.modulos[area] ? d.modulos[area].status || null : null;
+    };
+  }
+  var CAMPOS_RASTREADOS = [
+    {
+      fonte: "ratificacao",
+      campo: "Ratifica\xE7\xE3o Geral",
+      ler: (d) => d.ratificacao_status === void 0 ? void 0 : d.ratificacao_status || null,
+      detalhe: (d) => d.ratificacao_data_envio || null,
+      enviado: (v2) => v2 === "quitado" || v2 === "atrasado"
+    },
+    { fonte: "modulo", campo: "Cont\xE1bil", ler: statusModulo("contabil"), enviado: (v2) => v2 === "ok" },
+    { fonte: "modulo", campo: "Folha", ler: statusModulo("folha"), enviado: (v2) => v2 === "ok" },
+    { fonte: "modulo", campo: "Contratos", ler: statusModulo("contratos"), enviado: (v2) => v2 === "ok" },
+    { fonte: "modulo", campo: "Tributos", ler: statusModulo("tributos"), enviado: (v2) => v2 === "ok" },
+    {
+      fonte: "cnd",
+      campo: "CND",
+      ler: (d) => d.cnd_status === void 0 ? void 0 : d.cnd_status || null,
+      detalhe: (d) => d.cnd_validade || null,
+      enviado: (v2) => v2 === "regular"
+    }
+  ];
+  function detectarMovimentacoes(anterior, novo, fontes) {
+    const movimentos = [];
+    for (const c2 of CAMPOS_RASTREADOS) {
+      if (!fontes.includes(c2.fonte)) continue;
+      const valorNovo = c2.ler(novo);
+      if (valorNovo === void 0) continue;
+      const lido = anterior ? c2.ler(anterior) : void 0;
+      const valorAnterior = lido === void 0 ? null : lido;
+      const detalheNovo = c2.detalhe ? c2.detalhe(novo) : null;
+      const detalheAnterior = c2.detalhe && anterior ? c2.detalhe(anterior) : null;
+      const enviadoAntes = valorAnterior !== null && c2.enviado(valorAnterior);
+      const enviadoAgora = valorNovo !== null && c2.enviado(valorNovo);
+      let tipo = null;
+      if (!enviadoAntes && enviadoAgora) tipo = "envio";
+      else if (enviadoAntes && !enviadoAgora) tipo = "remocao";
+      else if (enviadoAntes && enviadoAgora && (valorAnterior !== valorNovo || detalheAnterior !== detalheNovo)) tipo = "alteracao";
+      if (!tipo) continue;
+      movimentos.push({
+        fonte: c2.fonte,
+        campo: c2.campo,
+        tipo,
+        valor_anterior: valorAnterior,
+        valor_novo: valorNovo,
+        detalhe_anterior: detalheAnterior,
+        detalhe_novo: detalheNovo
+      });
+    }
+    return movimentos;
+  }
+  async function gravarMovimentacoes(movimentos) {
+    if (movimentos.length === 0) return;
+    for (let i2 = 0; i2 < movimentos.length; i2 += 400) {
+      const batch = writeBatch(db);
+      for (const m2 of movimentos.slice(i2, i2 + 400)) {
+        batch.set(doc(collection(db, "movimentacoes")), Object.assign({ carga_id: cargaRef.id, criado_em: serverTimestamp() }, m2));
+      }
+      await batch.commit();
+    }
+    totalMovimentacoes += movimentos.length;
+    log(movimentos.length + " movimenta\xE7\xF5es registradas.", "ok");
+  }
+  function coletarMovimentacoes(porIbge, anterioresPorIbge, porIbgeMunicipios, competencia, fontes) {
+    const movimentos = [];
+    for (const [codigoIbge, campos] of porIbge) {
+      const municipio = porIbgeMunicipios.get(codigoIbge);
+      for (const m2 of detectarMovimentacoes(anterioresPorIbge.get(codigoIbge), campos, fontes)) {
+        movimentos.push(Object.assign({ codigo_ibge: codigoIbge, municipio: municipio ? municipio.nome : "", competencia }, m2));
+      }
+    }
+    return movimentos;
+  }
   async function gravarStatusOperacional(porIbge, porIbgeMunicipios) {
     if (porIbge.size === 0) {
       log("Nada para gravar.");
       return 0;
     }
+    const snapAnterior = await getDocs(collection(db, "status_operacional_atual"));
+    const anteriores = new Map(snapAnterior.docs.map((d) => [d.id, d.data()]));
+    await gravarMovimentacoes(coletarMovimentacoes(porIbge, anteriores, porIbgeMunicipios, null, ["cnd"]));
     const batch = writeBatch(db);
     for (const [codigoIbge, campos] of porIbge) {
       const municipio = porIbgeMunicipios.get(codigoIbge);
@@ -31894,6 +32125,9 @@ This typically indicates that your device does not have a healthy Internet conne
   async function gravarStatusPorCompetencia(competencia, porIbge, porIbgeMunicipios) {
     if (!competencia || porIbge.size === 0) return 0;
     const idCompetencia = competenciaParaId(competencia);
+    const snapAnterior = await getDocs(query(collection(db, "status_por_competencia"), where("competencia", "==", competencia)));
+    const anteriores = new Map(snapAnterior.docs.map((d) => [d.data().codigo_ibge, d.data()]));
+    await gravarMovimentacoes(coletarMovimentacoes(porIbge, anteriores, porIbgeMunicipios, competencia, ["ratificacao", "modulo"]));
     const batch = writeBatch(db);
     for (const [codigoIbge, campos] of porIbge) {
       const municipio = porIbgeMunicipios.get(codigoIbge);
@@ -31935,7 +32169,7 @@ This typically indicates that your device does not have a healthy Internet conne
   }
   async function registrarCarga(campos) {
     try {
-      await addDoc(collection(db, "cargas"), Object.assign({ concluido_em: serverTimestamp() }, campos));
+      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp() }, campos));
     } catch (err) {
       log("N\xE3o foi poss\xEDvel registrar a carga em 'cargas': " + err.message, "err");
     }
@@ -31977,7 +32211,7 @@ This typically indicates that your device does not have a healthy Internet conne
           duracao_ms: Date.now() - inicioMs,
           status: "sucesso",
           erro: null,
-          totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma }
+          totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes }
         });
         log("Conclu\xEDdo.", "ok");
         if (modo === "alarme") setTimeout(function() {
@@ -32009,7 +32243,14 @@ This typically indicates that your device does not have a healthy Internet conne
         duracao_ms: Date.now() - inicioMs,
         status: "sucesso",
         erro: null,
-        totais: { cnd: cndPorIbge.size, ratificacoes: ratif.porIbge.size, modulos: modulos.porIbge.size, status_operacional: total, snapshot: totalSnapshot }
+        totais: {
+          cnd: cndPorIbge.size,
+          ratificacoes: ratif.porIbge.size,
+          modulos: modulos.porIbge.size,
+          status_operacional: total,
+          snapshot: totalSnapshot,
+          movimentacoes: totalMovimentacoes
+        }
       });
       log("Conclu\xEDdo.", "ok");
       if (modo === "alarme") setTimeout(function() {
@@ -32025,7 +32266,7 @@ This typically indicates that your device does not have a healthy Internet conne
         duracao_ms: Date.now() - inicioMs,
         status: "erro",
         erro: err.message,
-        totais: null
+        totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null
       });
     }
   }
