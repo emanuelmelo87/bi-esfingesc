@@ -3,7 +3,7 @@
   "name": "BI Esfinge SC",
   "description": "Captura status de envio e ratificações do TCE-SC para o Radar e-Sfinge BI",
   "version": "0.1.0",
-  "permissions": ["storage", "tabs", "scripting", "alarms", "identity", "sidePanel"],
+  "permissions": ["storage", "tabs", "scripting", "alarms", "identity", "sidePanel", "notifications"],
   "host_permissions": [
     "https://virtual.tce.sc.gov.br/*",
     "https://api.virtual.tce.sc.gov.br/*",

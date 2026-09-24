@@ -59,6 +59,11 @@
     .exec-title { font-size: 10px; color: #3fb950; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
     .exec-label { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px; }
     .exec-time { font-size: 10px; color: #777; margin-top: 6px; text-align: right; }
+    #last-exec-card.alerta { background: #2a1010; border-color: #da3633; }
+    #last-exec-card.alerta .exec-title { color: #f85149; }
+    #exec-alertas { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+    #exec-alertas div { font-size: 11px; line-height: 1.45; color: #ffb3ad; border-left: 2px solid #da3633; padding-left: 7px; }
+    #exec-alertas b { color: #fff; }
   </style>
 </head>
 <body>
@@ -91,6 +96,7 @@
     <div id="last-exec-card">
       <div class="exec-title">Última execução</div>
       <div class="exec-label" id="exec-label">—</div>
+      <div id="exec-alertas"></div>
       <div class="exec-time" id="exec-timestamp"></div>
     </div>
 

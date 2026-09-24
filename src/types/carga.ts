@@ -12,4 +12,6 @@ export type Carga = {
   totais: Record<string, number> | null;
   // Última recarga de cada painel do TCE vista na carga (ISO). Ausente em cargas antigas.
   tce_atualizado_em?: { ratificacoes: string | null; modulos: string | null } | null;
+  // O que saiu do padrão esperado nos dados do TCE nesta carga. Ausente em cargas antigas.
+  alertas?: { fonte: string; mensagem: string }[];
 };

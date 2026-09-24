@@ -116,6 +116,17 @@ Nome no Chrome: **BI Esfinge SC**. O painel lateral se chama **Carga de dados**.
 | Módulos (Contábil/Folha/Contratos/Tributos) | Login no TCE Virtual → ticket Qlik (pedido de novo a cada competência, é de uso único) → WebSocket no Qlik restrito | idem ratificação | idem ratificação |
 | Snapshot diário | Cópia de `status_operacional_atual` | `snapshots_diarios` | — |
 
+**Alertas de mudança no TCE:** cada captura confere se o que veio ainda tem o
+formato esperado e registra um alerta quando não tem — por exemplo, competência
+que não aparece no painel, cor de célula ou valor de ratificação fora do
+padrão, bem menos de 295 municípios, todas as CNDs como "regular" (texto de
+irregularidade mudou), módulo com nome novo fora das regras (avisado uma vez por
+nome), tela de login do TCE Virtual diferente, ou nenhum acesso ao painel
+restrito após as tentativas. O alerta aparece no log, numa notificação do
+sistema, como "!" vermelho no ícone da extensão, no cartão "Última execução" do
+painel e no Controle de Cargas ("Sucesso · N alertas"); Movimentações mostra
+quantos alertas teve a última carga.
+
 Em toda carga, **antes de gravar**, a extensão compara o capturado com o que já
 está no banco e grava as diferenças em `movimentacoes`; ao final (sucesso ou
 erro) grava um registro em `cargas`. A aba `progress.html` mostra o log

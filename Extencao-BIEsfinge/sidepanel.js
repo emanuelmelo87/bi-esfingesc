@@ -65,6 +65,22 @@ function renderLastExecution(lastExecution) {
   }
   card.classList.add("visible");
   document.getElementById("exec-label").textContent = lastExecution.resumo || "Concluído";
+
+  // Alertas da última carga (o TCE mudou algo, ou etapa que não deu certo).
+  var alertas = lastExecution.alertas || [];
+  card.classList.toggle("alerta", alertas.length > 0 || !!lastExecution.erro);
+  card.querySelector(".exec-title").textContent =
+    alertas.length ? "Última execução — " + alertas.length + " alerta" + (alertas.length > 1 ? "s" : "") : "Última execução";
+  var lista = document.getElementById("exec-alertas");
+  lista.innerHTML = "";
+  alertas.forEach(function (a) {
+    var item = document.createElement("div");
+    var fonte = document.createElement("b");
+    fonte.textContent = a.fonte + ": ";
+    item.appendChild(fonte);
+    item.appendChild(document.createTextNode(a.mensagem));
+    lista.appendChild(item);
+  });
   document.getElementById("exec-timestamp").textContent = lastExecution.timestamp
     ? new Date(lastExecution.timestamp).toLocaleString("pt-BR")
     : "";

@@ -71,6 +71,43 @@ function log(msg, kind) {
   console.log("[Radar e-Sfinge]", msg);
 }
 
+// ── Alertas — o TCE muda os painéis sem aviso. Cada captura confere se o que
+// veio ainda tem o formato esperado; o que sair do padrão vira um alerta, que
+// vai pro log, pro registro da carga (Controle de Cargas), pro ícone da
+// extensão ("!") e numa notificação do sistema no fim. ─────────────────────
+const alertas = [];
+// Ratificação e CND listam os 295 municípios; abaixo disso algo mudou.
+const MIN_MUNICIPIOS = 280;
+
+function alertar(fonte, mensagem) {
+  if (alertas.some((a) => a.fonte === fonte && a.mensagem === mensagem)) return;
+  alertas.push({ fonte: fonte, mensagem: mensagem });
+  log("ALERTA — " + fonte + ": " + mensagem, "err");
+}
+
+async function avisarFimDaCarga(erro) {
+  const problemas = alertas.length + (erro ? 1 : 0);
+  try {
+    await chrome.action.setBadgeText({ text: problemas ? "!" : "" });
+    await chrome.action.setBadgeBackgroundColor({ color: "#d93025" });
+  } catch (e) {}
+  const { last_execution: ultima } = await chrome.storage.local.get("last_execution");
+  await chrome.storage.local.set({ last_execution: Object.assign({}, ultima, { alertas: alertas, erro: erro || null }) });
+  if (!problemas) return;
+  const primeira = erro ? "Carga com erro: " + erro : alertas[0].fonte + ": " + alertas[0].mensagem;
+  const extras = problemas > 1 ? " (+" + (problemas - 1) + " alerta" + (problemas > 2 ? "s" : "") + " — veja o Controle de Cargas)" : "";
+  try {
+    chrome.notifications.create("carga-" + Date.now(), {
+      type: "basic",
+      iconUrl: "icon.png",
+      title: "BI Esfinge SC — atenção na carga de dados",
+      message: (primeira + extras).slice(0, 300),
+      priority: 2,
+      requireInteraction: true,
+    });
+  } catch (e) {}
+}
+
 function normalizar(nome) {
   return nome
     .normalize("NFD")
@@ -204,9 +241,12 @@ function esperar(ms) {
 async function comTentativas(rotulo, fn, valido) {
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
     const ultima = tentativa === MAX_TENTATIVAS;
+    // Alertas de uma tentativa descartada não valem se a próxima der certo.
+    const alertasAntes = alertas.length;
     try {
       const resultado = await fn();
       if (!valido || valido(resultado)) return resultado;
+      if (!ultima) alertas.length = alertasAntes;
       if (ultima) {
         log(rotulo + ": ainda incompleto após " + MAX_TENTATIVAS + " tentativas — seguindo com o que veio.", "err");
         return resultado;
@@ -214,6 +254,7 @@ async function comTentativas(rotulo, fn, valido) {
       log(rotulo + ": resultado incompleto (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
     } catch (err) {
       if (ultima) throw err;
+      alertas.length = alertasAntes;
       log(rotulo + ": " + err.message + " (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
     }
     await fecharAbasAbertas();
@@ -251,6 +292,15 @@ async function capturarCND(porNomeBusca) {
     });
   }
   log("CND: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+
+  if (porIbge.size < MIN_MUNICIPIOS) {
+    alertar("CND", "só " + porIbge.size + " municípios lidos da consulta pública (" + result.length + " linhas" + (semMatch ? ", " + semMatch + " nomes sem correspondência" : "") + "; esperado ~295). A página pode ter mudado de layout.");
+  }
+  // O status só vira "irregular" se o texto da certidão contém "Falta de Dados";
+  // se o TCE mudar esse texto, todo mundo passaria a "regular" sem erro nenhum.
+  if (result.length > 0 && result.every((r) => r.status === "regular")) {
+    alertar("CND", "todas as " + result.length + " certidões vieram como regular — o texto que indica irregularidade ('Falta de Dados') pode ter mudado no TCE.");
+  }
   return porIbge;
 }
 
@@ -294,10 +344,18 @@ function extractRatificacoesGlobais(competenciaAlvo) {
     // azul (no prazo), RGB(255,51,51) = vermelho (fora do prazo); qualquer
     // outra cor com data presente cai em "atrasado" (mais seguro que
     // "ausente", já que existe uma data real).
+    // Sinais de que o TCE mudou o painel, devolvidos pra quem chamou avisar:
+    // cor ou texto de célula fora do padrão conhecido, competência não encontrada.
+    var coresDesconhecidas = {};
+    var valoresInesperados = {};
+    var colunaEncontrada = false;
+    var colunasVistas = [];
     function classificar(valor, cor) {
       if (valor === "Ausente") return "ausente";
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(valor)) valoresInesperados[valor] = true;
       if (cor && cor.indexOf("51,102,255") >= 0) return "quitado";
       if (cor && cor.indexOf("255,51,51") >= 0) return "atrasado";
+      coresDesconhecidas[cor || "sem cor"] = true;
       return "atrasado";
     }
 
@@ -324,6 +382,7 @@ function extractRatificacoesGlobais(competenciaAlvo) {
             return call("GetHyperCubePivotData", objHandle, ["/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qWidth: totalColunas, qHeight: 1 }]]).then(
               function (pagina0) {
                 var colunas = pagina0.qDataPages[0].qTop;
+                colunasVistas = colunas.slice(-3).map(function (c) { return c.qText; });
                 var colIndex = -1;
                 for (var i = 0; i < colunas.length; i++) {
                   if (colunas[i].qText === competenciaAlvo) {
@@ -332,6 +391,7 @@ function extractRatificacoesGlobais(competenciaAlvo) {
                   }
                 }
                 if (colIndex < 0) return [];
+                colunaEncontrada = true;
 
                 var linhas = [];
                 function buscarPagina(top) {
@@ -362,7 +422,14 @@ function extractRatificacoesGlobais(competenciaAlvo) {
         })
         .then(function (linhas) {
           ws.close();
-          resolve({ linhas: linhas, recarga: recarga });
+          resolve({
+            linhas: linhas,
+            recarga: recarga,
+            colunaEncontrada: colunaEncontrada,
+            colunasVistas: colunasVistas,
+            coresDesconhecidas: Object.keys(coresDesconhecidas),
+            valoresInesperados: Object.keys(valoresInesperados).slice(0, 3),
+          });
         })
         .catch(function (err) {
           ws.close();
@@ -409,6 +476,18 @@ async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
     });
   }
   log("Ratificações: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+
+  if (!result.colunaEncontrada) {
+    alertar("Ratificações", "a competência " + competencia + " não aparece no painel do TCE (últimas colunas vistas: " + result.colunasVistas.join(", ") + "). Se ela já deveria existir, o formato de Mês/Ano mudou.");
+  } else if (porIbge.size < MIN_MUNICIPIOS) {
+    alertar("Ratificações", "só " + porIbge.size + " municípios em " + competencia + " (esperado ~295)" + (semMatch ? "; " + semMatch + " nomes não bateram com o cadastro" : "") + ".");
+  }
+  if (result.coresDesconhecidas.length) {
+    alertar("Ratificações", "cor de célula desconhecida no painel (" + result.coresDesconhecidas.join(", ") + ") — tratada como 'fora do prazo'. A legenda do TCE pode ter mudado.");
+  }
+  if (result.valoresInesperados.length) {
+    alertar("Ratificações", "valor fora do padrão (data ou 'Ausente'): " + result.valoresInesperados.join(", ") + ".");
+  }
   if (result.recarga) tceAtualizadoEm.ratificacoes = result.recarga;
   return { porIbge, competencia, recarga: result.recarga };
 }
@@ -656,6 +735,18 @@ const REGRAS_MODULO = {
 // slug de campo → nome legível (inverso de MOD_SLUG), pra explicar pendências.
 const NOME_POR_CAMPO = Object.fromEntries(Object.entries(MOD_SLUG).map(([nome, slug]) => [slug, nome]));
 
+// Módulo que o TCE devolve e não está em MOD_SLUG não entra em nenhuma área.
+// Pode ser um módulo que nunca usamos de propósito, então avisa uma vez por nome
+// (os já avisados ficam guardados neste navegador).
+async function avisarModulosNovos(nomes) {
+  if (nomes.size === 0) return;
+  const { modulos_desconhecidos_vistos: vistos = [] } = await chrome.storage.local.get("modulos_desconhecidos_vistos");
+  const novos = [...nomes].filter((n) => !vistos.includes(n));
+  if (novos.length === 0) return;
+  alertar("Módulos", "módulo novo no TCE, fora das regras: " + novos.join(", ") + ". Ele não entra em nenhuma área — se deve contar, precisa ser incluído nas regras (REGRAS_MODULO).");
+  await chrome.storage.local.set({ modulos_desconhecidos_vistos: vistos.concat(novos) });
+}
+
 function detectarTipoEntidade(nomeUnidade) {
   const n = (nomeUnidade || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   if (/CAMARA|C\.M\b|CM\b/.test(n)) return "CM";
@@ -730,7 +821,17 @@ async function obterTicketQlik() {
     log("TCE Virtual: nenhuma credencial configurada — pulando captura restrita (módulos/datas).", "info");
     return null;
   }
-  return comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (ticket) => !!ticket);
+  // Sem ticket a carga segue só sem módulos, em vez de perder CND/ratificação já capturadas.
+  let ticket = null;
+  try {
+    ticket = await comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (t) => !!t);
+  } catch (err) {
+    log("Ticket Qlik: " + err.message, "err");
+  }
+  if (!ticket) {
+    alertar("Login TCE", "não foi possível obter acesso ao painel restrito do TCE após " + MAX_TENTATIVAS + " tentativas — os módulos não foram atualizados nesta carga.");
+  }
+  return ticket;
 }
 
 async function tentarObterTicketQlik(credenciais) {
@@ -741,11 +842,14 @@ async function tentarObterTicketQlik(credenciais) {
     const { matricula, senha } = credenciais[i];
     const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
     if (precisaLogar) {
-      await chrome.scripting.executeScript({
+      const [{ result: preenchimento }] = await chrome.scripting.executeScript({
         target: { tabId: loginTab.id },
         func: fillLoginForm,
         args: [matricula, senha],
       });
+      if (preenchimento !== "ok") {
+        alertar("Login TCE", "a tela de login do TCE Virtual mudou (" + preenchimento + ") — a extensão não achou onde preencher matrícula/senha.");
+      }
       await new Promise((r) => setTimeout(r, 3000));
       const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
       if (aindaLogin) {
@@ -801,6 +905,8 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
 
   // Pivotar em documentos por (município × entidade)
   const docsPorEntidade = new Map();
+  const nomesDesconhecidos = new Set();
+  let conhecidos = 0;
   for (const r of rawData) {
     if (!r.municipio || !r.modulo) continue;
     const tipo = detectarTipoEntidade(r.unidade && r.unidade !== "-" ? r.unidade : r.municipio);
@@ -809,7 +915,15 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
       docsPorEntidade.set(chave, { municipio: r.municipio, entidade: tipo });
     }
     const campo = MOD_SLUG[r.modulo];
-    if (campo) docsPorEntidade.get(chave)[campo] = r.qtd;
+    if (campo) {
+      docsPorEntidade.get(chave)[campo] = r.qtd;
+      conhecidos++;
+    } else {
+      nomesDesconhecidos.add(r.modulo);
+    }
+  }
+  if (rawData.length > 0 && conhecidos === 0) {
+    alertar("Módulos", "nenhum dos módulos conhecidos veio do TCE (" + [...nomesDesconhecidos].slice(0, 5).join(", ") + "…). Os nomes dos módulos mudaram — nenhuma área pode ser avaliada.");
   }
 
   // Agrupar por município: Prefeitura como representante, senão pior status entre entidades
@@ -843,7 +957,7 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
   }
   log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
   if (recarga) tceAtualizadoEm.modulos = recarga;
-  return { porIbge, competencia: periodo, recarga };
+  return { porIbge, competencia: periodo, recarga, nomesDesconhecidos };
 }
 
 // ── Movimentações — diff entre o que já está no banco e o que acabou de ser
@@ -1095,7 +1209,7 @@ async function gravarSnapshotsDiarios() {
 // que uma carga rodou e o que ela de fato gravou no Firestore.
 async function registrarCarga(campos) {
   try {
-    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm }, campos));
+    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas: alertas }, campos));
   } catch (err) {
     log("Não foi possível registrar a carga em 'cargas': " + err.message, "err");
   }
@@ -1104,6 +1218,7 @@ async function registrarCarga(campos) {
 async function main() {
   const inicioMs = Date.now();
   let userEmail = null;
+  let erroCarga = null;
   let tipoCarga = competenciasAlvo ? "backfill" : "sync";
   let periodoCarga = competenciasAlvo
     ? competenciasAlvo.length > 1
@@ -1157,7 +1272,7 @@ async function main() {
       return;
     }
 
-    const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m) => m.size > 0);
+    const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m) => m.size >= MIN_MUNICIPIOS);
     const ratif = await comTentativas("Ratificações", () => capturarRatificacoes(porNomeBusca));
     const modulos = await capturarModulosComTentativas(porNomeBusca, undefined);
     periodoCarga = ratif.competencia || modulos.competencia || null;
@@ -1196,7 +1311,9 @@ async function main() {
     log("Concluído.", "ok");
     fecharEstaAba();
   } catch (err) {
+    erroCarga = err.message;
     log("Erro: " + err.message, "err");
+    await chrome.storage.local.set({ last_execution: { resumo: "Erro: " + err.message, timestamp: Date.now() } });
     await registrarCarga({
       tipo: tipoCarga,
       periodo: periodoCarga,
@@ -1209,6 +1326,7 @@ async function main() {
     });
   } finally {
     await fecharAbasAbertas();
+    if (modo !== "login") await avisarFimDaCarga(erroCarga);
   }
 }
 
@@ -1219,16 +1337,23 @@ const MIN_MUNICIPIOS_MODULOS = 200;
 
 // Ticket novo a cada tentativa: é de uso único, e reaproveitá-lo fazia a sessão
 // cair degradada ou falhar no GetHyperCubeData.
-function capturarModulosComTentativas(porNomeBusca, competenciaAlvo) {
-  return comTentativas(
-    "Módulos" + (competenciaAlvo ? " " + competenciaAlvo : ""),
+async function capturarModulosComTentativas(porNomeBusca, competenciaAlvo) {
+  const periodo = competenciaAlvo || competenciaMesAnterior();
+  const r = await comTentativas(
+    "Módulos " + periodo,
     async () => {
       const ticket = await obterTicketQlik();
       if (!ticket) return { porIbge: new Map(), competencia: null, semTicket: true };
       return capturarModulos(porNomeBusca, competenciaAlvo, ticket);
     },
-    (r) => r.semTicket || r.porIbge.size >= MIN_MUNICIPIOS_MODULOS
+    (res) => res.semTicket || res.porIbge.size >= MIN_MUNICIPIOS_MODULOS
   );
+  // Só depois da tentativa que valeu, pra não marcar como "já avisado" um nome visto numa tentativa descartada.
+  if (r.nomesDesconhecidos) await avisarModulosNovos(r.nomesDesconhecidos);
+  if (!r.semTicket && r.porIbge.size < MIN_MUNICIPIOS_MODULOS) {
+    alertar("Módulos", "só " + r.porIbge.size + " municípios em " + periodo + " após " + MAX_TENTATIVAS + " tentativas (esperado ~295) — os módulos dessa competência ficaram incompletos.");
+  }
+  return r;
 }
 
 // Carga terminou bem: fecha a própria aba do log (o resultado fica no Controle

@@ -105,10 +105,25 @@ export default function AdminCargasPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <StatusBadge
-                        label={c.status === "sucesso" ? "Sucesso" : "Erro"}
-                        tone={c.status === "sucesso" ? "green" : "red"}
-                        title={c.status === "erro" ? c.erro ?? undefined : undefined}
+                        label={
+                          c.status === "erro"
+                            ? "Erro"
+                            : c.alertas?.length
+                              ? `Sucesso · ${c.alertas.length} alerta${c.alertas.length > 1 ? "s" : ""}`
+                              : "Sucesso"
+                        }
+                        tone={c.status === "erro" ? "red" : c.alertas?.length ? "yellow" : "green"}
                       />
+                      {(c.erro || c.alertas?.length) && (
+                        <ul className="mt-1.5 max-w-[460px] space-y-1 text-[11px] leading-snug whitespace-normal">
+                          {c.erro && <li className="text-red-700 dark:text-red-400">{c.erro}</li>}
+                          {c.alertas?.map((a, j) => (
+                            <li key={j} className="text-amber-800 dark:text-amber-300">
+                              <span className="font-semibold">{a.fonte}:</span> {a.mensagem}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </td>
                     <td className="px-6 py-3.5 font-mono text-apple-secondary">{formatarTotais(c.totais)}</td>
                   </tr>

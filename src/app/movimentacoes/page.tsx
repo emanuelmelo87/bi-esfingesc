@@ -165,6 +165,14 @@ export default function MovimentacoesPage() {
             <span>
               <span className="font-semibold text-apple-title">{ultimaCarga.totais?.movimentacoes ?? 0}</span> movimentações nessa carga
             </span>
+            {(ultimaCarga.alertas?.length ?? 0) > 0 && (
+              <span
+                className="font-semibold text-amber-700 dark:text-amber-400"
+                title={ultimaCarga.alertas!.map((a) => `${a.fonte}: ${a.mensagem}`).join("\n\n")}
+              >
+                {ultimaCarga.alertas!.length} alerta{ultimaCarga.alertas!.length > 1 ? "s" : ""} na captura do TCE
+              </span>
+            )}
             {ultimaCarga.tce_atualizado_em?.ratificacoes && (
               <span>
                 <span className="font-semibold text-apple-title">TCE atualizou:</span> ratificações em{" "}
