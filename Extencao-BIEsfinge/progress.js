@@ -31285,6 +31285,15 @@ This typically indicates that your device does not have a healthy Internet conne
     const r2 = ra(e2.firestore, da), s2 = __PRIVATE_applyFirestoreDataConverter(e2.converter, t2, n2), a = la(r2);
     return executeWrite(r2, [__PRIVATE_parseSetData(a, "setDoc", e2._key, s2, null !== e2.converter, n2).toMutation(e2._key, Precondition.none())]);
   }
+  function updateDoc(e2, t2, n2, ...r2) {
+    e2 = ra(e2, aa);
+    const s2 = ra(e2.firestore, da), a = la(s2);
+    let o2;
+    o2 = "string" == typeof // For Compat types, we have to "extract" the underlying types before
+    // performing validation.
+    (t2 = getModularInstance(t2)) || t2 instanceof FieldPath2 ? __PRIVATE_parseUpdateVarargs(a, "updateDoc", e2._key, t2, n2, r2) : __PRIVATE_parseUpdateData(a, "updateDoc", e2._key, t2);
+    return executeWrite(s2, [o2.toMutation(e2._key, Precondition.exists(true))]);
+  }
   function executeWrite(e2, t2) {
     const n2 = oa(e2);
     return __PRIVATE_firestoreClientWrite(n2, t2);
@@ -31377,6 +31386,21 @@ This typically indicates that your device does not have a healthy Internet conne
     logEl.appendChild(line);
     logEl.scrollTop = logEl.scrollHeight;
     console.log("[Radar e-Sfinge]", msg);
+    pulsoCarga(msg);
+  }
+  var cargaAberta = false;
+  var ultimoPulso = 0;
+  function pulsoCarga(msg) {
+    if (!cargaAberta || Date.now() - ultimoPulso < 15e3) return;
+    ultimoPulso = Date.now();
+    updateDoc(cargaRef, { etapa: msg, pulso_em: serverTimestamp() }).catch(function() {
+    });
+  }
+  async function registrarNoLogAgenda(resultado) {
+    if (modo !== "alarme") return;
+    const { agenda_log: registro = [] } = await chrome.storage.local.get("agenda_log");
+    registro.unshift({ em: Date.now(), horarios: ["carga"], resultado });
+    await chrome.storage.local.set({ agenda_log: registro.slice(0, 30) });
   }
   var alertas = [];
   var MIN_MUNICIPIOS = 280;
@@ -31477,6 +31501,8 @@ This typically indicates that your device does not have a healthy Internet conne
       chrome.tabs.create({ url, active: false }, function(tab) {
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         abasAbertas.add(tab.id);
+        chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(function() {
+        });
         const limite = setTimeout(function() {
           chrome.tabs.onUpdated.removeListener(onUpdated);
           reject(new Error("p\xE1gina n\xE3o terminou de carregar em 60s: " + url));
@@ -32371,6 +32397,7 @@ This typically indicates that your device does not have a healthy Internet conne
     return total;
   }
   async function registrarCarga(campos) {
+    cargaAberta = false;
     try {
       await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas, modo }, campos));
     } catch (err) {
@@ -32391,6 +32418,26 @@ This typically indicates that your device does not have a healthy Internet conne
         return;
       }
       await chrome.storage.local.set({ carga_em_andamento: Date.now() });
+      chrome.tabs.getCurrent(function(aba) {
+        if (aba) chrome.tabs.update(aba.id, { autoDiscardable: false }).catch(function() {
+        });
+      });
+      try {
+        await setDoc(cargaRef, {
+          status: "em_andamento",
+          tipo: tipoCarga,
+          periodo: periodoCarga,
+          usuario: userEmail,
+          modo,
+          iniciado_em: new Date(inicioMs),
+          concluido_em: null,
+          etapa: "Iniciando",
+          pulso_em: serverTimestamp()
+        });
+        cargaAberta = true;
+      } catch (err) {
+        log("N\xE3o foi poss\xEDvel registrar o in\xEDcio da carga: " + err.message, "err");
+      }
       const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
       if (competenciasAlvo) {
         const vigente = competenciaMesAnterior();
@@ -32478,6 +32525,7 @@ This typically indicates that your device does not have a healthy Internet conne
         totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null
       });
     } finally {
+      await registrarNoLogAgenda(erroCarga ? "falhou: " + erroCarga : "conclu\xEDda");
       await chrome.storage.local.remove("carga_em_andamento");
       await fecharAbasAbertas();
       if (modo !== "login") await avisarFimDaCarga(erroCarga);

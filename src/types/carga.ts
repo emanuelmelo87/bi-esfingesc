@@ -9,7 +9,10 @@ export type Carga = {
   iniciado_em: Timestamp | null;
   concluido_em: Timestamp | null;
   duracao_ms: number;
-  status: "sucesso" | "erro";
+  // "em_andamento" enquanto roda; se ficar assim sem pulso recente, a carga não terminou.
+  status: "sucesso" | "erro" | "em_andamento";
+  etapa?: string; // última etapa registrada durante a execução
+  pulso_em?: Timestamp | null; // último sinal de vida da carga em andamento
   erro: string | null;
   totais: Record<string, number> | null;
   // Última recarga de cada painel do TCE vista na carga (ISO). Ausente em cargas antigas.

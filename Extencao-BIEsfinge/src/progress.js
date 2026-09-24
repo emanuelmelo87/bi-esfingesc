@@ -1,5 +1,5 @@
 import { signInWithCredential, GoogleAuthProvider, signOut } from "firebase/auth";
-import { collection, getDocs, doc, query, setDoc, where, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, query, setDoc, updateDoc, where, writeBatch, serverTimestamp } from "firebase/firestore";
 import { auth, db, ALLOWED_EMAIL_DOMAIN } from "./firebase-config.js";
 
 const CND_URL =
@@ -69,6 +69,27 @@ function log(msg, kind) {
   logEl.appendChild(line);
   logEl.scrollTop = logEl.scrollHeight;
   console.log("[Radar e-Sfinge]", msg);
+  pulsoCarga(msg);
+}
+
+// Com a carga já registrada como "em andamento", manda a etapa atual pro banco
+// no máximo a cada 15s: se a aba travar, for fechada ou descartada pelo Chrome,
+// o Controle de Cargas mostra até onde ela chegou.
+let cargaAberta = false;
+let ultimoPulso = 0;
+function pulsoCarga(msg) {
+  if (!cargaAberta || Date.now() - ultimoPulso < 15000) return;
+  ultimoPulso = Date.now();
+  updateDoc(cargaRef, { etapa: msg, pulso_em: serverTimestamp() }).catch(function () {});
+}
+
+// Resultado da carga agendada no histórico de disparos do painel — inclusive
+// falha antes do login, que não consegue gravar nada no banco.
+async function registrarNoLogAgenda(resultado) {
+  if (modo !== "alarme") return;
+  const { agenda_log: registro = [] } = await chrome.storage.local.get("agenda_log");
+  registro.unshift({ em: Date.now(), horarios: ["carga"], resultado: resultado });
+  await chrome.storage.local.set({ agenda_log: registro.slice(0, 30) });
 }
 
 // ── Alertas — o TCE muda os painéis sem aviso. Cada captura confere se o que
@@ -199,6 +220,8 @@ function abrirAbaOculta(url) {
     chrome.tabs.create({ url: url, active: false }, function (tab) {
       if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
       abasAbertas.add(tab.id);
+      // Sem isso o Chrome pode descartar a aba em segundo plano pra liberar memória e a captura morre no meio.
+      chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(function () {});
       const limite = setTimeout(function () {
         chrome.tabs.onUpdated.removeListener(onUpdated);
         reject(new Error("página não terminou de carregar em 60s: " + url));
@@ -1208,6 +1231,7 @@ async function gravarSnapshotsDiarios() {
 // (hora, quem rodou, quantidade gravada), pra dar visibilidade no app web de
 // que uma carga rodou e o que ela de fato gravou no Firestore.
 async function registrarCarga(campos) {
+  cargaAberta = false;
   try {
     await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas: alertas, modo: modo }, campos));
   } catch (err) {
@@ -1237,6 +1261,26 @@ async function main() {
 
     // Sinaliza pro agendamento (background.js) não abrir outra carga por cima desta.
     await chrome.storage.local.set({ carga_em_andamento: Date.now() });
+    chrome.tabs.getCurrent(function (aba) {
+      if (aba) chrome.tabs.update(aba.id, { autoDiscardable: false }).catch(function () {});
+    });
+    // Registra a carga já no início; o registro final (registrarCarga) substitui este.
+    try {
+      await setDoc(cargaRef, {
+        status: "em_andamento",
+        tipo: tipoCarga,
+        periodo: periodoCarga,
+        usuario: userEmail,
+        modo: modo,
+        iniciado_em: new Date(inicioMs),
+        concluido_em: null,
+        etapa: "Iniciando",
+        pulso_em: serverTimestamp(),
+      });
+      cargaAberta = true;
+    } catch (err) {
+      log("Não foi possível registrar o início da carga: " + err.message, "err");
+    }
     const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
 
     if (competenciasAlvo) {
@@ -1339,6 +1383,7 @@ async function main() {
       totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null,
     });
   } finally {
+    await registrarNoLogAgenda(erroCarga ? "falhou: " + erroCarga : "concluída");
     await chrome.storage.local.remove("carga_em_andamento");
     await fecharAbasAbertas();
     if (modo !== "login") await avisarFimDaCarga(erroCarga);

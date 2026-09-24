@@ -18,6 +18,16 @@ function formatarIso(iso: string | null | undefined): string {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 }
 
+// Carga "em andamento" sem sinal de vida há mais que isso morreu no meio
+// (aba fechada, travada ou descartada pelo Chrome). O pulso vem a cada ~15s.
+const SEM_PULSO_MS = 15 * 60 * 1000;
+
+function naoFinalizada(c: Carga): boolean {
+  if (c.status !== "em_andamento") return false;
+  const ultimo = c.pulso_em?.toMillis() ?? c.iniciado_em?.toMillis() ?? 0;
+  return Date.now() - ultimo > SEM_PULSO_MS;
+}
+
 function formatarDuracao(ms: number): string {
   if (!ms && ms !== 0) return "—";
   return (ms / 1000).toFixed(1) + "s";
@@ -36,7 +46,7 @@ export default function AdminCargasPage() {
 
   async function carregar() {
     setCarregando(true);
-    const snap = await getDocs(query(collection(db, "cargas"), orderBy("concluido_em", "desc"), limit(100)));
+    const snap = await getDocs(query(collection(db, "cargas"), orderBy("iniciado_em", "desc"), limit(100)));
     setCargas(snap.docs.map((d) => d.data() as Carga));
     setCarregando(false);
   }
@@ -75,7 +85,7 @@ export default function AdminCargasPage() {
             <table className="w-full text-left text-[12px]">
               <thead>
                 <tr className="border-b border-black/[0.05] bg-black/[0.015] text-[11px] font-medium tracking-wider text-apple-muted uppercase dark:border-white/10 dark:bg-white/[0.02]">
-                  <th className="px-6 py-3">Concluído em</th>
+                  <th className="px-6 py-3">Início / fim</th>
                   <th className="px-4 py-3">Tipo</th>
                   <th className="px-4 py-3">Período</th>
                   <th className="px-4 py-3">Usuário</th>
@@ -88,7 +98,10 @@ export default function AdminCargasPage() {
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
                 {cargas.map((c, i) => (
                   <tr key={i} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
-                    <td className="px-6 py-3.5 font-semibold text-apple-title">{formatarDataHora(c.concluido_em)}</td>
+                    <td className="px-6 py-3.5 text-apple-title">
+                      <span className="block font-semibold">{formatarDataHora(c.iniciado_em)}</span>
+                      <span className="block text-[11px] text-apple-muted">fim: {c.concluido_em ? formatarDataHora(c.concluido_em) : "—"}</span>
+                    </td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.tipo === "backfill" ? "Backfill" : "Sincronização"}
                       {c.modo === "alarme" && <span className="mt-0.5 block text-[10px] font-semibold text-vinho dark:text-blue-400">Agendada</span>}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.periodo ?? "—"}</td>
@@ -107,14 +120,28 @@ export default function AdminCargasPage() {
                     <td className="px-4 py-3.5">
                       <StatusBadge
                         label={
-                          c.status === "erro"
+                          c.status === "em_andamento"
+                            ? naoFinalizada(c)
+                              ? "Não finalizada"
+                              : "Em andamento"
+                            : c.status === "erro"
                             ? "Erro"
                             : c.alertas?.length
                               ? `Sucesso · ${c.alertas.length} alerta${c.alertas.length > 1 ? "s" : ""}`
                               : "Sucesso"
                         }
-                        tone={c.status === "erro" ? "red" : c.alertas?.length ? "yellow" : "green"}
+                        tone={
+                          c.status === "em_andamento"
+                            ? naoFinalizada(c) ? "red" : "gray"
+                            : c.status === "erro" ? "red" : c.alertas?.length ? "yellow" : "green"
+                        }
                       />
+                      {c.status === "em_andamento" && c.etapa && (
+                        <p className="mt-1.5 max-w-[460px] text-[11px] leading-snug whitespace-normal text-apple-secondary">
+                          {naoFinalizada(c) ? "Parou em" : "Agora"}: {c.etapa}
+                          {c.pulso_em ? ` (${formatarDataHora(c.pulso_em)})` : ""}
+                        </p>
+                      )}
                       {(!!c.erro || (c.alertas?.length ?? 0) > 0) && (
                         <ul className="mt-1.5 max-w-[460px] space-y-1 text-[11px] leading-snug whitespace-normal">
                           {c.erro && <li className="text-red-700 dark:text-red-400">{c.erro}</li>}

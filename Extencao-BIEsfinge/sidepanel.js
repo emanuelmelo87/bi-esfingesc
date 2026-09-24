@@ -225,7 +225,9 @@ function renderSituacaoAgenda(data) {
     var item = document.createElement("div");
     item.textContent = new Date(l.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
       " · " + l.horarios.join(", ") + " · " + l.resultado;
-    if (l.resultado !== "disparado") item.style.color = "#d29922";
+    if (l.resultado.indexOf("falhou") === 0) item.style.color = "#f85149";
+    else if (l.resultado.indexOf("pulado") === 0) item.style.color = "#d29922";
+    else if (l.resultado === "concluída") item.style.color = "#3fb950";
     lista.appendChild(item);
   });
 }
