@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, doc, getDocs, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Municipio } from "@/types/municipio";
-import clientesBetha from "@/data/clientes-betha.json";
-import populacaoTop30 from "@/data/populacao-top30.json";
 import FonteDados from "@/components/FonteDados";
 import ContadorResultados from "@/components/ContadorResultados";
 
@@ -85,10 +83,30 @@ export default function AdminMunicipiosPage() {
     }
   }
 
-  async function importarClientesBetha() {
+  // As planilhas chegam por upload (e não por import no código) de propósito: um
+  // import embutia a lista de clientes Betha/Concorrente no JavaScript público do
+  // site, legível por qualquer um sem login.
+  async function lerPlanilha<T>(arquivo: File, camposObrigatorios: string[]): Promise<T[]> {
+    const dados: unknown = JSON.parse(await arquivo.text());
+    if (!Array.isArray(dados)) throw new Error("o arquivo precisa ser uma lista JSON ([ ... ]).");
+    for (const [i, item] of dados.entries()) {
+      const faltando = camposObrigatorios.filter((c) => !item || typeof item !== "object" || !(c in item));
+      if (faltando.length) throw new Error(`linha ${i + 1} sem ${faltando.join(", ")}.`);
+    }
+    return dados as T[];
+  }
+
+  async function importarClientesBetha(arquivo: File) {
     setImportando(true);
     setMensagem(null);
     try {
+      const clientesBetha = await lerPlanilha<{
+        nome: string;
+        fornecedor: string;
+        canal: string | null;
+        sigla_associacao: string | null;
+        associacao_regional: string | null;
+      }>(arquivo, ["nome", "fornecedor"]);
       const porNomeBusca = new Map(municipios.map((m) => [m.nome_busca, m.codigo_ibge]));
       const batch = writeBatch(db);
       let importados = 0;
@@ -104,9 +122,9 @@ export default function AdminMunicipiosPage() {
           doc(db, "municipios", codigoIbge),
           {
             fornecedor: c.fornecedor === "Betha" ? "Betha" : "Concorrente",
-            canal_atendimento: c.canal,
-            sigla_associacao: c.sigla_associacao,
-            associacao_regional: c.associacao_regional,
+            canal_atendimento: c.canal ?? null,
+            sigla_associacao: c.sigla_associacao ?? null,
+            associacao_regional: c.associacao_regional ?? null,
           },
           { merge: true }
         );
@@ -126,10 +144,14 @@ export default function AdminMunicipiosPage() {
     }
   }
 
-  async function importarPopulacaoTop30() {
+  async function importarPopulacaoTop30(arquivo: File) {
     setImportandoPopulacao(true);
     setMensagem(null);
     try {
+      const populacaoTop30 = await lerPlanilha<{ nome: string; populacao: number; empresa_software: string | null }>(
+        arquivo,
+        ["nome", "populacao"]
+      );
       const porNomeBusca = new Map(municipios.map((m) => [m.nome_busca, m.codigo_ibge]));
       const batch = writeBatch(db);
       let importados = 0;
@@ -143,7 +165,7 @@ export default function AdminMunicipiosPage() {
         }
         batch.set(
           doc(db, "municipios", codigoIbge),
-          { populacao: p.populacao, empresa_software: p.empresa_software },
+          { populacao: p.populacao, empresa_software: p.empresa_software ?? null },
           { merge: true }
         );
         importados++;
@@ -194,20 +216,38 @@ export default function AdminMunicipiosPage() {
           <ContadorResultados mostrando={municipiosFiltrados.length} total={municipios.length} />
         </div>
         <div className="flex shrink-0 gap-2">
-          <button
-            onClick={importarClientesBetha}
-            disabled={importando || carregando}
-            className="whitespace-nowrap rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+          <label
+            title="Escolha o arquivo clientes-betha.json"
+            className={`cursor-pointer whitespace-nowrap rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10 ${importando || carregando ? "pointer-events-none opacity-50" : ""}`}
           >
             {importando ? "Importando..." : "Importar Planilha"}
-          </button>
-          <button
-            onClick={importarPopulacaoTop30}
-            disabled={importandoPopulacao || carregando}
-            className="whitespace-nowrap rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const arquivo = e.target.files?.[0];
+                e.target.value = "";
+                if (arquivo) importarClientesBetha(arquivo);
+              }}
+            />
+          </label>
+          <label
+            title="Escolha o arquivo populacao-top30.json"
+            className={`cursor-pointer whitespace-nowrap rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10 ${importandoPopulacao || carregando ? "pointer-events-none opacity-50" : ""}`}
           >
             {importandoPopulacao ? "Importando..." : "Importar População (Top 30)"}
-          </button>
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const arquivo = e.target.files?.[0];
+                e.target.value = "";
+                if (arquivo) importarPopulacaoTop30(arquivo);
+              }}
+            />
+          </label>
           <button
             onClick={recarregarListaIBGE}
             disabled={recarregando}
@@ -219,7 +259,7 @@ export default function AdminMunicipiosPage() {
       </div>
       <FonteDados
         colecoes={["municipios"]}
-        extra="Importar Planilha: data/clientes-betha.json e data/populacao-top30.json (arquivos locais) · Recarregar IBGE: servicodados.ibge.gov.br"
+        extra="Importar Planilha / População: escolha o arquivo JSON (clientes-betha.json / populacao-top30.json, guardados fora do repositório) · Recarregar IBGE: servicodados.ibge.gov.br"
       />
       {mensagem && <p className="mb-4 text-sm text-apple-secondary">{mensagem}</p>}
 

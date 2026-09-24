@@ -11,10 +11,19 @@ service cloud.firestore {
       return !exists(ref) || get(ref).data.ativo != false;
     }
 
-    function isBethaUser() {
+    // Conta Google @betha.com.br com e-mail verificado. Exigir o provedor Google
+    // e o e-mail verificado fecha a brecha de alguém ligar "e-mail/senha" no
+    // Firebase Auth e qualquer pessoa criar uma conta fulano@betha.com.br sem
+    // provar que é dona do endereço.
+    function contaBetha() {
       return request.auth != null
-        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
-        && isActive();
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email.matches('.*@betha[.]com[.]br$');
+    }
+
+    function isBethaUser() {
+      return contaBetha() && isActive();
     }
 
     function isAdmin() {
@@ -55,19 +64,16 @@ service cloud.firestore {
     }
 
     match /usuarios/{email} {
-      allow read: if request.auth != null
-        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+      allow read: if contaBetha()
         && (emailDoUsuario() == email || isAdmin());
 
-      allow create: if request.auth != null
-        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+      allow create: if contaBetha()
         && emailDoUsuario() == email
         && request.resource.data.email == email
         && request.resource.data.perfil == 'LEITURA'
         && request.resource.data.ativo == true;
 
-      allow update: if request.auth != null
-        && request.auth.token.email.matches('.*@betha[.]com[.]br$')
+      allow update: if contaBetha()
         && (
           (emailDoUsuario() == email
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimo_login']))

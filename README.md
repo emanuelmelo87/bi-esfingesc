@@ -69,7 +69,7 @@ registros do filtro atual e, onde há filtro de fornecedor, ele vem em
 
 | Tela | Rota | Status | O que faz |
 |---|---|---|---|
-| Municípios | `/admin/municipios` | Em produção | Classifica fornecedor/canal/associação por município. Botões **Importar Planilha** (`src/data/clientes-betha.json`), **Importar População (Top 30)** (`src/data/populacao-top30.json`) e **Recarregar IBGE** (repõe a lista oficial de SC sem apagar a classificação manual). |
+| Municípios | `/admin/municipios` | Em produção | Classifica fornecedor/canal/associação por município. Botões **Importar Planilha** e **Importar População (Top 30)** — cada um pede o arquivo JSON por upload (`clientes-betha.json` / `populacao-top30.json`, guardados em `dados-privados/`, fora do Git) — e **Recarregar IBGE** (repõe a lista oficial de SC sem apagar a classificação manual). |
 | Usuários | `/admin/usuarios` | Em produção | Altera perfil e ativa/desativa usuários. |
 | Permissões | `/admin/permissoes` | Informativa | Grade de referência dos 4 perfis (ver RBAC abaixo). |
 | Controle de Cargas | `/admin/cargas` | Em produção (novo) | Histórico de cada execução da extensão: quando terminou, tipo (sincronização/backfill), período, quem rodou, duração, sucesso/erro (passe o mouse no "Erro" para ver o motivo) e quantos documentos foram gravados por fonte, incluindo quantas movimentações a carga gerou. |
@@ -191,6 +191,28 @@ Aplicado de fato: bloqueio das telas/ações de admin para quem não é
 diferença entre `GESTOR_CANAL`, `ANALISTA` e `LEITURA` ainda não tem efeito
 (escopo por canal está planejado).
 
+### Segurança — acesso só com conta @betha.com.br
+
+- **Quem garante é o banco, não a tela.** As regras do Firestore
+  (`firestore.rules`, função `contaBetha()`) exigem em toda coleção: login feito
+  pelo **Google**, **e-mail verificado** e terminado em `@betha.com.br`, e
+  usuário não desativado. Coleção sem regra é negada. A checagem de domínio no
+  app e na extensão é só a porta da frente.
+- **Firebase Auth:** só o provedor Google está ligado (e-mail/senha, anônimo e
+  telefone desligados). Mesmo que alguém ligue outro provedor, as regras barram
+  por exigir `sign_in_provider == google.com` e e-mail verificado.
+- **O site é público** (Firebase Hosting estático): tudo que é importado no
+  código vai para o JavaScript que qualquer um baixa. Por isso **nenhum dado de
+  cliente pode ser importado no código** — as planilhas entram por upload na
+  tela Municípios e ficam em `dados-privados/` (ignorada pelo Git).
+- **Verificação feita em 24/09/2026:** leitura sem login nas 7 coleções
+  retornou `PERMISSION_DENIED`; o JavaScript público não contém a lista de
+  clientes; não há senha, chave de serviço nem `.env` no histórico do Git.
+- **Pendências:** o repositório no GitHub é público e o histórico ainda contém
+  a planilha de clientes (tornar privado); qualquer usuário Betha pode gravar
+  nas coleções operacionais (a extensão grava como o usuário logado); senhas
+  do TCE ficam sem criptografia no navegador da extensão.
+
 ---
 
 ## Rodando localmente
@@ -239,7 +261,6 @@ src/
   components/                 # RequireAuth (menu lateral + login), StatusBadge, ContadorResultados, ícones…
   lib/                        # firebase, auth-context, ratificacao, competencia, csv
   types/                      # tipos das coleções
-  data/                       # planilhas importáveis (clientes Betha, população)
 scripts/                      # utilitários com firebase-admin
 Extencao-BIEsfinge/
   src/progress.js             # toda a captura, comparação e gravação (fonte)
