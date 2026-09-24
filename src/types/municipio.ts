@@ -56,10 +56,3 @@ export type SnapshotDiario = StatusOperacionalAtual & {
   data: string; // "YYYY-MM-DD"
   timestamp_execucao: Timestamp;
 };
-
-export function todosModulosEnviados(modulos: Modulos | null | undefined): boolean {
-  if (!modulos) return false;
-  return [modulos.contabil, modulos.folha, modulos.contratos, modulos.tributos].every(
-    (m) => !!m?.status
-  );
-}

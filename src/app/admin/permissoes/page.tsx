@@ -12,11 +12,10 @@ export default function AdminPermissoesPage() {
     <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <h1 className="mb-1 text-2xl font-bold tracking-[-0.02em] text-apple-title">Matriz de Permissões (RBAC)</h1>
       <p className="mb-4 max-w-2xl text-sm text-apple-secondary">
-        Grade de privilégios pretendida para os 4 perfis. Nesta sprint, só o bloqueio de acesso
-        às telas de Admin (ADMIN_GERAL) e a restrição de edição em lote para LEITURA estão
-        de fato aplicados no código. As distinções entre GESTOR_CANAL e ANALISTA (ex.: escopo
-        por canal de atendimento) são informativas por enquanto — a especificação não detalha
-        o suficiente para implementar sem adivinhar.
+        Grade de privilégios pretendida para os 4 perfis. Hoje, só o bloqueio das telas e ações de
+        administração (exclusivas de ADMIN_GERAL) está de fato aplicado. As distinções entre
+        GESTOR_CANAL, ANALISTA e LEITURA (ex.: escopo por canal de atendimento) são informativas
+        por enquanto — a especificação não detalha o suficiente para implementar sem adivinhar.
       </p>
 
       <div className="apple-glass-card overflow-hidden rounded-[22px]">

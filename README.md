@@ -57,7 +57,7 @@ registros do filtro atual e, onde há filtro de fornecedor, ele vem em
 
 | Tela | Rota | Status | O que mostra |
 |---|---|---|---|
-| Início | `/` | Em produção | KPIs (municípios monitorados, CND irregular, sem ratificação enviada), distribuição por fornecedor e canal, gráfico por competência de envio de módulos e de ratificados × a ratificar (com filtro de fornecedor), atalhos para as outras telas. |
+| Início | `/` | Em produção | Painel da competência escolhida (‹ ›, abre na mais recente), com filtros de fornecedor (Betha), canal e associação valendo pra página toda. Faixa com a última carga, quando o TCE atualizou, quando a CND foi consultada e alertas. Indicadores clicáveis: ratificação geral, módulos completos, falta só ratificar, chamados abertos (SLO estourado) e CND irregular. Lista "Precisam de atenção" (municípios com mais pendências), a ratificar por canal, últimas movimentações e gráficos por competência. Mesmas regras de Status por Módulo (`todosModulosOk` em `src/lib/ratificacao.ts`). |
 | Status por Módulo | `/matriz` | Em produção | Por competência (navegação ‹ ›): Ratificação Geral, Ratificação por Módulo e o status de Contábil, Folha, Contratos e Tributos por município. Filtros de busca, fornecedor, canal, associação e filtros SIM/NÃO nas colunas de ratificação. Linha em âmbar = todos os módulos OK mas ratificação geral ainda não concluída. Passar o mouse num "Pendente" mostra o campo/entidade que falta. Exporta CSV. |
 | Ratificação Geral | `/ratificacao-geral` | Em produção | Grade município × competência com a situação da ratificação geral (Ratificado / Enviado fora do prazo / Ausente) e a data de envio. Filtro SIM/NÃO por coluna de competência, busca, fornecedor, canal, associação. Exporta CSV. |
 | CND | `/cnd` | Em produção | Aba **Geral**: situação e validade da CND dos 295 municípios, com filtros. Aba **Ranking (Hab.)**: Top 10 / Top 30 municípios por população, com filtro de empresa de software. Exporta CSV. |
@@ -111,10 +111,12 @@ Nome no Chrome: **BI Esfinge SC**. O painel lateral se chama **Carga de dados**.
 
 | Fonte | Como é capturada | Sincronização normal | Backfill (período) |
 |---|---|---|---|
-| CND | Scraping da consulta pública em aba oculta | `status_operacional_atual` | — (não tem competência) |
+| CND | Scraping da consulta pública em aba oculta | `status_operacional_atual` | Só se o período incluir a competência vigente (mês anterior) |
 | Ratificação Geral | WebSocket no Qlik público (objeto pivot `a76276a9-…`, que traz data e cor por célula, inclusive da competência em curso) | competência do mês anterior → `status_operacional_atual` + `status_por_competencia` | cada competência do período → `status_por_competencia` |
 | Módulos (Contábil/Folha/Contratos/Tributos) | Login no TCE Virtual → ticket Qlik (pedido de novo a cada competência, é de uso único) → WebSocket no Qlik restrito | idem ratificação | idem ratificação |
-| Snapshot diário | Cópia de `status_operacional_atual` | `snapshots_diarios` | — |
+| Snapshot diário | Cópia de `status_operacional_atual` | `snapshots_diarios` | Só se o período incluir a competência vigente |
+
+Backfill cujo período inclui a competência vigente (mês anterior) faz também o que a sincronização normal faz: captura a CND, atualiza `status_operacional_atual` e grava a foto do dia (`atualizarEstadoAtual` em `src/progress.js`). Assim, quem só usa o backfill não deixa a CND, a Início e a Evolução paradas.
 
 **Alertas de mudança no TCE:** cada captura confere se o que veio ainda tem o
 formato esperado e registra um alerta quando não tem — por exemplo, competência
@@ -259,12 +261,10 @@ firestore.rules, firebase.json, next.config.ts
   remoção; mas um município capturado com dados incompletos pode gerar uma
   "Remoção" falsa. A primeira carga de uma competência nova gera muitos
   "Envio" de uma vez (é o que ainda não estava no banco).
-- **Evolução** depende de `snapshots_diarios`, gravados só pela sincronização
-  normal (backfill não gera snapshot). A data do snapshot é em UTC e pode
-  cair no dia vizinho perto da meia-noite.
+- **Evolução** depende de `snapshots_diarios`, gravados pela sincronização
+  normal e pelo backfill que inclui a competência vigente. A data do snapshot é
+  em UTC e pode cair no dia vizinho perto da meia-noite.
 - As coleções operacionais aceitam escrita de qualquer usuário `@betha.com.br`,
   porque a extensão grava como o usuário logado.
 - Credenciais do TCE ficam sem criptografia no navegador onde a extensão roda.
-- A tela de Permissões ainda cita "edição em lote para LEITURA", que era da
-  antiga tela Pipeline (removida); o texto precisa ser atualizado.
 - A coleção `atribuicoes_municipios` é legado e pode ser removida.

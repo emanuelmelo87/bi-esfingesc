@@ -13,9 +13,9 @@ import ChamadosIndicador from "@/components/ChamadosIndicador";
 import { FonteExterna } from "@/components/FonteDados";
 import { carregarChamados, chamadosPorMunicipio, MODULO_POR_AREA, type Chamado } from "@/lib/chamados";
 import { IconAlertTriangle, IconFilter, IconRefresh, IconTrash } from "@/components/icons";
-import { compararCompetencias } from "@/lib/competencia";
-import { passaFiltroEnvio, ratifEnviado, ratifTitle, ratifTone, type FiltroEnvio } from "@/lib/ratificacao";
-import type { Modulos, ModuloStatus, Municipio } from "@/types/municipio";
+import { compararCompetencias, competenciaMaisRecenteComDados } from "@/lib/competencia";
+import { passaFiltroEnvio, ratifEnviado, ratifTitle, ratifTone, todosModulosOk, type FiltroEnvio } from "@/lib/ratificacao";
+import type { ModuloStatus, Municipio } from "@/types/municipio";
 import type { StatusPorCompetencia } from "@/types/competencia";
 
 const URL_PAINEL_TCE = "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
@@ -43,17 +43,6 @@ function moduloBadge(mod: ModuloStatus | null | undefined, ratificado: boolean) 
   return <StatusBadge label="—" tone="gray" />;
 }
 
-// "ok" nos 4 módulos — diferente de todosModulosEnviados() (que só checa se o
-// TCE reportou *algum* status, "ok" ou "pendente"); aqui é sobre ter passado
-// mesmo na regra de negócio de cada área. Se a Ratificação Geral já foi
-// concluída no TCE, ela é a fonte oficial e prevalece sobre os campos por
-// módulo (que são um proxy reconstruído e podem estar desatualizados/errados).
-function todosModulosOk(modulos: Modulos | null | undefined, ratificado: boolean) {
-  if (ratificado) return true;
-  if (!modulos) return false;
-  return MODULOS.every((m) => modulos[m.key]?.status === "ok");
-}
-
 function normalizarBusca(s: string) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
 }
@@ -61,21 +50,6 @@ function normalizarBusca(s: string) {
 function passaFiltroBooleano(valor: boolean, filtro: FiltroEnvio) {
   if (filtro === "todos") return true;
   return filtro === "sim" ? valor : !valor;
-}
-
-// Última competência (cronologicamente) que tem pelo menos um município com
-// módulos capturados — evita abrir num mês em curso que ainda não tem dado.
-function competenciaMaisRecenteComDados(
-  competencias: string[],
-  historicoPorIbge: Map<string, Map<string, StatusPorCompetencia>>
-): string | null {
-  for (let i = competencias.length - 1; i >= 0; i--) {
-    const c = competencias[i];
-    for (const porCompetencia of historicoPorIbge.values()) {
-      if (porCompetencia.get(c)?.modulos) return c;
-    }
-  }
-  return competencias[competencias.length - 1] ?? null;
 }
 
 export default function MatrizPage() {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Tone } from "@/components/StatusBadge";
 
 const NUMERO: Record<Tone, string> = {
@@ -22,6 +23,7 @@ export default function StatTile({
   footerLabel,
   footerValor,
   tone = "gray",
+  href,
 }: {
   eyebrow: string;
   badge?: { label: string; tone: Tone };
@@ -30,9 +32,11 @@ export default function StatTile({
   footerLabel?: string;
   footerValor?: string;
   tone?: Tone;
+  // Quando informado, o cartão inteiro vira link pra tela com o detalhe.
+  href?: string;
 }) {
-  return (
-    <div className="apple-glass-card flex flex-col justify-between rounded-[22px] p-5">
+  const conteudo = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-semibold tracking-wider text-apple-muted uppercase">{eyebrow}</span>
         {badge && (
@@ -51,6 +55,14 @@ export default function StatTile({
           <span className="font-mono font-semibold text-apple-title">{footerValor}</span>
         </div>
       )}
-    </div>
+    </>
+  );
+  const classe = "apple-glass-card flex flex-col justify-between rounded-[22px] p-5";
+  return href ? (
+    <Link href={href} className={`${classe} transition hover:ring-1 hover:ring-vinho/40`}>
+      {conteudo}
+    </Link>
+  ) : (
+    <div className={classe}>{conteudo}</div>
   );
 }

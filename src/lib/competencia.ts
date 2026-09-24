@@ -1,3 +1,5 @@
+import type { StatusPorCompetencia } from "@/types/competencia";
+
 export const MESES_ABREV = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
@@ -22,4 +24,19 @@ export function mesDaCompetencia(competenciaMMAAAA: string): number {
 export function compararCompetencias(a: string, b: string): number {
   const chave = (c: string) => `${anoDaCompetencia(c)}-${String(mesDaCompetencia(c)).padStart(2, "0")}`;
   return chave(a).localeCompare(chave(b));
+}
+
+// Última competência (cronologicamente) que tem pelo menos um município com
+// módulos capturados — evita abrir num mês em curso que ainda não tem dado.
+export function competenciaMaisRecenteComDados(
+  competencias: string[],
+  historicoPorIbge: Map<string, Map<string, StatusPorCompetencia>>
+): string | null {
+  for (let i = competencias.length - 1; i >= 0; i--) {
+    const c = competencias[i];
+    for (const porCompetencia of historicoPorIbge.values()) {
+      if (porCompetencia.get(c)?.modulos) return c;
+    }
+  }
+  return competencias[competencias.length - 1] ?? null;
 }

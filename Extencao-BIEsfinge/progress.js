@@ -32392,6 +32392,9 @@ This typically indicates that your device does not have a healthy Internet conne
       }
       const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
       if (competenciasAlvo) {
+        const vigente = competenciaMesAnterior();
+        let ratifVigente = null;
+        let modulosVigente = null;
         let totalRatifSoma = 0;
         let totalModulosSoma = 0;
         for (const competenciaAlvo of competenciasAlvo) {
@@ -32399,10 +32402,19 @@ This typically indicates that your device does not have a healthy Internet conne
           const modulos2 = await capturarModulosComTentativas(porNomeBusca, competenciaAlvo);
           totalRatifSoma += await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
           totalModulosSoma += await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
+          if (competenciaAlvo === vigente) {
+            ratifVigente = ratif2;
+            modulosVigente = modulos2;
+          }
+        }
+        let estado2 = null;
+        if (ratifVigente) {
+          log("Per\xEDodo inclui a compet\xEAncia vigente (" + vigente + ") \u2014 atualizando estado atual, CND e foto do dia...");
+          estado2 = await atualizarEstadoAtual(ratifVigente, modulosVigente, porNomeBusca, municipiosPorIbge);
         }
         await chrome.storage.local.set({
           last_execution: {
-            resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos",
+            resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? ", estado atual e CND atualizados" : ""),
             timestamp: Date.now()
           }
         });
@@ -32414,24 +32426,24 @@ This typically indicates that your device does not have a healthy Internet conne
           duracao_ms: Date.now() - inicioMs,
           status: "sucesso",
           erro: null,
-          totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes }
+          totais: Object.assign(
+            { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes },
+            estado2
+          )
         });
         log("Conclu\xEDdo.", "ok");
         fecharEstaAba();
         return;
       }
-      const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m2) => m2.size >= MIN_MUNICIPIOS);
       const ratif = await comTentativas("Ratifica\xE7\xF5es", () => capturarRatificacoes(porNomeBusca));
       const modulos = await capturarModulosComTentativas(porNomeBusca, void 0);
       periodoCarga = ratif.competencia || modulos.competencia || null;
-      const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
-      const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
-      const totalSnapshot = await gravarSnapshotsDiarios();
+      const estado = await atualizarEstadoAtual(ratif, modulos, porNomeBusca, municipiosPorIbge);
       await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
       await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       await chrome.storage.local.set({
         last_execution: {
-          resumo: total + " munic\xEDpios atualizados, " + totalSnapshot + " snapshots gravados",
+          resumo: estado.status_operacional + " munic\xEDpios atualizados, " + estado.snapshot + " snapshots gravados",
           timestamp: Date.now()
         }
       });
@@ -32443,14 +32455,10 @@ This typically indicates that your device does not have a healthy Internet conne
         duracao_ms: Date.now() - inicioMs,
         status: "sucesso",
         erro: null,
-        totais: {
-          cnd: cndPorIbge.size,
-          ratificacoes: ratif.porIbge.size,
-          modulos: modulos.porIbge.size,
-          status_operacional: total,
-          snapshot: totalSnapshot,
-          movimentacoes: totalMovimentacoes
-        }
+        totais: Object.assign(
+          { ratificacoes: ratif.porIbge.size, modulos: modulos.porIbge.size, movimentacoes: totalMovimentacoes },
+          estado
+        )
       });
       log("Conclu\xEDdo.", "ok");
       fecharEstaAba();
@@ -32472,6 +32480,13 @@ This typically indicates that your device does not have a healthy Internet conne
       await fecharAbasAbertas();
       if (modo !== "login") await avisarFimDaCarga(erroCarga);
     }
+  }
+  async function atualizarEstadoAtual(ratif, modulos, porNomeBusca, municipiosPorIbge) {
+    const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m2) => m2.size >= MIN_MUNICIPIOS);
+    const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
+    const statusOperacional = await gravarStatusOperacional(combinado, municipiosPorIbge);
+    const snapshot = await gravarSnapshotsDiarios();
+    return { cnd: cndPorIbge.size, status_operacional: statusOperacional, snapshot };
   }
   var MIN_MUNICIPIOS_MODULOS = 200;
   async function capturarModulosComTentativas(porNomeBusca, competenciaAlvo) {

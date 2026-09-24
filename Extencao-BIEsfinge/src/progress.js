@@ -1238,10 +1238,14 @@ async function main() {
     const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
 
     if (competenciasAlvo) {
-      // Backfill de um período de competências: não mexe em status_operacional_atual
-      // nem em snapshots_diarios (que representam o "estado atual"), só acumula
-      // histórico em status_por_competencia, uma competência de cada vez. CND não
-      // entra — não tem esse conceito.
+      // Backfill de um período de competências: acumula histórico em
+      // status_por_competencia, uma competência de cada vez. Se o período inclui a
+      // competência vigente (mês anterior), também atualiza o que a sincronização
+      // normal atualiza (CND, estado atual e foto do dia) — senão essas partes
+      // ficavam paradas pra quem só usa o backfill.
+      const vigente = competenciaMesAnterior();
+      let ratifVigente = null;
+      let modulosVigente = null;
       let totalRatifSoma = 0;
       let totalModulosSoma = 0;
       for (const competenciaAlvo of competenciasAlvo) {
@@ -1249,11 +1253,23 @@ async function main() {
         const modulos = await capturarModulosComTentativas(porNomeBusca, competenciaAlvo);
         totalRatifSoma += await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
         totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+        if (competenciaAlvo === vigente) {
+          ratifVigente = ratif;
+          modulosVigente = modulos;
+        }
+      }
+
+      let estado = null;
+      if (ratifVigente) {
+        log("Período inclui a competência vigente (" + vigente + ") — atualizando estado atual, CND e foto do dia...");
+        estado = await atualizarEstadoAtual(ratifVigente, modulosVigente, porNomeBusca, municipiosPorIbge);
       }
 
       await chrome.storage.local.set({
         last_execution: {
-          resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos",
+          resumo:
+            "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos" +
+            (estado ? ", estado atual e CND atualizados" : ""),
           timestamp: Date.now(),
         },
       });
@@ -1265,20 +1281,20 @@ async function main() {
         duracao_ms: Date.now() - inicioMs,
         status: "sucesso",
         erro: null,
-        totais: { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes },
+        totais: Object.assign(
+          { ratificacoes: totalRatifSoma, modulos: totalModulosSoma, movimentacoes: totalMovimentacoes },
+          estado
+        ),
       });
       log("Concluído.", "ok");
       fecharEstaAba();
       return;
     }
 
-    const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m) => m.size >= MIN_MUNICIPIOS);
     const ratif = await comTentativas("Ratificações", () => capturarRatificacoes(porNomeBusca));
     const modulos = await capturarModulosComTentativas(porNomeBusca, undefined);
     periodoCarga = ratif.competencia || modulos.competencia || null;
-    const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
-    const total = await gravarStatusOperacional(combinado, municipiosPorIbge);
-    const totalSnapshot = await gravarSnapshotsDiarios();
+    const estado = await atualizarEstadoAtual(ratif, modulos, porNomeBusca, municipiosPorIbge);
     // Acumula a competência "atual" de cada fonte no histórico também, pra ir
     // formando a série de status_por_competencia sem precisar de backfill manual.
     await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
@@ -1286,7 +1302,7 @@ async function main() {
 
     await chrome.storage.local.set({
       last_execution: {
-        resumo: total + " municípios atualizados, " + totalSnapshot + " snapshots gravados",
+        resumo: estado.status_operacional + " municípios atualizados, " + estado.snapshot + " snapshots gravados",
         timestamp: Date.now(),
       },
     });
@@ -1298,14 +1314,10 @@ async function main() {
       duracao_ms: Date.now() - inicioMs,
       status: "sucesso",
       erro: null,
-      totais: {
-        cnd: cndPorIbge.size,
-        ratificacoes: ratif.porIbge.size,
-        modulos: modulos.porIbge.size,
-        status_operacional: total,
-        snapshot: totalSnapshot,
-        movimentacoes: totalMovimentacoes,
-      },
+      totais: Object.assign(
+        { ratificacoes: ratif.porIbge.size, modulos: modulos.porIbge.size, movimentacoes: totalMovimentacoes },
+        estado
+      ),
     });
 
     log("Concluído.", "ok");
@@ -1328,6 +1340,17 @@ async function main() {
     await fecharAbasAbertas();
     if (modo !== "login") await avisarFimDaCarga(erroCarga);
   }
+}
+
+// O que vai além do histórico por competência: CND, estado atual
+// (status_operacional_atual) e a foto do dia (snapshots_diarios, base da Evolução).
+// Usado pela sincronização normal e pelo backfill que inclui a competência vigente.
+async function atualizarEstadoAtual(ratif, modulos, porNomeBusca, municipiosPorIbge) {
+  const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m) => m.size >= MIN_MUNICIPIOS);
+  const combinado = mesclarMapas(mesclarMapas(cndPorIbge, ratif.porIbge), modulos.porIbge);
+  const statusOperacional = await gravarStatusOperacional(combinado, municipiosPorIbge);
+  const snapshot = await gravarSnapshotsDiarios();
+  return { cnd: cndPorIbge.size, status_operacional: statusOperacional, snapshot: snapshot };
 }
 
 // Uma captura de módulos boa resolve quase todos os 295 municípios (~290); a
