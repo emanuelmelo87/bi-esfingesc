@@ -89,7 +89,8 @@ export default function AdminCargasPage() {
                 {cargas.map((c, i) => (
                   <tr key={i} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
                     <td className="px-6 py-3.5 font-semibold text-apple-title">{formatarDataHora(c.concluido_em)}</td>
-                    <td className="px-4 py-3.5 text-apple-secondary">{c.tipo === "backfill" ? "Backfill" : "Sincronização"}</td>
+                    <td className="px-4 py-3.5 text-apple-secondary">{c.tipo === "backfill" ? "Backfill" : "Sincronização"}
+                      {c.modo === "alarme" && <span className="mt-0.5 block text-[10px] font-semibold text-vinho dark:text-blue-400">Agendada</span>}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.periodo ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.usuario ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{formatarDuracao(c.duracao_ms)}</td>
@@ -114,7 +115,7 @@ export default function AdminCargasPage() {
                         }
                         tone={c.status === "erro" ? "red" : c.alertas?.length ? "yellow" : "green"}
                       />
-                      {(c.erro || c.alertas?.length) && (
+                      {(!!c.erro || (c.alertas?.length ?? 0) > 0) && (
                         <ul className="mt-1.5 max-w-[460px] space-y-1 text-[11px] leading-snug whitespace-normal">
                           {c.erro && <li className="text-red-700 dark:text-red-400">{c.erro}</li>}
                           {c.alertas?.map((a, j) => (

@@ -2,6 +2,8 @@ import type { Timestamp } from "firebase/firestore";
 
 export type Carga = {
   tipo: "sync" | "backfill";
+  // "alarme" = disparada pelo agendamento. Ausente em cargas antigas.
+  modo?: "manual" | "alarme";
   periodo: string | null;
   usuario: string | null;
   iniciado_em: Timestamp | null;

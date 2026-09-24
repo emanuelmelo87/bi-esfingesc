@@ -100,8 +100,13 @@ Nome no Chrome: **BI Esfinge SC**. O painel lateral se chama **Carga de dados**.
 - **Execução**: "Sincronizar agora". Com as competências em branco roda a
   sincronização normal; preenchendo inicial/final (MM/AAAA) roda um backfill do
   período. Os últimos valores usados ficam salvos.
-- **Agendamento**: horários e dias da semana para disparo automático
-  (`chrome.alarms`), opcionalmente com um período de backfill fixo.
+- **Agendamento**: horários e dias da semana para disparo automático,
+  opcionalmente com um período de backfill fixo. Um relógio de 1 minuto
+  (`chrome.alarms`, em `background.js`) confere a agenda e é recriado sempre que
+  a extensão sobe, inclusive depois de recarregada; horário perdido com o
+  computador dormindo dispara ao acordar (até 90 min depois); não abre uma carga
+  por cima de outra em andamento. A aba mostra se está ativo, o próximo disparo
+  e os últimos disparos; no Controle de Cargas a carga aparece como "Agendada".
 - **Conta TCE**: lista de credenciais (matrícula + senha) do TCE Virtual,
   usadas só para a captura de módulos. Se o login falhar com uma, a extensão
   tenta a próxima automaticamente. Ficam salvas **sem criptografia** no

@@ -90,6 +90,11 @@ function renderLastExecution(lastExecution) {
 var scheduleTimes = [];
 var scheduleDays = [0, 1, 2, 3, 4, 5, 6];
 
+function avisarNaoSalvo() {
+  document.getElementById("sched-status").textContent = "Alterações não salvas — clique em Salvar agendamento.";
+  document.getElementById("sched-status").className = "status err";
+}
+
 function renderScheduleList() {
   var list = document.getElementById("sched-list");
   list.innerHTML = "";
@@ -102,6 +107,7 @@ function renderScheduleList() {
     btn.addEventListener("click", function () {
       scheduleTimes = scheduleTimes.filter(function (t) { return t !== hhmm; });
       renderScheduleList();
+      avisarNaoSalvo();
     });
     item.appendChild(btn);
     list.appendChild(item);
@@ -112,7 +118,9 @@ document.getElementById("btn-add-time").addEventListener("click", function () {
   var value = document.getElementById("sched-new-time").value;
   if (value && !scheduleTimes.includes(value)) {
     scheduleTimes.push(value);
+    scheduleTimes.sort();
     renderScheduleList();
+    avisarNaoSalvo();
   }
 });
 
@@ -126,6 +134,7 @@ document.querySelectorAll(".day-btn").forEach(function (btn) {
       scheduleDays.push(day);
       btn.classList.add("active");
     }
+    avisarNaoSalvo();
   });
 });
 
@@ -170,6 +179,63 @@ document.getElementById("btn-cancel-sched").addEventListener("click", function (
   document.getElementById("sched-status").textContent = "Agendamento cancelado.";
   document.getElementById("sched-status").className = "status ok";
 });
+
+// Situação do agendamento: ativo ou não, próximo disparo e os últimos disparos
+// que o relógio do background.js registrou em agenda_log.
+var NOMES_DIA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+function dataLocal(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function proximoDisparo(data) {
+  var horarios = (data.schedule_times || []).slice().sort();
+  var dias = data.schedule_days && data.schedule_days.length ? data.schedule_days : [0, 1, 2, 3, 4, 5, 6];
+  var feitos = data.agenda_disparos || {};
+  var agora = new Date();
+  for (var i = 0; i < 8; i++) {
+    var dia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + i);
+    if (!dias.includes(dia.getDay())) continue;
+    for (var j = 0; j < horarios.length; j++) {
+      var p = horarios[j].split(":");
+      var quando = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), parseInt(p[0], 10), parseInt(p[1] || "0", 10));
+      if (i === 0 && (quando <= agora || feitos[horarios[j]] === dataLocal(agora))) continue;
+      return (i === 0 ? "hoje" : i === 1 ? "amanhã" : NOMES_DIA[dia.getDay()] + " " + dia.toLocaleDateString("pt-BR")) + " às " + horarios[j];
+    }
+  }
+  return null;
+}
+
+function renderSituacaoAgenda(data) {
+  var situacao = document.getElementById("sched-situacao");
+  if (!data.schedule_enabled || !(data.schedule_times || []).length) {
+    situacao.innerHTML = "<span style=\"color:#f85149\">Agendamento desligado.</span> Adicione horários e clique em Salvar.";
+  } else {
+    var proximo = proximoDisparo(data);
+    situacao.innerHTML = "<span style=\"color:#3fb950\">Ativo.</span> Próximo disparo: <b>" + (proximo || "—") + "</b>.";
+  }
+  var lista = document.getElementById("sched-log");
+  lista.innerHTML = "";
+  var log = data.agenda_log || [];
+  if (!log.length) {
+    lista.textContent = "Nenhum disparo ainda.";
+    return;
+  }
+  log.slice(0, 8).forEach(function (l) {
+    var item = document.createElement("div");
+    item.textContent = new Date(l.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
+      " · " + l.horarios.join(", ") + " · " + l.resultado;
+    if (l.resultado !== "disparado") item.style.color = "#d29922";
+    lista.appendChild(item);
+  });
+}
+
+function carregarSituacaoAgenda() {
+  chrome.storage.local.get(["schedule_enabled", "schedule_times", "schedule_days", "agenda_disparos", "agenda_log"], renderSituacaoAgenda);
+}
+
+carregarSituacaoAgenda();
+setInterval(carregarSituacaoAgenda, 60000);
 
 // ── Conta TCE — lista de credenciais; se o login falhar com uma, o
 // progress.js tenta a próxima da lista automaticamente (ver obterTicketQlik). ──
@@ -257,4 +323,7 @@ chrome.storage.local.get(
 chrome.storage.onChanged.addListener(function (changes) {
   if (changes.auth_status) renderAuth(changes.auth_status.newValue);
   if (changes.last_execution) renderLastExecution(changes.last_execution.newValue);
+  if (changes.schedule_enabled || changes.schedule_times || changes.schedule_days || changes.agenda_disparos || changes.agenda_log) {
+    carregarSituacaoAgenda();
+  }
 });

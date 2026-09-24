@@ -32372,7 +32372,7 @@ This typically indicates that your device does not have a healthy Internet conne
   }
   async function registrarCarga(campos) {
     try {
-      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas }, campos));
+      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas, modo }, campos));
     } catch (err) {
       log("N\xE3o foi poss\xEDvel registrar a carga em 'cargas': " + err.message, "err");
     }
@@ -32390,6 +32390,7 @@ This typically indicates that your device does not have a healthy Internet conne
         log("Login conclu\xEDdo. Pode fechar esta aba.", "ok");
         return;
       }
+      await chrome.storage.local.set({ carga_em_andamento: Date.now() });
       const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
       if (competenciasAlvo) {
         const vigente = competenciaMesAnterior();
@@ -32477,6 +32478,7 @@ This typically indicates that your device does not have a healthy Internet conne
         totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null
       });
     } finally {
+      await chrome.storage.local.remove("carga_em_andamento");
       await fecharAbasAbertas();
       if (modo !== "login") await avisarFimDaCarga(erroCarga);
     }

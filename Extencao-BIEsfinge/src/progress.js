@@ -1209,7 +1209,7 @@ async function gravarSnapshotsDiarios() {
 // que uma carga rodou e o que ela de fato gravou no Firestore.
 async function registrarCarga(campos) {
   try {
-    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas: alertas }, campos));
+    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas: alertas, modo: modo }, campos));
   } catch (err) {
     log("Não foi possível registrar a carga em 'cargas': " + err.message, "err");
   }
@@ -1235,6 +1235,8 @@ async function main() {
       return;
     }
 
+    // Sinaliza pro agendamento (background.js) não abrir outra carga por cima desta.
+    await chrome.storage.local.set({ carga_em_andamento: Date.now() });
     const { porNomeBusca, porIbge: municipiosPorIbge } = await carregarMunicipios();
 
     if (competenciasAlvo) {
@@ -1337,6 +1339,7 @@ async function main() {
       totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null,
     });
   } finally {
+    await chrome.storage.local.remove("carga_em_andamento");
     await fecharAbasAbertas();
     if (modo !== "login") await avisarFimDaCarga(erroCarga);
   }
