@@ -69,6 +69,8 @@ export default function MovimentacoesPage() {
 
   const [busca, setBusca] = useState("");
   const [filtroFornecedor, setFiltroFornecedor] = useState("Betha");
+  const [filtroCanal, setFiltroCanal] = useState("todos");
+  const [filtroAssociacao, setFiltroAssociacao] = useState("todos");
   const [filtroTipo, setFiltroTipo] = useState<"todos" | TipoMovimentacao>("todos");
   const [filtroCampo, setFiltroCampo] = useState("todos");
   const [filtroNivel, setFiltroNivel] = useState<"todos" | "area" | "item">("todos");
@@ -99,6 +101,15 @@ export default function MovimentacoesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const canais = useMemo(
+    () => [...new Set([...municipiosPorIbge.values()].map((m) => m.canal_atendimento).filter((c): c is string => !!c))].sort(),
+    [municipiosPorIbge]
+  );
+  const associacoes = useMemo(
+    () => [...new Set([...municipiosPorIbge.values()].map((m) => m.sigla_associacao).filter((a): a is string => !!a))].sort(),
+    [municipiosPorIbge]
+  );
+
   const competencias = useMemo(
     () => [...new Set(movimentacoes.map((m) => m.competencia).filter((c): c is string => !!c))].sort(compararCompetencias).reverse(),
     [movimentacoes]
@@ -108,14 +119,17 @@ export default function MovimentacoesPage() {
     const termo = normalizarBusca(busca);
     return movimentacoes.filter((m) => {
       if (termo && !normalizarBusca(m.municipio).includes(termo)) return false;
-      if (filtroFornecedor !== "todos" && (municipiosPorIbge.get(m.codigo_ibge)?.fornecedor ?? "") !== filtroFornecedor) return false;
+      const municipio = municipiosPorIbge.get(m.codigo_ibge);
+      if (filtroFornecedor !== "todos" && (municipio?.fornecedor ?? "") !== filtroFornecedor) return false;
+      if (filtroCanal !== "todos" && (municipio?.canal_atendimento ?? "") !== filtroCanal) return false;
+      if (filtroAssociacao !== "todos" && (municipio?.sigla_associacao ?? "") !== filtroAssociacao) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCampo !== "todos" && m.campo !== filtroCampo) return false;
       if (filtroNivel !== "todos" && (m.fonte === "modulo_item") !== (filtroNivel === "item")) return false;
       if (filtroCompetencia !== "todas" && m.competencia !== filtroCompetencia) return false;
       return true;
     });
-  }, [movimentacoes, municipiosPorIbge, busca, filtroFornecedor, filtroTipo, filtroCampo, filtroNivel, filtroCompetencia]);
+  }, [movimentacoes, municipiosPorIbge, busca, filtroFornecedor, filtroCanal, filtroAssociacao, filtroTipo, filtroCampo, filtroNivel, filtroCompetencia]);
 
   const inputClass =
     "rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100";
@@ -167,6 +181,18 @@ export default function MovimentacoesPage() {
             <option value="todos">Fornecedor: todos</option>
             <option value="Betha">Betha</option>
             <option value="Concorrente">Concorrente</option>
+          </select>
+          <select value={filtroCanal} onChange={(e) => setFiltroCanal(e.target.value)} className={inputClass}>
+            <option value="todos">Canal: todos</option>
+            {canais.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select value={filtroAssociacao} onChange={(e) => setFiltroAssociacao(e.target.value)} className={inputClass}>
+            <option value="todos">Associação: todas</option>
+            {associacoes.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
           </select>
           <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as "todos" | TipoMovimentacao)} className={inputClass}>
             <option value="todos">Movimento: todos</option>
