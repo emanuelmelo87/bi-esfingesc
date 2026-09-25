@@ -18,7 +18,7 @@ import { ratifEnviado, ratifLabel, todosModulosOk } from "@/lib/ratificacao";
 import { MESES_ABREV, compararCompetencias, competenciaMaisRecenteComDados, mesDaCompetencia } from "@/lib/competencia";
 import type { Municipio, StatusOperacionalAtual } from "@/types/municipio";
 import type { StatusPorCompetencia } from "@/types/competencia";
-import type { Carga } from "@/types/carga";
+import { coberturaCompleta, type Carga } from "@/types/carga";
 import type { Movimentacao } from "@/types/movimentacao";
 
 const AREAS = [
@@ -351,6 +351,18 @@ export default function Home() {
               <span>
                 <span className="font-semibold text-apple-title">CND consultada:</span> {formatarData(cndConsultadaEm)}
               </span>
+              {ultimaCarga.cobertura?.length ? (
+                ultimaCarga.cobertura.every(coberturaCompleta) ? (
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    ✓ {ultimaCarga.cobertura[0].total}/{ultimaCarga.cobertura[0].total} municípios em{" "}
+                    {ultimaCarga.cobertura.length > 1 ? `todas as ${ultimaCarga.cobertura.length} competências` : ultimaCarga.cobertura[0].competencia}
+                  </span>
+                ) : (
+                  <span className="font-semibold text-amber-700 dark:text-amber-400">
+                    Cobertura incompleta em {ultimaCarga.cobertura.filter((c) => !coberturaCompleta(c)).map((c) => c.competencia).join(", ")}
+                  </span>
+                )
+              ) : null}
               {ultimaCarga.status === "erro" ? (
                 <span className="font-semibold text-red-600 dark:text-red-400">Última carga com erro</span>
               ) : (ultimaCarga.alertas?.length ?? 0) > 0 ? (

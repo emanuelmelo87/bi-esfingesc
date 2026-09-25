@@ -19,4 +19,20 @@ export type Carga = {
   tce_atualizado_em?: { ratificacoes: string | null; modulos: string | null } | null;
   // O que saiu do padrão esperado nos dados do TCE nesta carga. Ausente em cargas antigas.
   alertas?: { fonte: string; mensagem: string }[];
+  // Por competência: quantos municípios vieram em cada fonte e quais faltaram.
+  // modulos null = não buscados (sem acesso ao TCE). Ausente em cargas antigas.
+  cobertura?: CoberturaCompetencia[];
 };
+
+export type CoberturaCompetencia = {
+  competencia: string;
+  total: number;
+  ratificacoes: number;
+  modulos: number | null;
+  faltando_ratificacao: string[];
+  faltando_modulos: string[];
+};
+
+export function coberturaCompleta(c: CoberturaCompetencia): boolean {
+  return c.ratificacoes === c.total && c.modulos === c.total;
+}

@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
 import { IconRefresh } from "@/components/icons";
-import type { Carga } from "@/types/carga";
+import { coberturaCompleta, type Carga } from "@/types/carga";
 
 function formatarDataHora(ts: Timestamp | null): string {
   if (!ts) return "—";
@@ -91,6 +91,7 @@ export default function AdminCargasPage() {
                   <th className="px-4 py-3">Usuário</th>
                   <th className="px-4 py-3">Duração</th>
                   <th className="px-4 py-3" title="Quando cada painel do TCE foi atualizado pela última vez, visto nesta carga">Dados do TCE de</th>
+                  <th className="px-4 py-3" title="Municípios percorridos em cada competência, de cada fonte">Cobertura</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-6 py-3">Documentos gravados</th>
                 </tr>
@@ -115,6 +116,27 @@ export default function AdminCargasPage() {
                         </>
                       ) : (
                         "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {c.cobertura?.length ? (
+                        <ul className="space-y-0.5 text-[11px]">
+                          {c.cobertura.map((cob) => {
+                            const faltando = [...cob.faltando_ratificacao.map((n) => `ratificação: ${n}`), ...cob.faltando_modulos.map((n) => `módulos: ${n}`)];
+                            return (
+                              <li
+                                key={cob.competencia}
+                                title={faltando.length ? `Faltaram:\n${faltando.join("\n")}` : "Todos os municípios percorridos"}
+                                className={coberturaCompleta(cob) ? "text-emerald-700 dark:text-emerald-400" : "font-semibold text-amber-700 dark:text-amber-400"}
+                              >
+                                {coberturaCompleta(cob) ? "✓" : "!"} {cob.competencia} · ratif. {cob.ratificacoes}/{cob.total} · módulos{" "}
+                                {cob.modulos === null ? "—" : `${cob.modulos}/${cob.total}`}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <span className="text-apple-muted">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3.5">

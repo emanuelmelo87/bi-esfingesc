@@ -1230,10 +1230,52 @@ async function gravarSnapshotsDiarios() {
 // Um doc por execução em "cargas" — histórico rastreável de cada sincronização
 // (hora, quem rodou, quantidade gravada), pra dar visibilidade no app web de
 // que uma carga rodou e o que ela de fato gravou no Firestore.
+// Cobertura por competência: quantos dos municípios do cadastro vieram em cada
+// fonte, e quais faltaram — responde "percorreu todos os 295?" sem fazer conta.
+const cobertura = [];
+
+function registrarCobertura(competencia, ratif, modulos, municipiosPorIbge) {
+  const total = municipiosPorIbge.size;
+  const faltando = (mapa) =>
+    [...municipiosPorIbge.keys()].filter((ibge) => !mapa.has(ibge)).map((ibge) => municipiosPorIbge.get(ibge).nome);
+  const faltaRatif = faltando(ratif.porIbge);
+  // Sem credencial/ticket do TCE os módulos nem foram buscados: null, não "0 de 295".
+  const faltaModulos = modulos.semTicket ? null : faltando(modulos.porIbge);
+  const item = {
+    competencia: competencia,
+    total: total,
+    ratificacoes: ratif.porIbge.size,
+    modulos: modulos.semTicket ? null : modulos.porIbge.size,
+    faltando_ratificacao: faltaRatif.slice(0, 20),
+    faltando_modulos: faltaModulos ? faltaModulos.slice(0, 20) : [],
+  };
+  cobertura.push(item);
+  const completo = faltaRatif.length === 0 && faltaModulos !== null && faltaModulos.length === 0;
+  const faltas = [];
+  if (faltaRatif.length) faltas.push("ratificação sem " + faltaRatif.slice(0, 5).join(", ") + (faltaRatif.length > 5 ? "…" : ""));
+  if (faltaModulos && faltaModulos.length) faltas.push("módulos sem " + faltaModulos.slice(0, 5).join(", ") + (faltaModulos.length > 5 ? "…" : ""));
+  if (faltaModulos === null) faltas.push("módulos não buscados (sem acesso ao TCE)");
+  log(
+    "Cobertura " + competencia + ": ratificação " + item.ratificacoes + "/" + total + ", módulos " +
+      (item.modulos === null ? "—" : item.modulos + "/" + total) +
+      (completo ? " — todos os municípios percorridos." : " — " + faltas.join("; ") + "."),
+    completo ? "ok" : "err"
+  );
+}
+
+function resumoCobertura() {
+  if (!cobertura.length) return "";
+  const completas = cobertura.filter((c) => c.ratificacoes === c.total && c.modulos === c.total);
+  if (completas.length === cobertura.length) {
+    return " — " + (cobertura.length > 1 ? "todas as " + cobertura.length + " competências" : "competência " + cobertura[0].competencia) + " com " + cobertura[0].total + "/" + cobertura[0].total + " municípios";
+  }
+  return " — incompleto em " + cobertura.filter((c) => !completas.includes(c)).map((c) => c.competencia).join(", ");
+}
+
 async function registrarCarga(campos) {
   cargaAberta = false;
   try {
-    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas: alertas, modo: modo }, campos));
+    await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas: alertas, modo: modo, cobertura: cobertura }, campos));
   } catch (err) {
     log("Não foi possível registrar a carga em 'cargas': " + err.message, "err");
   }
@@ -1299,6 +1341,7 @@ async function main() {
         const modulos = await capturarModulosComTentativas(porNomeBusca, competenciaAlvo);
         totalRatifSoma += await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
         totalModulosSoma += await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+        registrarCobertura(competenciaAlvo, ratif, modulos, municipiosPorIbge);
         if (competenciaAlvo === vigente) {
           ratifVigente = ratif;
           modulosVigente = modulos;
@@ -1315,7 +1358,7 @@ async function main() {
         last_execution: {
           resumo:
             "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos" +
-            (estado ? ", estado atual e CND atualizados" : ""),
+            (estado ? ", estado atual e CND atualizados" : "") + resumoCobertura(),
           timestamp: Date.now(),
         },
       });
@@ -1345,10 +1388,11 @@ async function main() {
     // formando a série de status_por_competencia sem precisar de backfill manual.
     await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
     await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+    registrarCobertura(ratif.competencia, ratif, modulos, municipiosPorIbge);
 
     await chrome.storage.local.set({
       last_execution: {
-        resumo: estado.status_operacional + " municípios atualizados, " + estado.snapshot + " snapshots gravados",
+        resumo: estado.status_operacional + " municípios atualizados, " + estado.snapshot + " snapshots gravados" + resumoCobertura(),
         timestamp: Date.now(),
       },
     });

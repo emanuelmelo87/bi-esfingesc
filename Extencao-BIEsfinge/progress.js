@@ -32396,10 +32396,43 @@ This typically indicates that your device does not have a healthy Internet conne
     log("Snapshot di\xE1rio gravado: " + total + " munic\xEDpios (" + hoje + ").", "ok");
     return total;
   }
+  var cobertura = [];
+  function registrarCobertura(competencia, ratif, modulos, municipiosPorIbge) {
+    const total = municipiosPorIbge.size;
+    const faltando = (mapa) => [...municipiosPorIbge.keys()].filter((ibge) => !mapa.has(ibge)).map((ibge) => municipiosPorIbge.get(ibge).nome);
+    const faltaRatif = faltando(ratif.porIbge);
+    const faltaModulos = modulos.semTicket ? null : faltando(modulos.porIbge);
+    const item = {
+      competencia,
+      total,
+      ratificacoes: ratif.porIbge.size,
+      modulos: modulos.semTicket ? null : modulos.porIbge.size,
+      faltando_ratificacao: faltaRatif.slice(0, 20),
+      faltando_modulos: faltaModulos ? faltaModulos.slice(0, 20) : []
+    };
+    cobertura.push(item);
+    const completo = faltaRatif.length === 0 && faltaModulos !== null && faltaModulos.length === 0;
+    const faltas = [];
+    if (faltaRatif.length) faltas.push("ratifica\xE7\xE3o sem " + faltaRatif.slice(0, 5).join(", ") + (faltaRatif.length > 5 ? "\u2026" : ""));
+    if (faltaModulos && faltaModulos.length) faltas.push("m\xF3dulos sem " + faltaModulos.slice(0, 5).join(", ") + (faltaModulos.length > 5 ? "\u2026" : ""));
+    if (faltaModulos === null) faltas.push("m\xF3dulos n\xE3o buscados (sem acesso ao TCE)");
+    log(
+      "Cobertura " + competencia + ": ratifica\xE7\xE3o " + item.ratificacoes + "/" + total + ", m\xF3dulos " + (item.modulos === null ? "\u2014" : item.modulos + "/" + total) + (completo ? " \u2014 todos os munic\xEDpios percorridos." : " \u2014 " + faltas.join("; ") + "."),
+      completo ? "ok" : "err"
+    );
+  }
+  function resumoCobertura() {
+    if (!cobertura.length) return "";
+    const completas = cobertura.filter((c2) => c2.ratificacoes === c2.total && c2.modulos === c2.total);
+    if (completas.length === cobertura.length) {
+      return " \u2014 " + (cobertura.length > 1 ? "todas as " + cobertura.length + " compet\xEAncias" : "compet\xEAncia " + cobertura[0].competencia) + " com " + cobertura[0].total + "/" + cobertura[0].total + " munic\xEDpios";
+    }
+    return " \u2014 incompleto em " + cobertura.filter((c2) => !completas.includes(c2)).map((c2) => c2.competencia).join(", ");
+  }
   async function registrarCarga(campos) {
     cargaAberta = false;
     try {
-      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas, modo }, campos));
+      await setDoc(cargaRef, Object.assign({ concluido_em: serverTimestamp(), tce_atualizado_em: tceAtualizadoEm, alertas, modo, cobertura }, campos));
     } catch (err) {
       log("N\xE3o foi poss\xEDvel registrar a carga em 'cargas': " + err.message, "err");
     }
@@ -32450,6 +32483,7 @@ This typically indicates that your device does not have a healthy Internet conne
           const modulos2 = await capturarModulosComTentativas(porNomeBusca, competenciaAlvo);
           totalRatifSoma += await gravarStatusPorCompetencia(ratif2.competencia, ratif2.porIbge, municipiosPorIbge);
           totalModulosSoma += await gravarStatusPorCompetencia(modulos2.competencia, modulos2.porIbge, municipiosPorIbge);
+          registrarCobertura(competenciaAlvo, ratif2, modulos2, municipiosPorIbge);
           if (competenciaAlvo === vigente) {
             ratifVigente = ratif2;
             modulosVigente = modulos2;
@@ -32462,7 +32496,7 @@ This typically indicates that your device does not have a healthy Internet conne
         }
         await chrome.storage.local.set({
           last_execution: {
-            resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? ", estado atual e CND atualizados" : ""),
+            resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? ", estado atual e CND atualizados" : "") + resumoCobertura(),
             timestamp: Date.now()
           }
         });
@@ -32489,9 +32523,10 @@ This typically indicates that your device does not have a healthy Internet conne
       const estado = await atualizarEstadoAtual(ratif, modulos, porNomeBusca, municipiosPorIbge);
       await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
       await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
+      registrarCobertura(ratif.competencia, ratif, modulos, municipiosPorIbge);
       await chrome.storage.local.set({
         last_execution: {
-          resumo: estado.status_operacional + " munic\xEDpios atualizados, " + estado.snapshot + " snapshots gravados",
+          resumo: estado.status_operacional + " munic\xEDpios atualizados, " + estado.snapshot + " snapshots gravados" + resumoCobertura(),
           timestamp: Date.now()
         }
       });
