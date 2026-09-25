@@ -32177,10 +32177,12 @@ This typically indicates that your device does not have a healthy Internet conne
     }
     const porIbge = /* @__PURE__ */ new Map();
     let semMatch = 0;
+    const semMatchNomes = [];
     for (const [nomeMunicipio, entidades] of porMunicipio) {
       const municipio = resolverMunicipio(nomeMunicipio, porNomeBusca);
       if (!municipio) {
         semMatch++;
+        semMatchNomes.push(nomeMunicipio);
         continue;
       }
       const prefeitura = entidades.find((d) => d.entidade === "Prefeitura");
@@ -32198,6 +32200,12 @@ This typically indicates that your device does not have a healthy Internet conne
       porIbge.set(municipio.codigo_ibge, { modulos });
     }
     log("M\xF3dulos: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+    if (semMatch) {
+      log(
+        "M\xF3dulos: ignorados por n\xE3o serem munic\xEDpios do cadastro: " + semMatchNomes.slice(0, 10).join("; ") + (semMatch > 10 ? "; \u2026 (+" + (semMatch - 10) + ")" : "") + ".",
+        "info"
+      );
+    }
     if (recarga) tceAtualizadoEm.modulos = recarga;
     return { porIbge, competencia: periodo, recarga, nomesDesconhecidos };
   }

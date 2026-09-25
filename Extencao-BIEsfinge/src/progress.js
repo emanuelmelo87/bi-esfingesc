@@ -958,10 +958,12 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
 
   const porIbge = new Map();
   let semMatch = 0;
+  const semMatchNomes = [];
   for (const [nomeMunicipio, entidades] of porMunicipio) {
     const municipio = resolverMunicipio(nomeMunicipio, porNomeBusca);
     if (!municipio) {
       semMatch++;
+      semMatchNomes.push(nomeMunicipio);
       continue;
     }
     const prefeitura = entidades.find((d) => d.entidade === "Prefeitura");
@@ -979,6 +981,14 @@ async function capturarModulos(porNomeBusca, competenciaAlvo, ticket) {
     porIbge.set(municipio.codigo_ibge, { modulos });
   }
   log("Módulos: " + porIbge.size + " municípios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+  // O painel de módulos lista também entes que não são municípios (consórcios,
+  // associações etc.): não é município faltando — isso quem mostra é a cobertura.
+  if (semMatch) {
+    log(
+      "Módulos: ignorados por não serem municípios do cadastro: " + semMatchNomes.slice(0, 10).join("; ") + (semMatch > 10 ? "; … (+" + (semMatch - 10) + ")" : "") + ".",
+      "info"
+    );
+  }
   if (recarga) tceAtualizadoEm.modulos = recarga;
   return { porIbge, competencia: periodo, recarga, nomesDesconhecidos };
 }
