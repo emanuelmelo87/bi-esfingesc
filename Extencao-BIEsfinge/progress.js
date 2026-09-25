@@ -31868,6 +31868,9 @@ This typically indicates that your device does not have a healthy Internet conne
             return;
           }
           docHandle = d.result.qReturn.qHandle;
+          fase = "clear";
+          send({ jsonrpc: "2.0", id: msgId++, method: "ClearAll", handle: docHandle, params: [true] });
+        } else if (fase === "clear") {
           fase = "reload";
           send({ jsonrpc: "2.0", id: msgId++, method: "GetAppLayout", handle: docHandle, params: [] });
         } else if (fase === "reload") {

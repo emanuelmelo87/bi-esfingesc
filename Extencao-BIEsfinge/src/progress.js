@@ -624,6 +624,12 @@ function extractQlikModulos(periodo) {
           return;
         }
         docHandle = d.result.qReturn.qHandle;
+        // A sessão Qlik é a do usuário do login: uma seleção feita no painel
+        // (ex.: um município) vale também aqui e filtra a extração inteira.
+        // Limpa tudo antes, inclusive seleções travadas.
+        fase = "clear";
+        send({ jsonrpc: "2.0", id: msgId++, method: "ClearAll", handle: docHandle, params: [true] });
+      } else if (fase === "clear") {
         fase = "reload";
         send({ jsonrpc: "2.0", id: msgId++, method: "GetAppLayout", handle: docHandle, params: [] });
       } else if (fase === "reload") {
