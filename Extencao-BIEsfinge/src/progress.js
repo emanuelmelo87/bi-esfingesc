@@ -844,23 +844,31 @@ async function obterCredenciaisTce() {
 // Tenta cada credencial da lista em sequência; se uma falhar no login, segue
 // pra próxima na mesma aba (o formulário continua na tela após uma tentativa
 // mal-sucedida, então só preenche de novo em cima).
+// Matrículas que, nesta carga, só enxergaram poucos municípios no painel de
+// módulos (o TCE limita cada usuário aos entes a que ele tem acesso). Ficam
+// para o fim da fila; se todas estiverem aqui, usa a lista inteira mesmo.
+const matriculasRestritas = new Set();
+
+// Devolve { ticket, matricula } ou null.
 async function obterTicketQlik() {
-  const credenciais = await obterCredenciaisTce();
-  if (credenciais.length === 0) {
+  const todas = await obterCredenciaisTce();
+  if (todas.length === 0) {
     log("TCE Virtual: nenhuma credencial configurada — pulando captura restrita (módulos/datas).", "info");
     return null;
   }
+  const livres = todas.filter((c) => !matriculasRestritas.has(c.matricula));
+  const credenciais = livres.length ? livres : todas;
   // Sem ticket a carga segue só sem módulos, em vez de perder CND/ratificação já capturadas.
-  let ticket = null;
+  let acesso = null;
   try {
-    ticket = await comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (t) => !!t);
+    acesso = await comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (a) => !!a);
   } catch (err) {
     log("Ticket Qlik: " + err.message, "err");
   }
-  if (!ticket) {
+  if (!acesso) {
     alertar("Login TCE", "não foi possível obter acesso ao painel restrito do TCE após " + MAX_TENTATIVAS + " tentativas — os módulos não foram atualizados nesta carga.");
   }
-  return ticket;
+  return acesso;
 }
 
 async function tentarObterTicketQlik(credenciais) {
@@ -901,7 +909,7 @@ async function tentarObterTicketQlik(credenciais) {
       log("Ticket Qlik inválido.", "err");
       return null;
     }
-    return ticket;
+    return { ticket, matricula };
   }
 
   await fecharAba(loginTab);
@@ -1473,16 +1481,29 @@ async function capturarModulosComTentativas(porNomeBusca, competenciaAlvo) {
   const r = await comTentativas(
     "Módulos " + periodo,
     async () => {
-      const ticket = await obterTicketQlik();
-      if (!ticket) return { porIbge: new Map(), competencia: null, semTicket: true };
-      return capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+      const acesso = await obterTicketQlik();
+      if (!acesso) return { porIbge: new Map(), competencia: null, semTicket: true };
+      const res = await capturarModulos(porNomeBusca, competenciaAlvo, acesso.ticket);
+      if (res.porIbge.size > 0 && res.porIbge.size < MIN_MUNICIPIOS_MODULOS && !matriculasRestritas.has(acesso.matricula)) {
+        matriculasRestritas.add(acesso.matricula);
+        log(
+          "A matrícula " + acesso.matricula + " só enxerga " + res.porIbge.size + " município(s) no painel de módulos — deve ter acesso restrito no TCE. As próximas tentativas usam outra credencial.",
+          "err"
+        );
+      }
+      return res;
     },
     (res) => res.semTicket || res.porIbge.size >= MIN_MUNICIPIOS_MODULOS
   );
   // Só depois da tentativa que valeu, pra não marcar como "já avisado" um nome visto numa tentativa descartada.
   if (r.nomesDesconhecidos) await avisarModulosNovos(r.nomesDesconhecidos);
   if (!r.semTicket && r.porIbge.size < MIN_MUNICIPIOS_MODULOS) {
-    alertar("Módulos", "só " + r.porIbge.size + " municípios em " + periodo + " após " + MAX_TENTATIVAS + " tentativas (esperado ~295) — os módulos dessa competência ficaram incompletos.");
+    const restritas = [...matriculasRestritas];
+    alertar(
+      "Módulos",
+      "só " + r.porIbge.size + " municípios em " + periodo + " após " + MAX_TENTATIVAS + " tentativas (esperado ~295) — os módulos dessa competência ficaram incompletos." +
+        (restritas.length ? " Matrícula(s) com acesso restrito no painel do TCE: " + restritas.join(", ") + " — cadastre em Conta TCE uma matrícula que enxergue todos os municípios." : "")
+    );
   }
   return r;
 }

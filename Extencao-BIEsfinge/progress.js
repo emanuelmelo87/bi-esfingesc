@@ -32074,22 +32074,25 @@ This typically indicates that your device does not have a healthy Internet conne
     if (dados.tce_matricula && dados.tce_senha) return [{ matricula: dados.tce_matricula, senha: dados.tce_senha }];
     return [];
   }
+  var matriculasRestritas = /* @__PURE__ */ new Set();
   async function obterTicketQlik() {
-    const credenciais = await obterCredenciaisTce();
-    if (credenciais.length === 0) {
+    const todas = await obterCredenciaisTce();
+    if (todas.length === 0) {
       log("TCE Virtual: nenhuma credencial configurada \u2014 pulando captura restrita (m\xF3dulos/datas).", "info");
       return null;
     }
-    let ticket = null;
+    const livres = todas.filter((c2) => !matriculasRestritas.has(c2.matricula));
+    const credenciais = livres.length ? livres : todas;
+    let acesso = null;
     try {
-      ticket = await comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (t2) => !!t2);
+      acesso = await comTentativas("Ticket Qlik", () => tentarObterTicketQlik(credenciais), (a) => !!a);
     } catch (err) {
       log("Ticket Qlik: " + err.message, "err");
     }
-    if (!ticket) {
+    if (!acesso) {
       alertar("Login TCE", "n\xE3o foi poss\xEDvel obter acesso ao painel restrito do TCE ap\xF3s " + MAX_TENTATIVAS + " tentativas \u2014 os m\xF3dulos n\xE3o foram atualizados nesta carga.");
     }
-    return ticket;
+    return acesso;
   }
   async function tentarObterTicketQlik(credenciais) {
     log("Fazendo login no TCE Virtual...");
@@ -32127,7 +32130,7 @@ This typically indicates that your device does not have a healthy Internet conne
         log("Ticket Qlik inv\xE1lido.", "err");
         return null;
       }
-      return ticket;
+      return { ticket, matricula };
     }
     await fecharAba(loginTab);
     log("Login no TCE falhou para todas as credenciais configuradas.", "err");
@@ -32590,15 +32593,27 @@ This typically indicates that your device does not have a healthy Internet conne
     const r2 = await comTentativas(
       "M\xF3dulos " + periodo,
       async () => {
-        const ticket = await obterTicketQlik();
-        if (!ticket) return { porIbge: /* @__PURE__ */ new Map(), competencia: null, semTicket: true };
-        return capturarModulos(porNomeBusca, competenciaAlvo, ticket);
+        const acesso = await obterTicketQlik();
+        if (!acesso) return { porIbge: /* @__PURE__ */ new Map(), competencia: null, semTicket: true };
+        const res = await capturarModulos(porNomeBusca, competenciaAlvo, acesso.ticket);
+        if (res.porIbge.size > 0 && res.porIbge.size < MIN_MUNICIPIOS_MODULOS && !matriculasRestritas.has(acesso.matricula)) {
+          matriculasRestritas.add(acesso.matricula);
+          log(
+            "A matr\xEDcula " + acesso.matricula + " s\xF3 enxerga " + res.porIbge.size + " munic\xEDpio(s) no painel de m\xF3dulos \u2014 deve ter acesso restrito no TCE. As pr\xF3ximas tentativas usam outra credencial.",
+            "err"
+          );
+        }
+        return res;
       },
       (res) => res.semTicket || res.porIbge.size >= MIN_MUNICIPIOS_MODULOS
     );
     if (r2.nomesDesconhecidos) await avisarModulosNovos(r2.nomesDesconhecidos);
     if (!r2.semTicket && r2.porIbge.size < MIN_MUNICIPIOS_MODULOS) {
-      alertar("M\xF3dulos", "s\xF3 " + r2.porIbge.size + " munic\xEDpios em " + periodo + " ap\xF3s " + MAX_TENTATIVAS + " tentativas (esperado ~295) \u2014 os m\xF3dulos dessa compet\xEAncia ficaram incompletos.");
+      const restritas = [...matriculasRestritas];
+      alertar(
+        "M\xF3dulos",
+        "s\xF3 " + r2.porIbge.size + " munic\xEDpios em " + periodo + " ap\xF3s " + MAX_TENTATIVAS + " tentativas (esperado ~295) \u2014 os m\xF3dulos dessa compet\xEAncia ficaram incompletos." + (restritas.length ? " Matr\xEDcula(s) com acesso restrito no painel do TCE: " + restritas.join(", ") + " \u2014 cadastre em Conta TCE uma matr\xEDcula que enxergue todos os munic\xEDpios." : "")
+      );
     }
     return r2;
   }
