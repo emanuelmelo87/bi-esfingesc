@@ -90,9 +90,9 @@ export function motivoSaida(issue) {
   return "fora_do_filtro";
 }
 
-// O secret JIRA_CREDENCIAL aceita dois formatos: {"usuario":"…","senha":"…"} ou
-// o código Base64 do cabeçalho Basic (com ou sem a palavra "Basic" na frente),
-// como nos scripts do Google que já buscam no mesmo Jira.
+// O secret JIRA_CREDENCIAL aceita {"usuario":"…","senha":"…"} ou o código Base64
+// do cabeçalho Basic — sozinho, com "Basic" na frente ou a linha inteira copiada
+// dos scripts do Google que já buscam no mesmo Jira.
 export function cabecalhoAutorizacao(secret) {
   const texto = String(secret || "").trim();
   if (!texto) throw new Error("JIRA_CREDENCIAL está vazio.");
@@ -101,7 +101,9 @@ export function cabecalhoAutorizacao(secret) {
     if (!usuario || !senha) throw new Error('JIRA_CREDENCIAL em JSON precisa de "usuario" e "senha".');
     return "Basic " + Buffer.from(usuario + ":" + senha).toString("base64");
   }
-  return "Basic " + texto.replace(/^Basic\s+/i, "");
+  // Aceita a linha copiada do script inteira (headers: { Authorization: "Basic …" }).
+  const achado = texto.match(/Basic\s+([A-Za-z0-9+/=]+)/i);
+  return "Basic " + (achado ? achado[1] : texto);
 }
 
 async function buscar(auth, jql, campos) {

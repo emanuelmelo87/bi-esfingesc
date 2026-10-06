@@ -60,6 +60,7 @@ const b64 = Buffer.from("usuario:senha").toString("base64");
 assert.equal(cabecalhoAutorizacao('{"usuario":"usuario","senha":"senha"}'), "Basic " + b64);
 assert.equal(cabecalhoAutorizacao(b64), "Basic " + b64);
 assert.equal(cabecalhoAutorizacao("Basic " + b64 + "\n"), "Basic " + b64);
+assert.equal(cabecalhoAutorizacao('headers: { Authorization: "Basic ' + b64 + '" },'), "Basic " + b64, "linha inteira do script");
 assert.throws(() => cabecalhoAutorizacao(""), /vazio/);
 
 console.log("ok — tradução dos chamados do Jira");
