@@ -96,14 +96,21 @@ export function motivoSaida(issue) {
 export function cabecalhoAutorizacao(secret) {
   const texto = String(secret || "").trim();
   if (!texto) throw new Error("JIRA_CREDENCIAL está vazio.");
+  // A linha copiada do script ("… Basic XXXX …") vale mesmo começando com "{".
+  const achado = texto.match(/Basic\s+([A-Za-z0-9+/=]+)/i);
+  if (achado) return "Basic " + achado[1];
   if (texto.startsWith("{")) {
-    const { usuario, senha } = JSON.parse(texto);
+    let dados;
+    try {
+      dados = JSON.parse(texto);
+    } catch {
+      throw new Error("JIRA_CREDENCIAL começa com { mas não é um JSON válido — use {\"usuario\":\"…\",\"senha\":\"…\"} ou só o código depois de Basic.");
+    }
+    const { usuario, senha } = dados;
     if (!usuario || !senha) throw new Error('JIRA_CREDENCIAL em JSON precisa de "usuario" e "senha".');
     return "Basic " + Buffer.from(usuario + ":" + senha).toString("base64");
   }
-  // Aceita a linha copiada do script inteira (headers: { Authorization: "Basic …" }).
-  const achado = texto.match(/Basic\s+([A-Za-z0-9+/=]+)/i);
-  return "Basic " + (achado ? achado[1] : texto);
+  return "Basic " + texto;
 }
 
 async function buscar(auth, jql, campos) {
@@ -120,8 +127,17 @@ async function buscar(auth, jql, campos) {
     if (resp.status === 401 || resp.status === 403) {
       throw new Error("Login no Jira recusado (HTTP " + resp.status + ") — confira o usuário e a senha em JIRA_CREDENCIAL.");
     }
-    if (!resp.ok) throw new Error("Jira respondeu " + resp.status + ": " + (await resp.text()).slice(0, 300));
-    const dados = await resp.json();
+    const corpo = await resp.text();
+    if (!resp.ok) throw new Error("Jira respondeu " + resp.status + ": " + corpo.slice(0, 300));
+    let dados;
+    try {
+      dados = JSON.parse(corpo);
+    } catch {
+      throw new Error(
+        "Jira respondeu " + resp.status + " sem os dados esperados (" + (resp.headers.get("content-type") || "sem tipo") + ", " + corpo.length + " caracteres" +
+          (resp.redirected ? ", redirecionado para " + resp.url : "") + "): " + (corpo.slice(0, 200) || "resposta vazia")
+      );
+    }
     total = dados.total || 0;
     issues.push(...(dados.issues || []));
     if (!dados.issues || dados.issues.length === 0 || startAt > 5000) break;
@@ -156,6 +172,8 @@ export async function executarCargaJira({ db, credencial: secret, jql, modo }) {
   });
   try {
     const credencial = cabecalhoAutorizacao(secret);
+    // Só o formato e o tamanho, nunca o valor.
+    log("Credencial reconhecida: código Basic de " + (credencial.length - 6) + " caracteres.");
     const { issues, total } = await buscar(credencial, jql, CAMPOS);
     log(issues.length + " de " + total + " chamados lidos.");
     if (issues.length < total) alertas.push({ fonte: "Jira", mensagem: "só " + issues.length + " de " + total + " chamados foram lidos." });

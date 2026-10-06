@@ -61,6 +61,8 @@ assert.equal(cabecalhoAutorizacao('{"usuario":"usuario","senha":"senha"}'), "Bas
 assert.equal(cabecalhoAutorizacao(b64), "Basic " + b64);
 assert.equal(cabecalhoAutorizacao("Basic " + b64 + "\n"), "Basic " + b64);
 assert.equal(cabecalhoAutorizacao('headers: { Authorization: "Basic ' + b64 + '" },'), "Basic " + b64, "linha inteira do script");
+assert.equal(cabecalhoAutorizacao('{ Authorization: "Basic ' + b64 + '" }'), "Basic " + b64, "chaves sem 'headers:'");
+assert.throws(() => cabecalhoAutorizacao('{"usuario":'), /não é um JSON válido/);
 assert.throws(() => cabecalhoAutorizacao(""), /vazio/);
 
 console.log("ok — tradução dos chamados do Jira");
