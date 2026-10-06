@@ -4,20 +4,26 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { JQL_PADRAO } from "@/lib/jira-jql";
 
-// Agenda da carga na nuvem (config/agenda_nuvem). A função relogioCarga confere
-// este documento a cada 5 minutos e dispara a carga nos horários cadastrados.
+// Agenda de uma carga na nuvem: TCE em config/agenda_nuvem (função relogioCarga)
+// e Jira em config/agenda_jira (relogioJira). As funções conferem o documento a
+// cada 5 minutos e disparam a carga nos horários cadastrados.
 type Agenda = {
   ativo: boolean;
   horarios: string[];
   dias: number[]; // 0 = domingo
-  competencia_inicio: string;
+  competencia_inicio: string; // só TCE
+  jql: string; // só Jira
   atualizado_por?: string;
   atualizado_em?: Timestamp | null;
 };
 
+export type FonteCarga = "tce" | "jira";
+
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const PADRAO: Agenda = { ativo: false, horarios: [], dias: [1, 2, 3, 4, 5], competencia_inicio: "05/2026" };
+const PADRAO: Agenda = { ativo: false, horarios: [], dias: [1, 2, 3, 4, 5], competencia_inicio: "05/2026", jql: JQL_PADRAO };
+const DOC: Record<FonteCarga, string> = { tce: "agenda_nuvem", jira: "agenda_jira" };
 
 function proximoDisparo(a: Agenda): string | null {
   if (!a.ativo || !a.horarios.length) return null;
@@ -36,21 +42,21 @@ function proximoDisparo(a: Agenda): string | null {
   return null;
 }
 
-export default function AgendaNuvem() {
+export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
   const { user } = useAuth();
   const [agenda, setAgenda] = useState<Agenda>(PADRAO);
   const [novoHorario, setNovoHorario] = useState("");
   // Atalho "de X em X": preenche a lista inteira de uma vez.
-  const [serie, setSerie] = useState({ de: "08:00", ate: "18:00", intervalo: 60 });
+  const [serie, setSerie] = useState(fonte === "jira" ? { de: "07:00", ate: "19:00", intervalo: 15 } : { de: "08:00", ate: "18:00", intervalo: 60 });
   const [alterado, setAlterado] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    getDoc(doc(db, "config", "agenda_nuvem")).then((snap) => {
+    getDoc(doc(db, "config", DOC[fonte])).then((snap) => {
       if (snap.exists()) setAgenda({ ...PADRAO, ...(snap.data() as Agenda) });
     });
-  }, []);
+  }, [fonte]);
 
   function mudar(parcial: Partial<Agenda>) {
     setAgenda((a) => ({ ...a, ...parcial }));
@@ -80,19 +86,23 @@ export default function AgendaNuvem() {
       setMensagem("Adicione ao menos um horário antes de ativar.");
       return;
     }
-    if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(agenda.competencia_inicio)) {
+    if (fonte === "tce" && !/^(0[1-9]|1[0-2])\/\d{4}$/.test(agenda.competencia_inicio)) {
       setMensagem("Competência inicial deve estar no formato MM/AAAA.");
+      return;
+    }
+    if (fonte === "jira" && !agenda.jql.trim()) {
+      setMensagem("O filtro do Jira não pode ficar vazio.");
       return;
     }
     setSalvando(true);
     try {
       await setDoc(
-        doc(db, "config", "agenda_nuvem"),
+        doc(db, "config", DOC[fonte]),
         {
           ativo: agenda.ativo,
           horarios: horarios,
           dias: agenda.dias,
-          competencia_inicio: agenda.competencia_inicio,
+          ...(fonte === "tce" ? { competencia_inicio: agenda.competencia_inicio } : { jql: agenda.jql.trim() }),
           atualizado_por: user?.email ?? null,
           atualizado_em: serverTimestamp(),
         },
@@ -121,7 +131,7 @@ export default function AgendaNuvem() {
   return (
     <section className="apple-glass-card mb-6 rounded-[22px] px-6 py-5">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2 className="text-[15px] font-semibold text-apple-title">Agendamento na nuvem</h2>
+        <h2 className="text-[15px] font-semibold text-apple-title">Agendamento na nuvem — {fonte === "jira" ? "Jira" : "TCE"}</h2>
         <label className="flex cursor-pointer items-center gap-2 text-[12px] font-medium text-apple-secondary">
           <input type="checkbox" checked={agenda.ativo} onChange={(e) => mudar({ ativo: e.target.checked })} className="h-4 w-4 accent-vinho" />
           Ativo
@@ -177,6 +187,7 @@ export default function AgendaNuvem() {
             <input type="time" value={serie.ate} onChange={(e) => setSerie({ ...serie, ate: e.target.value })} className={inputClass} />
             a cada
             <select value={serie.intervalo} onChange={(e) => setSerie({ ...serie, intervalo: Number(e.target.value) })} className={inputClass}>
+              <option value={15}>15 min</option>
               <option value={30}>30 min</option>
               <option value={60}>1 hora</option>
               <option value={120}>2 horas</option>
@@ -204,16 +215,38 @@ export default function AgendaNuvem() {
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">Competência inicial</p>
-          <input
-            value={agenda.competencia_inicio}
-            onChange={(e) => mudar({ competencia_inicio: e.target.value.trim() })}
-            placeholder="MM/AAAA"
-            className={inputClass + " w-28"}
+        {fonte === "tce" && (
+          <div>
+            <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">Competência inicial</p>
+            <input
+              value={agenda.competencia_inicio}
+              onChange={(e) => mudar({ competencia_inicio: e.target.value.trim() })}
+              placeholder="MM/AAAA"
+              className={inputClass + " w-28"}
+            />
+          </div>
+        )}
+      </div>
+
+      {fonte === "jira" && (
+        <div className="mt-5">
+          <p className="mb-2 flex flex-wrap items-center gap-3 text-[11px] font-medium tracking-wider text-apple-muted uppercase">
+            Filtro do Jira (JQL)
+            {agenda.jql.trim() !== JQL_PADRAO && (
+              <button type="button" onClick={() => mudar({ jql: JQL_PADRAO })} className="text-[11px] font-medium tracking-normal normal-case underline hover:text-apple-title">
+                voltar ao filtro padrão
+              </button>
+            )}
+          </p>
+          <textarea
+            value={agenda.jql}
+            onChange={(e) => mudar({ jql: e.target.value })}
+            rows={4}
+            spellCheck={false}
+            className="w-full rounded-2xl border border-black/[0.08] bg-white/90 px-3 py-2 font-mono text-[11px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
           />
         </div>
-      </div>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <button
@@ -226,7 +259,9 @@ export default function AgendaNuvem() {
         </button>
         {mensagem && <span className="text-[12px] font-medium text-apple-title">{mensagem}</span>}
         <span className="text-[11px] text-apple-muted">
-          Cada disparo carrega da competência inicial até a vigente (mês anterior), sem depender de nenhum computador ligado.
+          {fonte === "jira"
+            ? "Cada disparo lê do Jira os chamados desse filtro e guarda no sistema; quem sai do filtro fica marcado como fechado."
+            : "Cada disparo carrega da competência inicial até a vigente (mês anterior), sem depender de nenhum computador ligado."}
           {agenda.atualizado_por &&
             " Última alteração: " +
               agenda.atualizado_por +

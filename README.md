@@ -62,7 +62,7 @@ registros do filtro atual e, onde há filtro de fornecedor, ele vem em
 | Ratificação Geral | `/ratificacao-geral` | Em produção | Grade município × competência com a situação da ratificação geral (Ratificado / Enviado fora do prazo / Ausente) e a data de envio. Filtro SIM/NÃO por coluna de competência, busca, fornecedor, canal, associação. Exporta CSV. |
 | CND | `/cnd` | Em produção | Aba **Geral**: situação e validade da CND dos 295 municípios, com filtros. Aba **Ranking (Hab.)**: Top 10 / Top 30 municípios por população, com filtro de empresa de software. Exporta CSV. |
 | Evolução | `/evolucao` | Em produção | A partir dos snapshots diários: curva S de % de municípios concluídos por dia (com opção de sobrepor o mês anterior), volume diário de fechamentos e linha do tempo por município. "Concluído" = ratificação enviada. |
-| Chamados | `/chamados` | Em produção (novo) | Chamados abertos de e-Sfinge do Jira Atendimento (Pequenas e Médias Contas), lidos do arquivo público do painel externo (`src/lib/chamados.ts`). O cabeçalho mostra o filtro (JQL) que gera a lista, traduzido por campo, e quando o arquivo foi gerado. Cruza cada chamado com o status do módulo da mesma área (Pessoal→Folha, Arrecadação→Tributos, Contratos, Contábil) e a ratificação geral da competência mais recente. Filtros de município/chamado, fornecedor, área, SLO e módulo. Em Status por Módulo e Ratificação Geral, um ícone ao lado do módulo/município indica chamado aberto (vermelho se o SLO estourou). |
+| Chamados | `/chamados` | Em produção (novo) | Chamados abertos de prestação de contas (e-Sfinge, SIOPE, SICONFI, eSocial, SisObra, PNCP) do Jira Atendimento (Pequenas e Médias Contas), gravados pela carga do Jira (ver "Carga de chamados do Jira"). O rodapé mostra o filtro (JQL), traduzido por campo, e a hora da última carga. Cruza cada chamado com o status do módulo da mesma área (Pessoal→Folha, Arrecadação→Tributos, Contratos, Contábil) e a ratificação geral da competência mais recente. Filtros de município/chamado, fornecedor, área, SLO e módulo. Em Status por Módulo e Ratificação Geral, um ícone ao lado do módulo/município indica chamado aberto (vermelho se o SLO estourou). |
 | Movimentações | `/movimentacoes` | Em produção (novo) | O que mudou em cada carga: **Envio** (passou a constar como enviado, inclusive o que ainda não existia no banco), **Remoção** (estava enviado e deixou de estar, ex.: ratificou e depois removeu) e **Alteração** (continua enviado, mas mudou situação ou data). Nos módulos, compara também **item a item** (ex.: "Execução Orçamentária (Prefeitura)"), o que pega o envio parcial que não muda o status da área. Mostra antes → depois, competência e horário. Filtros de município, fornecedor, movimento, campo, nível (área ou item) e competência. Lista as 1000 mais recentes. Começa a ser preenchida a partir da primeira carga feita com a extensão atualizada. |
 
 ### Somente admin (`ADMIN_GERAL`)
@@ -189,11 +189,33 @@ Credenciais do TCE (cadastradas por quem administra, nunca no código):
 firebase functions:secrets:set TCE_CREDENCIAIS      # JSON: [{"matricula":"…","senha":"…"}]
 ```
 
+### Carga de chamados do Jira (`functions/src/jira.js`)
+
+Os chamados vêm do Jira Atendimento pela própria nuvem (antes vinham de um
+`data.json` público mantido fora do sistema):
+
+- **`relogioJira`** (a cada 5 min) confere a agenda `config/agenda_jira` e
+  **`rodarJiraAgora`** (só admin) roda na hora — aba **Jira** do Controle de Cargas,
+  onde também fica o filtro (JQL), editável por admin. Padrão em `src/lib/jira-jql.ts`.
+- Busca `POST /rest/api/2/search` com o usuário de serviço do secret
+  `JIRA_CREDENCIAL` (`{"usuario":"…","senha":"…"}`) e grava cada chamado em
+  `chamados/{chave}` no formato curto que as telas usam.
+- **Histórico:** chamado que sai do filtro não é apagado — vira `aberto: false`
+  com `saiu_em` e `motivo_saida` (`resolvido`, `aguardando`, `fora_do_filtro`).
+- Cada carga vira um registro em `cargas` com `fonte: "jira"` (novos, saíram,
+  resolvidos) e alertas: login recusado, chamado sem município, município fora do cadastro.
+- As telas (Chamados, Status por Módulo, Ratificação Geral, Início) leem os
+  abertos do Firestore por `carregarChamados()` em `src/lib/chamados.ts`.
+
+```bash
+firebase functions:secrets:set JIRA_CREDENCIAL      # JSON: {"usuario":"…","senha":"…"}
+```
+
 Testes: `npm test` na pasta da extensão roda a carga inteira contra um TCE e um
 banco de mentira; `node functions/teste-local.mjs MM/AAAA` (com
 `GOOGLE_APPLICATION_CREDENTIALS`) roda a versão da nuvem neste PC, com o Chrome
 instalado, contra o banco real; `node functions/teste-agenda.mjs` confere a regra
-da agenda.
+da agenda; `node functions/teste-jira.mjs` confere a tradução dos chamados do Jira.
 
 ---
 
@@ -311,7 +333,7 @@ Extencao-BIEsfinge/
   progress.js                 # build gerado pelo esbuild (commitado; é o que o Chrome carrega)
   sidepanel.html/.js          # painel "Carga de dados"
   background.js               # abre o painel e dispara o agendamento
-functions/                    # carga na nuvem (Cloud Functions): index.js, agenda.js, plataforma-nuvem.js, firestore-admin.js
+functions/                    # cargas na nuvem (Cloud Functions): index.js, agenda.js, jira.js, plataforma-nuvem.js, firestore-admin.js
 firestore.rules, firebase.json, next.config.ts
 ```
 

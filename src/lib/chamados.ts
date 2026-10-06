@@ -1,7 +1,8 @@
-// Chamados de e-Sfinge do Jira Atendimento, lidos do arquivo público que o
-// painel externo gera (não copiamos pro Firestore). Só traz chamados abertos.
-export const FEED_CHAMADOS = "https://arimanoelgomes-ctrl.github.io/esfinge_pequenas_medias/data.json";
-export const PAINEL_CHAMADOS = "https://arimanoelgomes-ctrl.github.io/esfinge_pequenas_medias/";
+// Chamados do Jira Atendimento gravados pela carga do Jira (functions/src/jira.js)
+// em `chamados`. As telas usam só os abertos (aberto == true).
+import { collection, getDocs, limit, orderBy, query, where, type Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 export const URL_JIRA_CHAMADO = "https://atendimento.betha.com.br/browse/";
 
 // Campos abreviados como vêm no arquivo.
@@ -27,7 +28,7 @@ export type Chamado = {
 };
 
 export type FeedChamados = {
-  generatedAt: string;
+  generatedAt: Date | null; // fim da última carga do Jira que deu certo
   total: number;
   fetched: number;
   jql: string;
@@ -35,9 +36,24 @@ export type FeedChamados = {
 };
 
 export async function carregarChamados(): Promise<FeedChamados> {
-  const resp = await fetch(`${FEED_CHAMADOS}?ts=${Date.now()}`, { cache: "no-store" });
-  if (!resp.ok) throw new Error(`Arquivo de chamados respondeu ${resp.status}`);
-  return resp.json();
+  const [snapChamados, snapCargas] = await Promise.all([
+    getDocs(query(collection(db, "chamados"), where("aberto", "==", true))),
+    // Sem índice composto: pega as cargas mais recentes e escolhe a última do Jira que deu certo.
+    getDocs(query(collection(db, "cargas"), orderBy("iniciado_em", "desc"), limit(60))),
+  ]);
+  const ultima = snapCargas.docs
+    .map((d) => d.data())
+    .find((c) => c.fonte === "jira" && c.status === "sucesso") as
+    | { concluido_em?: Timestamp; totais?: Record<string, number>; jql?: string }
+    | undefined;
+  const issues = snapChamados.docs.map((d) => d.data() as Chamado);
+  return {
+    generatedAt: ultima?.concluido_em?.toDate() ?? null,
+    total: ultima?.totais?.total_jira ?? issues.length,
+    fetched: issues.length,
+    jql: ultima?.jql ?? "",
+    issues,
+  };
 }
 
 // Área do chamado → módulo do TCE usado nas nossas telas.
@@ -88,6 +104,7 @@ const ROTULO_CAMPO_JQL: Record<string, string> = {
   "cf[21500]": "Equipe responsável",
   statusCategory: "Situação",
   issuetype: "Tipo",
+  labels: "Etiqueta",
   status: "Status",
   project: "Projeto",
 };

@@ -65,6 +65,15 @@ service cloud.firestore {
       allow read: if isBethaUser();
       allow write: if isBethaUser() && isAdmin();
     }
+    match /config/agenda_jira {
+      allow read: if isBethaUser();
+      allow write: if isBethaUser() && isAdmin();
+    }
+
+    // Chamados do Jira: só a carga do Jira (functions, Admin SDK) grava.
+    match /chamados/{id} {
+      allow read: if isBethaUser();
+    }
 
     match /movimentacoes/{id} {
       allow read, write: if isBethaUser();

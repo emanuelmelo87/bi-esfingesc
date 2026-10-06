@@ -6,7 +6,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { app, db } from "@/lib/firebase";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
-import AgendaNuvem from "@/components/AgendaNuvem";
+import AgendaNuvem, { type FonteCarga } from "@/components/AgendaNuvem";
 import { IconRefresh } from "@/components/icons";
 import { coberturaCompleta, type Carga } from "@/types/carga";
 
@@ -36,12 +36,24 @@ function formatarDuracao(ms: number): string {
   return (ms / 1000).toFixed(1) + "s";
 }
 
+const ROTULO_TOTAL: Record<string, string> = {
+  no_filtro: "no filtro",
+  total_jira: "total no Jira",
+  novos: "novos",
+  atualizados: "atualizados",
+  sairam: "saíram do filtro",
+  resolvidos: "resolvidos",
+};
+
 function formatarTotais(totais: Record<string, number> | null): string {
   if (!totais) return "—";
   return Object.entries(totais)
-    .map(([chave, valor]) => `${chave}: ${valor}`)
+    .map(([chave, valor]) => `${ROTULO_TOTAL[chave] ?? chave}: ${valor}`)
     .join(" · ");
 }
+
+// Cada carga na nuvem tem a sua função "rodar agora".
+const FUNCAO_RODAR: Record<FonteCarga, string> = { tce: "rodarCargaAgora", jira: "rodarJiraAgora" };
 
 export default function AdminCargasPage() {
   const [cargas, setCargas] = useState<Carga[]>([]);
@@ -50,6 +62,9 @@ export default function AdminCargasPage() {
   const [atualizando, setAtualizando] = useState(false);
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
   const [automatico, setAutomatico] = useState(true);
+  const [aba, setAba] = useState<FonteCarga>("tce");
+  // Carga sem "fonte" é do TCE (todas as anteriores à carga do Jira).
+  const cargasDaAba = cargas.filter((c) => (c.fonte === "jira") === (aba === "jira"));
 
   // Recarrega sem limpar a tabela (nada de "Carregando..." piscando a cada atualização).
   async function carregar() {
@@ -79,12 +94,13 @@ export default function AdminCargasPage() {
   // A função só responde quando a carga termina (alguns minutos); enquanto isso
   // ela já aparece na lista como "Em andamento".
   async function rodarNaNuvem() {
-    setNuvem({ rodando: true, mensagem: "Carga na nuvem iniciada — acompanhe na lista." });
+    const fonte = aba;
+    setNuvem({ rodando: true, mensagem: "Carga " + (fonte === "jira" ? "do Jira" : "do TCE") + " na nuvem iniciada — acompanhe na lista." });
     setTimeout(carregar, 5000);
     try {
       const rodar = httpsCallable<void, { pulada?: boolean; erro?: string | null; alertas?: number }>(
         getFunctions(app, "southamerica-east1"),
-        "rodarCargaAgora",
+        FUNCAO_RODAR[fonte],
         { timeout: 30 * 60 * 1000 }
       );
       const { data } = await rodar();
@@ -106,7 +122,7 @@ export default function AdminCargasPage() {
     <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Controle de Cargas</h1>
-        <ContadorResultados mostrando={cargas.length} total={cargas.length} label="cargas" />
+        <ContadorResultados mostrando={cargasDaAba.length} total={cargasDaAba.length} label="cargas" />
         <div className="ml-auto flex flex-wrap items-center gap-3">
           <span className="text-[11px] text-apple-muted">
             {atualizadoEm ? "Atualizado às " + atualizadoEm.toLocaleTimeString("pt-BR") : ""}
@@ -134,17 +150,33 @@ export default function AdminCargasPage() {
           </button>
         </div>
       </div>
-      <p className="mb-6 text-sm text-apple-secondary">
-        Histórico de sincronizações da extensão — cada execução grava um registro aqui assim que termina,
-        com quem rodou, quanto tempo levou e quantos documentos foram salvos no Firestore.
-        Além da extensão, a carga roda sozinha na nuvem nos horários do agendamento abaixo.
+      <p className="mb-4 text-sm text-apple-secondary">
+        {aba === "tce"
+          ? "Histórico das cargas do TCE — pela extensão ou na nuvem, nos horários do agendamento abaixo. Cada execução grava um registro com quem rodou, quanto tempo levou e quantos documentos foram salvos."
+          : "Histórico das cargas de chamados do Jira, que rodam na nuvem nos horários do agendamento abaixo. Cada execução registra quantos chamados vieram, quantos são novos e quantos saíram do filtro."}
       </p>
-      {nuvem.mensagem && <p className="-mt-3 mb-6 text-sm font-medium text-apple-title">{nuvem.mensagem}</p>}
-      <AgendaNuvem />
+      <div className="mb-5 flex gap-1.5">
+        {(["tce", "jira"] as FonteCarga[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setAba(f)}
+            className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition ${
+              aba === f
+                ? "bg-vinho text-white dark:bg-blue-600"
+                : "border border-black/[0.08] bg-white/80 text-apple-secondary hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+            }`}
+          >
+            {f === "tce" ? "TCE" : "Jira (chamados)"}
+          </button>
+        ))}
+      </div>
+      {nuvem.mensagem && <p className="mb-6 text-sm font-medium text-apple-title">{nuvem.mensagem}</p>}
+      <AgendaNuvem key={aba} fonte={aba} />
 
       {carregando ? (
         <p className="text-apple-secondary">Carregando...</p>
-      ) : cargas.length === 0 ? (
+      ) : cargasDaAba.length === 0 ? (
         <p className="text-apple-secondary">Nenhuma carga registrada ainda.</p>
       ) : (
         <div className="apple-glass-card overflow-hidden rounded-[22px]">
@@ -154,59 +186,67 @@ export default function AdminCargasPage() {
                 <tr className="border-b border-black/[0.05] bg-black/[0.015] text-[11px] font-medium tracking-wider text-apple-muted uppercase dark:border-white/10 dark:bg-white/[0.02]">
                   <th className="px-6 py-3">Início / fim</th>
                   <th className="px-4 py-3">Tipo</th>
-                  <th className="px-4 py-3">Período</th>
+                  {aba === "tce" && <th className="px-4 py-3">Período</th>}
                   <th className="px-4 py-3">Usuário</th>
                   <th className="px-4 py-3">Duração</th>
-                  <th className="px-4 py-3" title="Quando cada painel do TCE foi atualizado pela última vez, visto nesta carga">Dados do TCE de</th>
-                  <th className="px-4 py-3" title="Municípios percorridos em cada competência, de cada fonte">Cobertura</th>
+                  {aba === "tce" && (
+                    <>
+                      <th className="px-4 py-3" title="Quando cada painel do TCE foi atualizado pela última vez, visto nesta carga">Dados do TCE de</th>
+                      <th className="px-4 py-3" title="Municípios percorridos em cada competência, de cada fonte">Cobertura</th>
+                    </>
+                  )}
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-6 py-3">Documentos gravados</th>
+                  <th className="px-6 py-3">{aba === "tce" ? "Documentos gravados" : "Chamados"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
-                {cargas.map((c, i) => (
+                {cargasDaAba.map((c, i) => (
                   <tr key={i} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
                     <td className="px-6 py-3.5 text-apple-title">
                       <span className="block font-semibold">{formatarDataHora(c.iniciado_em)}</span>
                       <span className="block text-[11px] text-apple-muted">fim: {c.concluido_em ? formatarDataHora(c.concluido_em) : "—"}</span>
                     </td>
-                    <td className="px-4 py-3.5 text-apple-secondary">{c.tipo === "backfill" ? "Backfill" : "Sincronização"}
+                    <td className="px-4 py-3.5 text-apple-secondary">{c.tipo === "jira" ? "Chamados" : c.tipo === "backfill" ? "Backfill" : "Sincronização"}
                       {c.modo === "alarme" && <span className="mt-0.5 block text-[10px] font-semibold text-vinho dark:text-blue-400">Agendada</span>}
                       {c.modo === "nuvem" && <span className="mt-0.5 block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Nuvem</span>}</td>
-                    <td className="px-4 py-3.5 text-apple-secondary">{c.periodo ?? "—"}</td>
+                    {aba === "tce" && <td className="px-4 py-3.5 text-apple-secondary">{c.periodo ?? "—"}</td>}
                     <td className="px-4 py-3.5 text-apple-secondary">{c.usuario ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{formatarDuracao(c.duracao_ms)}</td>
-                    <td className="px-4 py-3.5 whitespace-nowrap text-apple-secondary">
-                      {c.tce_atualizado_em ? (
-                        <>
-                          <span className="block">Ratificações: {formatarIso(c.tce_atualizado_em.ratificacoes)}</span>
-                          <span className="block">Módulos: {formatarIso(c.tce_atualizado_em.modulos)}</span>
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      {c.cobertura?.length ? (
-                        <ul className="space-y-0.5 text-[11px]">
-                          {c.cobertura.map((cob) => {
-                            const faltando = [...cob.faltando_ratificacao.map((n) => `ratificação: ${n}`), ...cob.faltando_modulos.map((n) => `módulos: ${n}`)];
-                            return (
-                              <li
-                                key={cob.competencia}
-                                title={faltando.length ? `Faltaram:\n${faltando.join("\n")}` : "Todos os municípios percorridos"}
-                                className={coberturaCompleta(cob) ? "text-emerald-700 dark:text-emerald-400" : "font-semibold text-amber-700 dark:text-amber-400"}
-                              >
-                                {coberturaCompleta(cob) ? "✓" : "!"} {cob.competencia} · ratif. {cob.ratificacoes}/{cob.total} · módulos{" "}
-                                {cob.modulos === null ? "—" : `${cob.modulos}/${cob.total}`}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <span className="text-apple-muted">—</span>
-                      )}
-                    </td>
+                    {aba === "tce" && (
+                      <>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-apple-secondary">
+                        {c.tce_atualizado_em ? (
+                          <>
+                            <span className="block">Ratificações: {formatarIso(c.tce_atualizado_em.ratificacoes)}</span>
+                            <span className="block">Módulos: {formatarIso(c.tce_atualizado_em.modulos)}</span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {c.cobertura?.length ? (
+                          <ul className="space-y-0.5 text-[11px]">
+                            {c.cobertura.map((cob) => {
+                              const faltando = [...cob.faltando_ratificacao.map((n) => `ratificação: ${n}`), ...cob.faltando_modulos.map((n) => `módulos: ${n}`)];
+                              return (
+                                <li
+                                  key={cob.competencia}
+                                  title={faltando.length ? `Faltaram:\n${faltando.join("\n")}` : "Todos os municípios percorridos"}
+                                  className={coberturaCompleta(cob) ? "text-emerald-700 dark:text-emerald-400" : "font-semibold text-amber-700 dark:text-amber-400"}
+                                >
+                                  {coberturaCompleta(cob) ? "✓" : "!"} {cob.competencia} · ratif. {cob.ratificacoes}/{cob.total} · módulos{" "}
+                                  {cob.modulos === null ? "—" : `${cob.modulos}/${cob.total}`}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <span className="text-apple-muted">—</span>
+                        )}
+                      </td>
+                      </>
+                    )}
                     <td className="px-4 py-3.5">
                       <StatusBadge
                         label={

@@ -16,7 +16,6 @@ import {
   interpretarJql,
   MODULO_POR_AREA,
   normalizarNome,
-  PAINEL_CHAMADOS,
   URL_JIRA_CHAMADO,
   type Chamado,
   type FeedChamados,
@@ -27,7 +26,7 @@ import type { StatusPorCompetencia } from "@/types/competencia";
 type FiltroSlo = "todos" | "estourado" | "pausado" | "no_prazo";
 type FiltroModulo = "todos" | "pendente" | "ok";
 
-function formatarDataHora(iso: string): string {
+function formatarDataHora(iso: string | Date): string {
   return new Date(iso).toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -170,20 +169,12 @@ export default function ChamadosPage() {
             >
               <IconRefresh className="h-4 w-4" />
             </button>
-            <a
-              href={PAINEL_CHAMADOS}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-            >
-              Painel original
-            </a>
           </div>
         </div>
         <p className="mb-4 text-sm text-apple-secondary">
-          Chamados abertos de e-Sfinge no Jira Atendimento, cruzados com o status do módulo da mesma área e a
-          ratificação geral da competência escolhida.
-          {feed && <> Lista gerada em {formatarDataHora(feed.generatedAt)}.</>}
+          Chamados abertos de prestação de contas (e-Sfinge, SIOPE, SICONFI…) no Jira Atendimento, cruzados com o
+          status do módulo da mesma área e a ratificação geral da competência escolhida.
+          {feed && (feed.generatedAt ? <> Carga do Jira de {formatarDataHora(feed.generatedAt)}.</> : <> Ainda não houve carga do Jira — rode no Controle de Cargas.</>)}
         </p>
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -258,7 +249,7 @@ export default function ChamadosPage() {
           <p className="text-apple-secondary">Carregando...</p>
         ) : erroFeed ? (
           <p className="text-apple-secondary">
-            Não foi possível ler os chamados ({erroFeed}). O arquivo é mantido fora deste sistema — tente de novo ou abra o painel original.
+            Não foi possível ler os chamados ({erroFeed}). Tente de novo ou veja a última carga do Jira no Controle de Cargas.
           </p>
         ) : linhas.length === 0 ? (
           <p className="text-apple-secondary">Nenhum chamado com esses filtros.</p>

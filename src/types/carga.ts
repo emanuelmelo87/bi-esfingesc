@@ -1,7 +1,10 @@
 import type { Timestamp } from "firebase/firestore";
 
 export type Carga = {
-  tipo: "sync" | "backfill";
+  // "jira" = carga de chamados (functions/src/jira.js); ausente = carga do TCE.
+  fonte?: "jira";
+  tipo: "sync" | "backfill" | "jira";
+  jql?: string;
   // "alarme" = disparada pelo agendamento da extensão; "nuvem" = Cloud Functions. Ausente em cargas antigas.
   modo?: "manual" | "alarme" | "nuvem";
   periodo: string | null;
