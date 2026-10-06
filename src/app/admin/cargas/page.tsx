@@ -23,6 +23,7 @@ function formatarIso(iso: string | null | undefined): string {
 // Carga "em andamento" sem sinal de vida há mais que isso morreu no meio
 // (aba fechada, travada ou descartada pelo Chrome). O pulso vem a cada ~15s.
 const SEM_PULSO_MS = 15 * 60 * 1000;
+const ATUALIZAR_A_CADA_MS = 30 * 1000;
 
 function naoFinalizada(c: Carga): boolean {
   if (c.status !== "em_andamento") return false;
@@ -46,18 +47,34 @@ export default function AdminCargasPage() {
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [nuvem, setNuvem] = useState<{ rodando: boolean; mensagem: string | null }>({ rodando: false, mensagem: null });
+  const [atualizando, setAtualizando] = useState(false);
+  const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
+  const [automatico, setAutomatico] = useState(true);
 
+  // Recarrega sem limpar a tabela (nada de "Carregando..." piscando a cada atualização).
   async function carregar() {
-    setCarregando(true);
-    const snap = await getDocs(query(collection(db, "cargas"), orderBy("iniciado_em", "desc"), limit(100)));
-    setCargas(snap.docs.map((d) => d.data() as Carga));
-    setCarregando(false);
+    setAtualizando(true);
+    try {
+      const snap = await getDocs(query(collection(db, "cargas"), orderBy("iniciado_em", "desc"), limit(100)));
+      setCargas(snap.docs.map((d) => d.data() as Carga));
+      setAtualizadoEm(new Date());
+    } finally {
+      setAtualizando(false);
+      setCarregando(false);
+    }
   }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     carregar();
   }, []);
+
+  // Atualização automática: acompanha a carga em andamento sem precisar clicar.
+  useEffect(() => {
+    if (!automatico) return;
+    const id = setInterval(carregar, ATUALIZAR_A_CADA_MS);
+    return () => clearInterval(id);
+  }, [automatico]);
 
   // A função só responde quando a carga termina (alguns minutos); enquanto isso
   // ela já aparece na lista como "Em andamento".
@@ -90,22 +107,32 @@ export default function AdminCargasPage() {
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-apple-title">Controle de Cargas</h1>
         <ContadorResultados mostrando={cargas.length} total={cargas.length} label="cargas" />
-        <button
-          type="button"
-          onClick={carregar}
-          title="Atualizar"
-          className="flex h-6 w-6 items-center justify-center rounded-full text-apple-muted transition hover:bg-black/[0.05] hover:text-apple-title dark:hover:bg-white/[0.08]"
-        >
-          <IconRefresh className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={rodarNaNuvem}
-          disabled={nuvem.rodando}
-          className="ml-auto rounded-full bg-vinho px-4 py-1.5 text-[12px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50 dark:bg-blue-600"
-        >
-          {nuvem.rodando ? "Rodando na nuvem…" : "Rodar na nuvem agora"}
-        </button>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <span className="text-[11px] text-apple-muted">
+            {atualizadoEm ? "Atualizado às " + atualizadoEm.toLocaleTimeString("pt-BR") : ""}
+          </span>
+          <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-apple-secondary" title="Recarrega a lista a cada 30 segundos">
+            <input type="checkbox" checked={automatico} onChange={(e) => setAutomatico(e.target.checked)} className="h-3.5 w-3.5 accent-vinho" />
+            Automático (30s)
+          </label>
+          <button
+            type="button"
+            onClick={carregar}
+            disabled={atualizando}
+            className="flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[12px] font-semibold text-apple-title shadow-xs transition hover:bg-white disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+          >
+            <IconRefresh className={"h-3.5 w-3.5" + (atualizando ? " animate-spin" : "")} />
+            {atualizando ? "Atualizando..." : "Atualizar"}
+          </button>
+          <button
+            type="button"
+            onClick={rodarNaNuvem}
+            disabled={nuvem.rodando}
+            className="rounded-full bg-vinho px-4 py-1.5 text-[12px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50 dark:bg-blue-600"
+          >
+            {nuvem.rodando ? "Rodando na nuvem…" : "Rodar na nuvem agora"}
+          </button>
+        </div>
       </div>
       <p className="mb-6 text-sm text-apple-secondary">
         Histórico de sincronizações da extensão — cada execução grava um registro aqui assim que termina,
