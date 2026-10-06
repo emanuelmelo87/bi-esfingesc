@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Planilhas com dados de clientes — nunca versionar (o repositório já foi público)
 /dados-privados/
+
+# extensão empacotada (gerada pelo build da extensão)
+/Extencao-BIEsfinge.zip
