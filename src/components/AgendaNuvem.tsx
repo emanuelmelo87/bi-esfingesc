@@ -39,7 +39,9 @@ function proximoDisparo(a: Agenda): string | null {
 export default function AgendaNuvem() {
   const { user } = useAuth();
   const [agenda, setAgenda] = useState<Agenda>(PADRAO);
-  const [novoHorario, setNovoHorario] = useState("08:30");
+  const [novoHorario, setNovoHorario] = useState("");
+  // Atalho "de X em X": preenche a lista inteira de uma vez.
+  const [serie, setSerie] = useState({ de: "08:00", ate: "18:00", intervalo: 60 });
   const [alterado, setAlterado] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -59,9 +61,25 @@ export default function AgendaNuvem() {
   function adicionarHorario() {
     if (!novoHorario || agenda.horarios.includes(novoHorario)) return;
     mudar({ horarios: [...agenda.horarios, novoHorario].sort() });
+    setNovoHorario("");
+  }
+
+  function gerarSerie() {
+    const minutos = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+    const lista = new Set(agenda.horarios);
+    for (let m = minutos(serie.de); m <= minutos(serie.ate); m += serie.intervalo) {
+      lista.add(String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"));
+    }
+    mudar({ horarios: [...lista].sort() });
   }
 
   async function salvar() {
+    // Hora digitada sem clicar em "Adicionar" também entra.
+    const horarios = novoHorario && !agenda.horarios.includes(novoHorario) ? [...agenda.horarios, novoHorario].sort() : agenda.horarios;
+    if (agenda.ativo && horarios.length === 0) {
+      setMensagem("Adicione ao menos um horário antes de ativar.");
+      return;
+    }
     if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(agenda.competencia_inicio)) {
       setMensagem("Competência inicial deve estar no formato MM/AAAA.");
       return;
@@ -72,7 +90,7 @@ export default function AgendaNuvem() {
         doc(db, "config", "agenda_nuvem"),
         {
           ativo: agenda.ativo,
-          horarios: agenda.horarios,
+          horarios: horarios,
           dias: agenda.dias,
           competencia_inicio: agenda.competencia_inicio,
           atualizado_por: user?.email ?? null,
@@ -80,8 +98,10 @@ export default function AgendaNuvem() {
         },
         { merge: true }
       );
+      setAgenda((a) => ({ ...a, horarios }));
+      setNovoHorario("");
       setAlterado(false);
-      setMensagem("Agenda salva.");
+      setMensagem("Agenda salva" + (agenda.ativo ? " — " + horarios.length + " horário" + (horarios.length > 1 ? "s" : "") + " por dia." : " (desligada)."));
     } catch (err) {
       setMensagem("Não foi possível salvar: " + (err as Error).message);
     }
@@ -111,10 +131,15 @@ export default function AgendaNuvem() {
         </span>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-[1.4fr_1fr_auto]">
+      <div className="grid gap-5 lg:grid-cols-[2fr_1fr_auto]">
         <div>
-          <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">Horários</p>
-          <div className="flex flex-wrap items-center gap-2">
+          <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">
+            Horários do dia ({agenda.horarios.length})
+          </p>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {agenda.horarios.length === 0 && (
+              <span className="text-[12px] font-medium text-amber-700 dark:text-amber-400">Nenhum horário ainda — adicione um por um ou gere a série abaixo.</span>
+            )}
             {agenda.horarios.map((h) => (
               <span key={h} className="flex items-center gap-1 rounded-full bg-black/[0.05] py-1 pr-1.5 pl-3 text-[12px] font-semibold text-apple-title dark:bg-white/10">
                 {h}
@@ -128,9 +153,37 @@ export default function AgendaNuvem() {
                 </button>
               </span>
             ))}
-            <input type="time" value={novoHorario} onChange={(e) => setNovoHorario(e.target.value)} className={inputClass} />
-            <button type="button" onClick={adicionarHorario} className={pill(false)}>
-              Adicionar
+            {agenda.horarios.length > 0 && (
+              <button type="button" onClick={() => mudar({ horarios: [] })} className="text-[11px] font-medium text-apple-muted underline hover:text-apple-title">
+                limpar
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-apple-secondary">
+            <input
+              type="time"
+              value={novoHorario}
+              onChange={(e) => setNovoHorario(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && adicionarHorario()}
+              className={inputClass}
+            />
+            <button type="button" onClick={adicionarHorario} disabled={!novoHorario} className={pill(false) + " disabled:opacity-50"}>
+              + Adicionar horário
+            </button>
+            <span className="mx-1 text-apple-muted">ou</span>
+            de
+            <input type="time" value={serie.de} onChange={(e) => setSerie({ ...serie, de: e.target.value })} className={inputClass} />
+            até
+            <input type="time" value={serie.ate} onChange={(e) => setSerie({ ...serie, ate: e.target.value })} className={inputClass} />
+            a cada
+            <select value={serie.intervalo} onChange={(e) => setSerie({ ...serie, intervalo: Number(e.target.value) })} className={inputClass}>
+              <option value={30}>30 min</option>
+              <option value={60}>1 hora</option>
+              <option value={120}>2 horas</option>
+              <option value={180}>3 horas</option>
+            </select>
+            <button type="button" onClick={gerarSerie} disabled={!serie.de || !serie.ate} className={pill(false) + " disabled:opacity-50"}>
+              Gerar horários
             </button>
           </div>
         </div>
