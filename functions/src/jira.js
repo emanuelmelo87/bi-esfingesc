@@ -113,30 +113,47 @@ export function cabecalhoAutorizacao(secret) {
   return "Basic " + texto;
 }
 
-async function buscar(auth, jql, campos) {
+// Este Jira não responde 401 a senha errada: devolve 200 vazio com o motivo no
+// cabeçalho X-Seraph-LoginReason (AUTHENTICATION_DENIED = conta pedindo CAPTCHA
+// depois de muitas tentativas erradas).
+function conferirLogin(resp) {
+  const motivo = resp.headers.get("x-seraph-loginreason") || "";
+  if (resp.status === 401 || /AUTHENTICATED_FAILED|AUTHENTICATION_DENIED/.test(motivo)) {
+    throw new Error(
+      "Jira recusou a credencial de JIRA_CREDENCIAL (" + (motivo || "HTTP " + resp.status) + ")." +
+        (motivo.includes("DENIED")
+          ? " A conta está pedindo CAPTCHA por tentativas erradas — entre uma vez pelo navegador com ela para liberar."
+          : " Confira o código ou o usuário e a senha cadastrados.")
+    );
+  }
+}
+
+// Igual aos scripts do Google que já usam este Jira: abre uma sessão com o
+// Basic em /rest/auth/1/session e faz as buscas com o cookie dela.
+async function abrirSessao(auth) {
+  const resp = await fetch(JIRA_BASE + "/rest/auth/1/session", {
+    headers: { Authorization: auth, Accept: "application/json" },
+    signal: AbortSignal.timeout(30000),
+  });
+  conferirLogin(resp);
+  const cookies = (resp.headers.getSetCookie ? resp.headers.getSetCookie() : []).map((c) => c.split(";")[0]).filter(Boolean);
+  await resp.text();
+  if (!resp.ok) throw new Error("Jira não abriu a sessão (HTTP " + resp.status + ").");
+  return cookies.length ? { Cookie: cookies.join("; ") } : { Authorization: auth };
+}
+
+async function buscar(acesso, jql, campos) {
   const issues = [];
   let total = 0;
   for (let startAt = 0; startAt === 0 || startAt < total; startAt += 100) {
     const resp = await fetch(JIRA_BASE + "/rest/api/2/search", {
       method: "POST",
-      headers: { Authorization: auth, Accept: "application/json", "Content-Type": "application/json", "X-Atlassian-Token": "no-check" },
+      headers: { ...acesso, Accept: "application/json", "Content-Type": "application/json", "X-Atlassian-Token": "no-check" },
       // validateQuery "warn": uma chave que não existe mais não derruba a busca "key in (…)".
       body: JSON.stringify({ jql, startAt, maxResults: 100, fields: campos, validateQuery: "warn" }),
       signal: AbortSignal.timeout(60000),
     });
-    if (resp.status === 401 || resp.status === 403) {
-      throw new Error("Login no Jira recusado (HTTP " + resp.status + ") — confira o usuário e a senha em JIRA_CREDENCIAL.");
-    }
-    // Este Jira não responde 401 a senha errada: devolve 200 vazio com o motivo
-    // no cabeçalho X-Seraph-LoginReason (AUTHENTICATION_DENIED = conta pedindo
-    // CAPTCHA depois de muitas tentativas erradas).
-    const motivoLogin = resp.headers.get("x-seraph-loginreason") || "";
-    if (/AUTHENTICATED_FAILED|AUTHENTICATION_DENIED/.test(motivoLogin)) {
-      throw new Error(
-        "Jira recusou o usuário/senha de JIRA_CREDENCIAL (" + motivoLogin + ")." +
-          (motivoLogin.includes("DENIED") ? " A conta está pedindo CAPTCHA por tentativas erradas — entre uma vez pelo navegador com ela para liberar." : " Confira o código ou o usuário e a senha cadastrados.")
-      );
-    }
+    conferirLogin(resp);
     const corpo = await resp.text();
     if (!resp.ok) throw new Error("Jira respondeu " + resp.status + ": " + corpo.slice(0, 300));
     let dados;
@@ -181,9 +198,11 @@ export async function executarCargaJira({ db, credencial: secret, jql, modo }) {
     pulso_em: FieldValue.serverTimestamp(),
   });
   try {
-    const credencial = cabecalhoAutorizacao(secret);
+    const auth = cabecalhoAutorizacao(secret);
     // Só o formato e o tamanho, nunca o valor.
-    log("Credencial reconhecida: código Basic de " + (credencial.length - 6) + " caracteres.");
+    log("Credencial reconhecida: código Basic de " + (auth.length - 6) + " caracteres.");
+    const credencial = await abrirSessao(auth);
+    log(credencial.Cookie ? "Sessão aberta no Jira." : "Jira não devolveu cookie de sessão — seguindo com o Basic.");
     const { issues, total } = await buscar(credencial, jql, CAMPOS);
     log(issues.length + " de " + total + " chamados lidos.");
     if (issues.length < total) alertas.push({ fonte: "Jira", mensagem: "só " + issues.length + " de " + total + " chamados foram lidos." });
