@@ -200,7 +200,9 @@ export async function executarCargaJira({ db, credencial: secret, jql, modo }) {
   try {
     const auth = cabecalhoAutorizacao(secret);
     // Só o formato e o tamanho, nunca o valor.
-    log("Credencial reconhecida: código Basic de " + (auth.length - 6) + " caracteres.");
+    // Só o usuário, para conferir que é a conta certa — nunca a senha.
+    const usuario = Buffer.from(auth.slice(6), "base64").toString("utf8").split(":")[0];
+    log("Entrando no Jira como " + (usuario || "?") + " (código Basic de " + (auth.length - 6) + " caracteres).");
     const credencial = await abrirSessao(auth);
     log(credencial.Cookie ? "Sessão aberta no Jira." : "Jira não devolveu cookie de sessão — seguindo com o Basic.");
     const { issues, total } = await buscar(credencial, jql, CAMPOS);
