@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "build": "esbuild src/progress.js --bundle --outfile=progress.js --platform=browser && npm run zip",
-    "zip": "powershell -NoProfile -Command \"Compress-Archive -Force -DestinationPath ../Extencao-BIEsfinge.zip -Path manifest.json,background.js,progress.html,progress.js,sidepanel.html,sidepanel.js,icon.png\""
+    "zip": "powershell -NoProfile -Command \"Compress-Archive -Force -DestinationPath ../Extencao-BIEsfinge.zip -Path manifest.json,background.js,progress.html,progress.js,sidepanel.html,sidepanel.js,icon.png\"",
+    "test": "node teste/carga.teste.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0"

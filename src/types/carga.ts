@@ -2,8 +2,8 @@ import type { Timestamp } from "firebase/firestore";
 
 export type Carga = {
   tipo: "sync" | "backfill";
-  // "alarme" = disparada pelo agendamento. Ausente em cargas antigas.
-  modo?: "manual" | "alarme";
+  // "alarme" = disparada pelo agendamento da extensão; "nuvem" = Cloud Functions. Ausente em cargas antigas.
+  modo?: "manual" | "alarme" | "nuvem";
   periodo: string | null;
   usuario: string | null;
   iniciado_em: Timestamp | null;
@@ -22,6 +22,8 @@ export type Carga = {
   // Por competência: quantos municípios vieram em cada fonte e quais faltaram.
   // modulos null = não buscados (sem acesso ao TCE). Ausente em cargas antigas.
   cobertura?: CoberturaCompetencia[];
+  // Só cargas na nuvem com problema: o que o Claude concluiu lendo o log.
+  diagnostico_ia?: string;
 };
 
 export type CoberturaCompetencia = {

@@ -1312,11 +1312,11 @@
         event
       ));
     }
-    openPromise.then((db2) => {
+    openPromise.then((db3) => {
       if (terminated)
-        db2.addEventListener("close", () => terminated());
+        db3.addEventListener("close", () => terminated());
       if (blocking) {
-        db2.addEventListener("versionchange", (event) => blocking(event.oldVersion, event.newVersion, event));
+        db3.addEventListener("versionchange", (event) => blocking(event.oldVersion, event.newVersion, event));
       }
     }).catch(() => {
     });
@@ -1695,11 +1695,11 @@
   function getDbPromise() {
     if (!dbPromise) {
       dbPromise = openDB(DB_NAME, DB_VERSION, {
-        upgrade: (db2, oldVersion) => {
+        upgrade: (db3, oldVersion) => {
           switch (oldVersion) {
             case 0:
               try {
-                db2.createObjectStore(STORE_NAME);
+                db3.createObjectStore(STORE_NAME);
               } catch (e2) {
                 console.warn(e2);
               }
@@ -1715,8 +1715,8 @@
   }
   async function readHeartbeatsFromIndexedDB(app2) {
     try {
-      const db2 = await getDbPromise();
-      const tx = db2.transaction(STORE_NAME);
+      const db3 = await getDbPromise();
+      const tx = db3.transaction(STORE_NAME);
       const result = await tx.objectStore(STORE_NAME).get(computeKey(app2));
       await tx.done;
       return result;
@@ -1733,8 +1733,8 @@
   }
   async function writeHeartbeatsToIndexedDB(app2, heartbeatObject) {
     try {
-      const db2 = await getDbPromise();
-      const tx = db2.transaction(STORE_NAME, "readwrite");
+      const db3 = await getDbPromise();
+      const tx = db3.transaction(STORE_NAME, "readwrite");
       const objectStore = tx.objectStore(STORE_NAME);
       await objectStore.put(heartbeatObject, computeKey(app2));
       await tx.done;
@@ -6140,8 +6140,8 @@
       });
     }
   };
-  function getObjectStore(db2, isReadWrite) {
-    return db2.transaction([DB_OBJECTSTORE_NAME], isReadWrite ? "readwrite" : "readonly").objectStore(DB_OBJECTSTORE_NAME);
+  function getObjectStore(db3, isReadWrite) {
+    return db3.transaction([DB_OBJECTSTORE_NAME], isReadWrite ? "readwrite" : "readonly").objectStore(DB_OBJECTSTORE_NAME);
   }
   function _deleteDatabase() {
     const request = indexedDB.deleteDatabase(DB_NAME2);
@@ -6154,39 +6154,39 @@
         reject(request.error);
       });
       request.addEventListener("upgradeneeded", () => {
-        const db2 = request.result;
+        const db3 = request.result;
         try {
-          db2.createObjectStore(DB_OBJECTSTORE_NAME, { keyPath: DB_DATA_KEYPATH });
+          db3.createObjectStore(DB_OBJECTSTORE_NAME, { keyPath: DB_DATA_KEYPATH });
         } catch (e2) {
           reject(e2);
         }
       });
       request.addEventListener("success", async () => {
-        const db2 = request.result;
-        if (!db2.objectStoreNames.contains(DB_OBJECTSTORE_NAME)) {
-          db2.close();
+        const db3 = request.result;
+        if (!db3.objectStoreNames.contains(DB_OBJECTSTORE_NAME)) {
+          db3.close();
           await _deleteDatabase();
           resolve(await _openDatabase());
         } else {
-          resolve(db2);
+          resolve(db3);
         }
       });
     });
   }
-  async function _putObject(db2, key, value) {
-    const request = getObjectStore(db2, true).put({
+  async function _putObject(db3, key, value) {
+    const request = getObjectStore(db3, true).put({
       [DB_DATA_KEYPATH]: key,
       value
     });
     return new DBPromise(request).toPromise();
   }
-  async function getObject(db2, key) {
-    const request = getObjectStore(db2, false).get(key);
+  async function getObject(db3, key) {
+    const request = getObjectStore(db3, false).get(key);
     const data = await new DBPromise(request).toPromise();
     return data === void 0 ? null : data.value;
   }
-  function _deleteObject(db2, key) {
-    const request = getObjectStore(db2, true).delete(key);
+  function _deleteObject(db3, key) {
+    const request = getObjectStore(db3, true).delete(key);
     return new DBPromise(request).toPromise();
   }
   var _POLLING_INTERVAL_MS = 800;
@@ -6221,7 +6221,7 @@
         this.isClosing = true;
         this.stopPolling();
         if (this.dbPromise) {
-          this.dbPromise.then((db2) => db2.close()).catch(() => {
+          this.dbPromise.then((db3) => db3.close()).catch(() => {
           });
           this.dbPromise = null;
         }
@@ -6252,8 +6252,8 @@
       let numAttempts = 0;
       while (true) {
         try {
-          const db2 = await this._openDb();
-          return await op(db2);
+          const db3 = await this._openDb();
+          return await op(db3);
         } catch (e2) {
           if (numAttempts++ > _TRANSACTION_RETRY_COUNT) {
             throw e2;
@@ -6262,8 +6262,8 @@
             const dbPromise2 = this.dbPromise;
             this.dbPromise = null;
             try {
-              const db2 = await dbPromise2;
-              db2.close();
+              const db3 = await dbPromise2;
+              db3.close();
             } catch {
             }
           }
@@ -6353,9 +6353,9 @@
         if (!indexedDB) {
           return false;
         }
-        await this._withRetries(async (db2) => {
-          await _putObject(db2, STORAGE_AVAILABLE_KEY, "1");
-          await _deleteObject(db2, STORAGE_AVAILABLE_KEY);
+        await this._withRetries(async (db3) => {
+          await _putObject(db3, STORAGE_AVAILABLE_KEY, "1");
+          await _deleteObject(db3, STORAGE_AVAILABLE_KEY);
         });
         return true;
       } catch {
@@ -6372,19 +6372,19 @@
     }
     async _set(key, value) {
       return this._withPendingWrite(async () => {
-        await this._withRetries((db2) => _putObject(db2, key, value));
+        await this._withRetries((db3) => _putObject(db3, key, value));
         this.localCache[key] = value;
         return this.notifyServiceWorker(key);
       });
     }
     async _get(key) {
-      const obj = await this._withRetries((db2) => getObject(db2, key));
+      const obj = await this._withRetries((db3) => getObject(db3, key));
       this.localCache[key] = obj;
       return obj;
     }
     async _remove(key) {
       return this._withPendingWrite(async () => {
-        await this._withRetries((db2) => _deleteObject(db2, key));
+        await this._withRetries((db3) => _deleteObject(db3, key));
         delete this.localCache[key];
         return this.notifyServiceWorker(key);
       });
@@ -6394,8 +6394,8 @@
         return [];
       }
       try {
-        const result = await this._withRetries((db2) => {
-          const getAllRequest = getObjectStore(db2, false).getAll();
+        const result = await this._withRetries((db3) => {
+          const getAllRequest = getObjectStore(db3, false).getAll();
           return new DBPromise(getAllRequest).toPromise();
         });
         if (this.isClosing) {
@@ -8045,6 +8045,11 @@
     /* ClientPlatform.BROWSER */
   );
 
+  // node_modules/firebase/app/dist/esm/index.esm.js
+  var name3 = "firebase";
+  var version3 = "12.19.0";
+  registerVersion(name3, version3, "app");
+
   // node_modules/@firebase/webchannel-wrapper/dist/bloom-blob/esm/bloom_blob_es2018.js
   var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
   var bloom_blob_es2018 = {};
@@ -8987,7 +8992,7 @@
     };
     var ab = l2.JSON.stringify;
     var cb = l2.JSON.parse;
-    var db2 = class {
+    var db3 = class {
       stringify(a) {
         return l2.JSON.stringify(a, void 0);
       }
@@ -9197,12 +9202,12 @@
     N.prototype.ba = function(a) {
       a = a.target;
       const b2 = this.O;
-      b2 && P(a) == 3 ? b2.j() : this.Y(a);
+      b2 && P2(a) == 3 ? b2.j() : this.Y(a);
     };
     N.prototype.Y = function(a) {
       try {
         if (a == this.g) a: {
-          const k2 = P(this.g), q = this.g.ya(), m2 = this.g.ca();
+          const k2 = P2(this.g), q = this.g.ya(), m2 = this.g.ca();
           if (!(k2 < 3) && (k2 != 3 || this.g && (this.h.h || this.g.la() || Ib(this.g)))) {
             this.K || k2 != 4 || q == 7 || (q == 8 || m2 <= 0 ? lb(3) : lb(2));
             Jb(this);
@@ -9276,7 +9281,7 @@
       const b2 = Ib(a.g);
       if (b2 === "") return "";
       let c2 = "";
-      const d = b2.length, e2 = P(a.g) == 4;
+      const d = b2.length, e2 = P2(a.g) == 4;
       if (!a.h.i) {
         if (typeof TextDecoder === "undefined") return Q(a), Mb(a), "";
         a.h.i = new l2.TextDecoder();
@@ -9679,7 +9684,7 @@
       }
     }
     function Dc() {
-      this.g = new db2();
+      this.g = new db3();
     }
     function Ec(a) {
       this.i = a.Sb || null;
@@ -9892,8 +9897,8 @@
     };
     function Qc(a) {
       if (a.h && typeof ea != "undefined") {
-        if (a.v && P(a) == 4) setTimeout(a.Ca.bind(a), 0);
-        else if (D(a, "readystatechange"), P(a) == 4) {
+        if (a.v && P2(a) == 4) setTimeout(a.Ca.bind(a), 0);
+        else if (D(a, "readystatechange"), P2(a) == 4) {
           a.h = false;
           try {
             const f = a.ca();
@@ -9924,7 +9929,7 @@
             else {
               a.o = 6;
               try {
-                var e2 = P(a) > 2 ? a.g.statusText : "";
+                var e2 = P2(a) > 2 ? a.g.statusText : "";
               } catch (g) {
                 e2 = "";
               }
@@ -9952,12 +9957,12 @@
     h.isActive = function() {
       return !!this.g;
     };
-    function P(a) {
+    function P2(a) {
       return a.g ? a.g.readyState : 0;
     }
     h.ca = function() {
       try {
-        return P(this) > 2 ? this.g.status : -1;
+        return P2(this) > 2 ? this.g.status : -1;
       } catch (a) {
         return -1;
       }
@@ -9994,7 +9999,7 @@
     }
     function Rb(a) {
       const b2 = {};
-      a = (a.g && P(a) >= 2 ? a.g.getAllResponseHeaders() || "" : "").split("\r\n");
+      a = (a.g && P2(a) >= 2 ? a.g.getAllResponseHeaders() || "" : "").split("\r\n");
       for (let d = 0; d < a.length; d++) {
         if (y2(a[d])) continue;
         var c2 = yb(a[d]);
@@ -26682,10 +26687,10 @@ Total Duration: ${a - u2}ms`);
       if (!__PRIVATE_isTimestampInBounds(u2.seconds, u2.nanoseconds)) return __PRIVATE_EvaluateResult.mr();
       const c2 = __PRIVATE_timestampToMicros(u2), l2 = this.Br(c2, a);
       if (!__PRIVATE_isMicrosInBounds(l2)) return __PRIVATE_EvaluateResult.mr();
-      const E = Number(l2 / Bt), h = l2 % Bt, T = Number((h < 0 ? h + Bt : h) * BigInt(1e3)), P = h < 0 ? E - 1 : E;
-      return __PRIVATE_isTimestampInBounds(P, T) ? __PRIVATE_EvaluateResult.newValue({
+      const E = Number(l2 / Bt), h = l2 % Bt, T = Number((h < 0 ? h + Bt : h) * BigInt(1e3)), P2 = h < 0 ? E - 1 : E;
+      return __PRIVATE_isTimestampInBounds(P2, T) ? __PRIVATE_EvaluateResult.newValue({
         timestampValue: {
-          seconds: P,
+          seconds: P2,
           nanos: T
         }
       }) : __PRIVATE_EvaluateResult.mr();
@@ -31330,11 +31335,6 @@ This typically indicates that your device does not have a healthy Internet conne
     registerVersion(Be2, Me2, "esm2020");
   }();
 
-  // node_modules/firebase/app/dist/esm/index.esm.js
-  var name3 = "firebase";
-  var version3 = "12.19.0";
-  registerVersion(name3, version3, "app");
-
   // src/firebase-config.js
   var firebaseConfig = {
     apiKey: "AIzaSyAr0SiWA1ZViyGwROPAnB3UYAYiUfzyyho",
@@ -31350,131 +31350,7 @@ This typically indicates that your device does not have a healthy Internet conne
   var db = getFirestore(app);
   var googleProvider = new GoogleAuthProvider();
 
-  // src/progress.js
-  var CND_URL = "https://virtual.tce.sc.gov.br/esfinge-web/esfinge-online/administracao/certidao/consulta-geral";
-  var RATIFICACOES_URL = "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
-  var TCE_LOGIN_URL = "https://virtual.tce.sc.gov.br/login";
-  var QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
-  var logEl = document.getElementById("log");
-  var modoLabelEl = document.getElementById("modo-label");
-  var urlParams = new URLSearchParams(location.search);
-  var modo = urlParams.get("modo") || "manual";
-  var competenciaInicioParam = urlParams.get("competencia_inicio") || urlParams.get("competencia") || null;
-  var competenciaFimParam = urlParams.get("competencia_fim") || competenciaInicioParam;
-  function competenciaParaChave(competencia) {
-    const [mes, ano] = competencia.split("/").map(Number);
-    return ano * 12 + mes;
-  }
-  function listarCompetencias(inicio, fim) {
-    let chaveInicio = competenciaParaChave(inicio);
-    let chaveFim = competenciaParaChave(fim);
-    if (chaveInicio > chaveFim) [chaveInicio, chaveFim] = [chaveFim, chaveInicio];
-    const lista = [];
-    for (let chave = chaveInicio; chave <= chaveFim; chave++) {
-      const ano = Math.floor((chave - 1) / 12);
-      const mes = chave - ano * 12;
-      lista.push(String(mes).padStart(2, "0") + "/" + ano);
-    }
-    return lista;
-  }
-  var competenciasAlvo = competenciaInicioParam ? listarCompetencias(competenciaInicioParam, competenciaFimParam) : null;
-  modoLabelEl.textContent = "Modo: " + modo + (competenciasAlvo ? competenciasAlvo.length > 1 ? " (compet\xEAncias " + competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1] + ")" : " (compet\xEAncia " + competenciasAlvo[0] + ")" : "");
-  function log(msg, kind) {
-    const line = document.createElement("div");
-    line.className = kind ? "log-" + kind : "";
-    line.textContent = msg;
-    logEl.appendChild(line);
-    logEl.scrollTop = logEl.scrollHeight;
-    console.log("[Radar e-Sfinge]", msg);
-    pulsoCarga(msg);
-  }
-  var cargaAberta = false;
-  var ultimoPulso = 0;
-  function pulsoCarga(msg) {
-    if (!cargaAberta || Date.now() - ultimoPulso < 15e3) return;
-    ultimoPulso = Date.now();
-    updateDoc(cargaRef, { etapa: msg, pulso_em: serverTimestamp() }).catch(function() {
-    });
-  }
-  async function registrarNoLogAgenda(resultado) {
-    if (modo !== "alarme") return;
-    const { agenda_log: registro = [] } = await chrome.storage.local.get("agenda_log");
-    registro.unshift({ em: Date.now(), horarios: ["carga"], resultado });
-    await chrome.storage.local.set({ agenda_log: registro.slice(0, 30) });
-  }
-  var alertas = [];
-  var MIN_MUNICIPIOS = 280;
-  function alertar(fonte, mensagem) {
-    if (alertas.some((a) => a.fonte === fonte && a.mensagem === mensagem)) return;
-    alertas.push({ fonte, mensagem });
-    log("ALERTA \u2014 " + fonte + ": " + mensagem, "err");
-  }
-  async function avisarFimDaCarga(erro) {
-    const problemas = alertas.length + (erro ? 1 : 0);
-    try {
-      await chrome.action.setBadgeText({ text: problemas ? "!" : "" });
-      await chrome.action.setBadgeBackgroundColor({ color: "#d93025" });
-    } catch (e2) {
-    }
-    const { last_execution: ultima } = await chrome.storage.local.get("last_execution");
-    await chrome.storage.local.set({ last_execution: Object.assign({}, ultima, { alertas, erro: erro || null }) });
-    if (!problemas) return;
-    const primeira = erro ? "Carga com erro: " + erro : alertas[0].fonte + ": " + alertas[0].mensagem;
-    const extras = problemas > 1 ? " (+" + (problemas - 1) + " alerta" + (problemas > 2 ? "s" : "") + " \u2014 veja o Controle de Cargas)" : "";
-    try {
-      chrome.notifications.create("carga-" + Date.now(), {
-        type: "basic",
-        iconUrl: "icon.png",
-        title: "BI Esfinge SC \u2014 aten\xE7\xE3o na carga de dados",
-        message: (primeira + extras).slice(0, 300),
-        priority: 2,
-        requireInteraction: true
-      });
-    } catch (e2) {
-    }
-  }
-  function normalizar(nome) {
-    return nome.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9\s]/g, " ").trim().replace(/\s+/g, " ");
-  }
-  function getGoogleToken() {
-    return new Promise(function(resolve, reject) {
-      chrome.identity.getAuthToken({ interactive: true }, function(token) {
-        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-        else resolve(token);
-      });
-    });
-  }
-  async function signInComContaBetha() {
-    log("Solicitando login Google...");
-    const token = await getGoogleToken();
-    log("Token obtido, trocando por sess\xE3o Firebase Auth...");
-    const credential = GoogleAuthProvider.credential(null, token);
-    const result = await signInWithCredential(auth, credential);
-    const email = result.user.email || "";
-    if (!email.toLowerCase().endsWith("@" + ALLOWED_EMAIL_DOMAIN)) {
-      await signOut(auth);
-      await chrome.storage.local.set({ auth_status: { signedIn: false } });
-      throw new Error("Acesso restrito a contas @" + ALLOWED_EMAIL_DOMAIN + " (login com " + email + ")");
-    }
-    await chrome.storage.local.set({ auth_status: { signedIn: true, email } });
-    log("Login confirmado: " + email, "ok");
-    return result.user;
-  }
-  async function carregarMunicipios() {
-    const snap = await getDocs(collection(db, "municipios"));
-    const porNomeBusca = /* @__PURE__ */ new Map();
-    const porIbge = /* @__PURE__ */ new Map();
-    snap.forEach(function(d) {
-      const m2 = d.data();
-      porNomeBusca.set(m2.nome_busca, m2);
-      porIbge.set(m2.codigo_ibge, m2);
-    });
-    log("Cache de munic\xEDpios carregado: " + porIbge.size + " registros.");
-    return { porNomeBusca, porIbge };
-  }
-  function resolverMunicipio(nomeScraped, porNomeBusca) {
-    return porNomeBusca.get(normalizar(nomeScraped)) || null;
-  }
+  // src/paginas-tce.js
   function extractCNDPublico() {
     var rows = Array.from(document.querySelectorAll("tbody tr"));
     return rows.map(function(tr) {
@@ -31494,106 +31370,6 @@ This typically indicates that your device does not have a healthy Internet conne
         numero
       };
     }).filter(Boolean);
-  }
-  var abasAbertas = /* @__PURE__ */ new Set();
-  function abrirAbaOculta(url) {
-    return new Promise(function(resolve, reject) {
-      chrome.tabs.create({ url, active: false }, function(tab) {
-        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-        abasAbertas.add(tab.id);
-        chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(function() {
-        });
-        const limite = setTimeout(function() {
-          chrome.tabs.onUpdated.removeListener(onUpdated);
-          reject(new Error("p\xE1gina n\xE3o terminou de carregar em 60s: " + url));
-        }, 6e4);
-        function onUpdated(tabId, info) {
-          if (tabId === tab.id && info.status === "complete") {
-            chrome.tabs.onUpdated.removeListener(onUpdated);
-            clearTimeout(limite);
-            setTimeout(function() {
-              resolve(tab);
-            }, 2500);
-          }
-        }
-        chrome.tabs.onUpdated.addListener(onUpdated);
-      });
-    });
-  }
-  function fecharAba(tab) {
-    abasAbertas.delete(tab.id);
-    return chrome.tabs.remove(tab.id).catch(function() {
-    });
-  }
-  async function fecharAbasAbertas() {
-    for (const id of abasAbertas) await chrome.tabs.remove(id).catch(function() {
-    });
-    abasAbertas.clear();
-  }
-  var MAX_TENTATIVAS = 5;
-  function esperar(ms) {
-    return new Promise(function(r2) {
-      setTimeout(r2, ms);
-    });
-  }
-  async function comTentativas(rotulo, fn, valido) {
-    for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
-      const ultima = tentativa === MAX_TENTATIVAS;
-      const alertasAntes = alertas.length;
-      try {
-        const resultado = await fn();
-        if (!valido || valido(resultado)) return resultado;
-        if (!ultima) alertas.length = alertasAntes;
-        if (ultima) {
-          log(rotulo + ": ainda incompleto ap\xF3s " + MAX_TENTATIVAS + " tentativas \u2014 seguindo com o que veio.", "err");
-          return resultado;
-        }
-        log(rotulo + ": resultado incompleto (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
-      } catch (err) {
-        if (ultima) throw err;
-        alertas.length = alertasAntes;
-        log(rotulo + ": " + err.message + " (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
-      }
-      await fecharAbasAbertas();
-      const espera = 5 * tentativa;
-      log("Tentando de novo em " + espera + "s...", "info");
-      await esperar(espera * 1e3);
-    }
-  }
-  async function capturarCND(porNomeBusca) {
-    log("Abrindo CND p\xFAblica em aba oculta...");
-    const tab = await abrirAbaOculta(CND_URL);
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: extractCNDPublico
-    });
-    await fecharAba(tab);
-    log("CND: " + result.length + " linhas raspadas.");
-    const porIbge = /* @__PURE__ */ new Map();
-    let semMatch = 0;
-    for (const row of result) {
-      const municipio = resolverMunicipio(row.ente, porNomeBusca);
-      if (!municipio) {
-        semMatch++;
-        log('CND: munic\xEDpio n\xE3o encontrado para "' + row.ente + '" \u2014 pulado.', "err");
-        continue;
-      }
-      porIbge.set(municipio.codigo_ibge, {
-        cnd_status: row.status,
-        cnd_bimestre: row.bimestre,
-        cnd_validade: row.validade,
-        cnd_numero: row.numero,
-        cnd_atualizado_em: serverTimestamp()
-      });
-    }
-    log("CND: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    if (porIbge.size < MIN_MUNICIPIOS) {
-      alertar("CND", "s\xF3 " + porIbge.size + " munic\xEDpios lidos da consulta p\xFAblica (" + result.length + " linhas" + (semMatch ? ", " + semMatch + " nomes sem correspond\xEAncia" : "") + "; esperado ~295). A p\xE1gina pode ter mudado de layout.");
-    }
-    if (result.length > 0 && result.every((r2) => r2.status === "regular")) {
-      alertar("CND", "todas as " + result.length + " certid\xF5es vieram como regular \u2014 o texto que indica irregularidade ('Falta de Dados') pode ter mudado no TCE.");
-    }
-    return porIbge;
   }
   function extractRatificacoesGlobais(competenciaAlvo) {
     return new Promise(function(resolve, reject) {
@@ -31704,53 +31480,6 @@ This typically indicates that your device does not have a healthy Internet conne
         });
       };
     });
-  }
-  function competenciaMesAnterior() {
-    const hoje = /* @__PURE__ */ new Date();
-    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-    return String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
-  }
-  async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
-    const competencia = competenciaAlvo || competenciaMesAnterior();
-    log("Abrindo Ratifica\xE7\xF5es Globais para a compet\xEAncia " + competencia + "...");
-    const tab = await abrirAbaOculta(RATIFICACOES_URL);
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: extractRatificacoesGlobais,
-      args: [competencia]
-    });
-    await fecharAba(tab);
-    const rows = result.linhas;
-    log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + competencia + ")" + (result.recarga ? " \u2014 painel do TCE atualizado em " + new Date(result.recarga).toLocaleString("pt-BR") : "") + ".");
-    const porIbge = /* @__PURE__ */ new Map();
-    let semMatch = 0;
-    for (const row of rows) {
-      const municipio = resolverMunicipio(row.nomeMunicipio, porNomeBusca);
-      if (!municipio) {
-        semMatch++;
-        log('Ratifica\xE7\xF5es: munic\xEDpio n\xE3o encontrado para "' + row.nomeMunicipio + '" \u2014 pulado.', "err");
-        continue;
-      }
-      porIbge.set(municipio.codigo_ibge, {
-        ratificacao_status: row.situacao,
-        ratificacao_data_envio: row.data,
-        ratificacao_atualizado_em: serverTimestamp()
-      });
-    }
-    log("Ratifica\xE7\xF5es: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
-    if (!result.colunaEncontrada) {
-      alertar("Ratifica\xE7\xF5es", "a compet\xEAncia " + competencia + " n\xE3o aparece no painel do TCE (\xFAltimas colunas vistas: " + result.colunasVistas.join(", ") + "). Se ela j\xE1 deveria existir, o formato de M\xEAs/Ano mudou.");
-    } else if (porIbge.size < MIN_MUNICIPIOS) {
-      alertar("Ratifica\xE7\xF5es", "s\xF3 " + porIbge.size + " munic\xEDpios em " + competencia + " (esperado ~295)" + (semMatch ? "; " + semMatch + " nomes n\xE3o bateram com o cadastro" : "") + ".");
-    }
-    if (result.coresDesconhecidas.length) {
-      alertar("Ratifica\xE7\xF5es", "cor de c\xE9lula desconhecida no painel (" + result.coresDesconhecidas.join(", ") + ") \u2014 tratada como 'fora do prazo'. A legenda do TCE pode ter mudado.");
-    }
-    if (result.valoresInesperados.length) {
-      alertar("Ratifica\xE7\xF5es", "valor fora do padr\xE3o (data ou 'Ausente'): " + result.valoresInesperados.join(", ") + ".");
-    }
-    if (result.recarga) tceAtualizadoEm.ratificacoes = result.recarga;
-    return { porIbge, competencia, recarga: result.recarga };
   }
   function readTokenFromPage() {
     var t2 = localStorage.getItem("token");
@@ -31978,6 +31707,176 @@ This typically indicates that your device does not have a healthy Internet conne
       }
     });
   }
+
+  // src/carga.js
+  var CND_URL = "https://virtual.tce.sc.gov.br/esfinge-web/esfinge-online/administracao/certidao/consulta-geral";
+  var RATIFICACOES_URL = "https://paineistransparencia.tce.sc.gov.br/extensions/appRatificacoesGlobais/index.html";
+  var TCE_LOGIN_URL = "https://virtual.tce.sc.gov.br/login";
+  var QLIK_MODULOS_URL = "https://paineis.tce.sc.gov.br/custom/extensions/ExtratosEsfinge/index.html";
+  var P;
+  var db2;
+  var modo;
+  var competenciasAlvo;
+  var linhasLog = [];
+  function competenciaParaChave(competencia) {
+    const [mes, ano] = competencia.split("/").map(Number);
+    return ano * 12 + mes;
+  }
+  function listarCompetencias(inicio, fim) {
+    let chaveInicio = competenciaParaChave(inicio);
+    let chaveFim = competenciaParaChave(fim);
+    if (chaveInicio > chaveFim) [chaveInicio, chaveFim] = [chaveFim, chaveInicio];
+    const lista = [];
+    for (let chave = chaveInicio; chave <= chaveFim; chave++) {
+      const ano = Math.floor((chave - 1) / 12);
+      const mes = chave - ano * 12;
+      lista.push(String(mes).padStart(2, "0") + "/" + ano);
+    }
+    return lista;
+  }
+  function log(msg, kind) {
+    P.log(msg, kind);
+    linhasLog.push(msg);
+    pulsoCarga(msg);
+  }
+  var cargaAberta = false;
+  var ultimoPulso = 0;
+  function pulsoCarga(msg) {
+    if (!cargaAberta || Date.now() - ultimoPulso < 15e3) return;
+    ultimoPulso = Date.now();
+    updateDoc(cargaRef, { etapa: msg, pulso_em: serverTimestamp() }).catch(function() {
+    });
+  }
+  var alertas = [];
+  var MIN_MUNICIPIOS = 280;
+  function alertar(fonte, mensagem) {
+    if (alertas.some((a) => a.fonte === fonte && a.mensagem === mensagem)) return;
+    alertas.push({ fonte, mensagem });
+    log("ALERTA \u2014 " + fonte + ": " + mensagem, "err");
+  }
+  function normalizar(nome) {
+    return nome.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9\s]/g, " ").trim().replace(/\s+/g, " ");
+  }
+  async function carregarMunicipios() {
+    const snap = await getDocs(collection(db2, "municipios"));
+    const porNomeBusca = /* @__PURE__ */ new Map();
+    const porIbge = /* @__PURE__ */ new Map();
+    snap.forEach(function(d) {
+      const m2 = d.data();
+      porNomeBusca.set(m2.nome_busca, m2);
+      porIbge.set(m2.codigo_ibge, m2);
+    });
+    log("Cache de munic\xEDpios carregado: " + porIbge.size + " registros.");
+    return { porNomeBusca, porIbge };
+  }
+  function resolverMunicipio(nomeScraped, porNomeBusca) {
+    return porNomeBusca.get(normalizar(nomeScraped)) || null;
+  }
+  var MAX_TENTATIVAS = 5;
+  function esperar(ms) {
+    return new Promise(function(r2) {
+      setTimeout(r2, ms);
+    });
+  }
+  async function comTentativas(rotulo, fn, valido) {
+    for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
+      const ultima = tentativa === MAX_TENTATIVAS;
+      const alertasAntes = alertas.length;
+      try {
+        const resultado = await fn();
+        if (!valido || valido(resultado)) return resultado;
+        if (!ultima) alertas.length = alertasAntes;
+        if (ultima) {
+          log(rotulo + ": ainda incompleto ap\xF3s " + MAX_TENTATIVAS + " tentativas \u2014 seguindo com o que veio.", "err");
+          return resultado;
+        }
+        log(rotulo + ": resultado incompleto (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
+      } catch (err) {
+        if (ultima) throw err;
+        alertas.length = alertasAntes;
+        log(rotulo + ": " + err.message + " (tentativa " + tentativa + "/" + MAX_TENTATIVAS + ").", "err");
+      }
+      await P.fecharTodas();
+      const espera = 5 * tentativa;
+      log("Tentando de novo em " + espera + "s...", "info");
+      await esperar(espera * 1e3);
+    }
+  }
+  async function capturarCND(porNomeBusca) {
+    log("Abrindo CND p\xFAblica em aba oculta...");
+    const tab = await P.abrirPagina(CND_URL);
+    const result = await tab.executar(extractCNDPublico);
+    await tab.fechar();
+    log("CND: " + result.length + " linhas raspadas.");
+    const porIbge = /* @__PURE__ */ new Map();
+    let semMatch = 0;
+    for (const row of result) {
+      const municipio = resolverMunicipio(row.ente, porNomeBusca);
+      if (!municipio) {
+        semMatch++;
+        log('CND: munic\xEDpio n\xE3o encontrado para "' + row.ente + '" \u2014 pulado.', "err");
+        continue;
+      }
+      porIbge.set(municipio.codigo_ibge, {
+        cnd_status: row.status,
+        cnd_bimestre: row.bimestre,
+        cnd_validade: row.validade,
+        cnd_numero: row.numero,
+        cnd_atualizado_em: serverTimestamp()
+      });
+    }
+    log("CND: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+    if (porIbge.size < MIN_MUNICIPIOS) {
+      alertar("CND", "s\xF3 " + porIbge.size + " munic\xEDpios lidos da consulta p\xFAblica (" + result.length + " linhas" + (semMatch ? ", " + semMatch + " nomes sem correspond\xEAncia" : "") + "; esperado ~295). A p\xE1gina pode ter mudado de layout.");
+    }
+    if (result.length > 0 && result.every((r2) => r2.status === "regular")) {
+      alertar("CND", "todas as " + result.length + " certid\xF5es vieram como regular \u2014 o texto que indica irregularidade ('Falta de Dados') pode ter mudado no TCE.");
+    }
+    return porIbge;
+  }
+  function competenciaMesAnterior() {
+    const hoje = /* @__PURE__ */ new Date();
+    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    return String(mesAnterior.getMonth() + 1).padStart(2, "0") + "/" + mesAnterior.getFullYear();
+  }
+  async function capturarRatificacoes(porNomeBusca, competenciaAlvo) {
+    const competencia = competenciaAlvo || competenciaMesAnterior();
+    log("Abrindo Ratifica\xE7\xF5es Globais para a compet\xEAncia " + competencia + "...");
+    const tab = await P.abrirPagina(RATIFICACOES_URL);
+    const result = await tab.executar(extractRatificacoesGlobais, [competencia]);
+    await tab.fechar();
+    const rows = result.linhas;
+    log("Ratifica\xE7\xF5es: " + rows.length + " linhas (compet\xEAncia " + competencia + ")" + (result.recarga ? " \u2014 painel do TCE atualizado em " + new Date(result.recarga).toLocaleString("pt-BR") : "") + ".");
+    const porIbge = /* @__PURE__ */ new Map();
+    let semMatch = 0;
+    for (const row of rows) {
+      const municipio = resolverMunicipio(row.nomeMunicipio, porNomeBusca);
+      if (!municipio) {
+        semMatch++;
+        log('Ratifica\xE7\xF5es: munic\xEDpio n\xE3o encontrado para "' + row.nomeMunicipio + '" \u2014 pulado.', "err");
+        continue;
+      }
+      porIbge.set(municipio.codigo_ibge, {
+        ratificacao_status: row.situacao,
+        ratificacao_data_envio: row.data,
+        ratificacao_atualizado_em: serverTimestamp()
+      });
+    }
+    log("Ratifica\xE7\xF5es: " + porIbge.size + " munic\xEDpios resolvidos" + (semMatch ? ", " + semMatch + " sem match" : "") + ".", "ok");
+    if (!result.colunaEncontrada) {
+      alertar("Ratifica\xE7\xF5es", "a compet\xEAncia " + competencia + " n\xE3o aparece no painel do TCE (\xFAltimas colunas vistas: " + result.colunasVistas.join(", ") + "). Se ela j\xE1 deveria existir, o formato de M\xEAs/Ano mudou.");
+    } else if (porIbge.size < MIN_MUNICIPIOS) {
+      alertar("Ratifica\xE7\xF5es", "s\xF3 " + porIbge.size + " munic\xEDpios em " + competencia + " (esperado ~295)" + (semMatch ? "; " + semMatch + " nomes n\xE3o bateram com o cadastro" : "") + ".");
+    }
+    if (result.coresDesconhecidas.length) {
+      alertar("Ratifica\xE7\xF5es", "cor de c\xE9lula desconhecida no painel (" + result.coresDesconhecidas.join(", ") + ") \u2014 tratada como 'fora do prazo'. A legenda do TCE pode ter mudado.");
+    }
+    if (result.valoresInesperados.length) {
+      alertar("Ratifica\xE7\xF5es", "valor fora do padr\xE3o (data ou 'Ausente'): " + result.valoresInesperados.join(", ") + ".");
+    }
+    if (result.recarga) tceAtualizadoEm.ratificacoes = result.recarga;
+    return { porIbge, competencia, recarga: result.recarga };
+  }
   var MOD_SLUG = {
     "Assinatura Balancete do Raz\xE3o": "assinatura_balancete_razao",
     "Execu\xE7\xE3o Or\xE7ament\xE1ria": "execucao_orcamentaria",
@@ -32020,11 +31919,11 @@ This typically indicates that your device does not have a healthy Internet conne
   var NOME_POR_CAMPO = Object.fromEntries(Object.entries(MOD_SLUG).map(([nome, slug]) => [slug, nome]));
   async function avisarModulosNovos(nomes) {
     if (nomes.size === 0) return;
-    const { modulos_desconhecidos_vistos: vistos = [] } = await chrome.storage.local.get("modulos_desconhecidos_vistos");
+    const vistos = await P.obter("modulos_desconhecidos_vistos") || [];
     const novos = [...nomes].filter((n2) => !vistos.includes(n2));
     if (novos.length === 0) return;
     alertar("M\xF3dulos", "m\xF3dulo novo no TCE, fora das regras: " + novos.join(", ") + ". Ele n\xE3o entra em nenhuma \xE1rea \u2014 se deve contar, precisa ser inclu\xEDdo nas regras (REGRAS_MODULO).");
-    await chrome.storage.local.set({ modulos_desconhecidos_vistos: vistos.concat(novos) });
+    await P.guardar("modulos_desconhecidos_vistos", vistos.concat(novos));
   }
   function detectarTipoEntidade(nomeUnidade) {
     const n2 = (nomeUnidade || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -32068,15 +31967,9 @@ This typically indicates that your device does not have a healthy Internet conne
     }
     return pendencias;
   }
-  async function obterCredenciaisTce() {
-    const dados = await chrome.storage.local.get(["tce_credenciais", "tce_matricula", "tce_senha"]);
-    if (dados.tce_credenciais && dados.tce_credenciais.length) return dados.tce_credenciais;
-    if (dados.tce_matricula && dados.tce_senha) return [{ matricula: dados.tce_matricula, senha: dados.tce_senha }];
-    return [];
-  }
   var matriculasRestritas = /* @__PURE__ */ new Set();
   async function obterTicketQlik() {
-    const todas = await obterCredenciaisTce();
+    const todas = await P.credenciaisTce();
     if (todas.length === 0) {
       log("TCE Virtual: nenhuma credencial configurada \u2014 pulando captura restrita (m\xF3dulos/datas).", "info");
       return null;
@@ -32096,21 +31989,17 @@ This typically indicates that your device does not have a healthy Internet conne
   }
   async function tentarObterTicketQlik(credenciais) {
     log("Fazendo login no TCE Virtual...");
-    const loginTab = await abrirAbaOculta(TCE_LOGIN_URL);
+    const loginTab = await P.abrirPagina(TCE_LOGIN_URL);
     for (let i2 = 0; i2 < credenciais.length; i2++) {
       const { matricula, senha } = credenciais[i2];
-      const [{ result: precisaLogar }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+      const precisaLogar = await loginTab.executar(isLoginPage);
       if (precisaLogar) {
-        const [{ result: preenchimento }] = await chrome.scripting.executeScript({
-          target: { tabId: loginTab.id },
-          func: fillLoginForm,
-          args: [matricula, senha]
-        });
+        const preenchimento = await loginTab.executar(fillLoginForm, [matricula, senha]);
         if (preenchimento !== "ok") {
           alertar("Login TCE", "a tela de login do TCE Virtual mudou (" + preenchimento + ") \u2014 a extens\xE3o n\xE3o achou onde preencher matr\xEDcula/senha.");
         }
         await new Promise((r2) => setTimeout(r2, 3e3));
-        const [{ result: aindaLogin }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: isLoginPage });
+        const aindaLogin = await loginTab.executar(isLoginPage);
         if (aindaLogin) {
           const ultima = i2 + 1 === credenciais.length;
           log("Login no TCE falhou para a matr\xEDcula " + matricula + (ultima ? "." : " \u2014 tentando a pr\xF3xima credencial..."), "err");
@@ -32118,21 +32007,21 @@ This typically indicates that your device does not have a healthy Internet conne
         }
       }
       log("Login no TCE confirmado (matr\xEDcula " + matricula + "). Obtendo ticket Qlik...", "ok");
-      const [{ result: jwt }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: readTokenFromPage });
+      const jwt = await loginTab.executar(readTokenFromPage);
       if (!jwt) {
-        await fecharAba(loginTab);
+        await loginTab.fechar();
         log("N\xE3o foi poss\xEDvel ler o token de sess\xE3o do TCE.", "err");
         return null;
       }
-      const [{ result: ticket }] = await chrome.scripting.executeScript({ target: { tabId: loginTab.id }, func: callTicketQlik, args: [jwt] });
-      await fecharAba(loginTab);
+      const ticket = await loginTab.executar(callTicketQlik, [jwt]);
+      await loginTab.fechar();
       if (!ticket || typeof ticket !== "string") {
         log("Ticket Qlik inv\xE1lido.", "err");
         return null;
       }
       return { ticket, matricula };
     }
-    await fecharAba(loginTab);
+    await loginTab.fechar();
     log("Login no TCE falhou para todas as credenciais configuradas.", "err");
     return null;
   }
@@ -32141,13 +32030,9 @@ This typically indicates that your device does not have a healthy Internet conne
     if (!ticket) return vazio;
     const periodo = competenciaAlvo || competenciaMesAnterior();
     log("Abrindo Qlik de m\xF3dulos (per\xEDodo " + periodo + ")...");
-    const qlikTab = await abrirAbaOculta(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
-    let [{ result: rawData }] = await chrome.scripting.executeScript({
-      target: { tabId: qlikTab.id },
-      func: extractQlikModulos,
-      args: [periodo]
-    });
-    await fecharAba(qlikTab);
+    const qlikTab = await P.abrirPagina(QLIK_MODULOS_URL + "?qlikTicket=" + ticket);
+    let rawData = await qlikTab.executar(extractQlikModulos, [periodo]);
+    await qlikTab.fechar();
     if (!rawData || rawData.error) {
       log("M\xF3dulos: " + (rawData ? rawData.error : "sem resposta do Qlik") + ".", "err");
       return vazio;
@@ -32215,7 +32100,7 @@ This typically indicates that your device does not have a healthy Internet conne
     if (recarga) tceAtualizadoEm.modulos = recarga;
     return { porIbge, competencia: periodo, recarga, nomesDesconhecidos };
   }
-  var cargaRef = doc(collection(db, "cargas"));
+  var cargaRef;
   var totalMovimentacoes = 0;
   var tceAtualizadoEm = { ratificacoes: null, modulos: null };
   function statusModulo(area) {
@@ -32318,9 +32203,9 @@ This typically indicates that your device does not have a healthy Internet conne
   async function gravarMovimentacoes(movimentos) {
     if (movimentos.length === 0) return;
     for (let i2 = 0; i2 < movimentos.length; i2 += 400) {
-      const batch = writeBatch(db);
+      const batch = writeBatch(db2);
       for (const m2 of movimentos.slice(i2, i2 + 400)) {
-        batch.set(doc(collection(db, "movimentacoes")), Object.assign({ carga_id: cargaRef.id, criado_em: serverTimestamp() }, m2));
+        batch.set(doc(collection(db2, "movimentacoes")), Object.assign({ carga_id: cargaRef.id, criado_em: serverTimestamp() }, m2));
       }
       await batch.commit();
     }
@@ -32342,14 +32227,14 @@ This typically indicates that your device does not have a healthy Internet conne
       log("Nada para gravar.");
       return 0;
     }
-    const snapAnterior = await getDocs(collection(db, "status_operacional_atual"));
+    const snapAnterior = await getDocs(collection(db2, "status_operacional_atual"));
     const anteriores = new Map(snapAnterior.docs.map((d) => [d.id, d.data()]));
     await gravarMovimentacoes(coletarMovimentacoes(porIbge, anteriores, porIbgeMunicipios, null, ["cnd"]));
-    const batch = writeBatch(db);
+    const batch = writeBatch(db2);
     for (const [codigoIbge, campos] of porIbge) {
       const municipio = porIbgeMunicipios.get(codigoIbge);
       batch.set(
-        doc(db, "status_operacional_atual", codigoIbge),
+        doc(db2, "status_operacional_atual", codigoIbge),
         Object.assign(
           { codigo_ibge: codigoIbge, municipio: municipio ? municipio.nome : "", atualizado_em: serverTimestamp() },
           campos
@@ -32368,14 +32253,14 @@ This typically indicates that your device does not have a healthy Internet conne
   async function gravarStatusPorCompetencia(competencia, porIbge, porIbgeMunicipios) {
     if (!competencia || porIbge.size === 0) return 0;
     const idCompetencia = competenciaParaId(competencia);
-    const snapAnterior = await getDocs(query(collection(db, "status_por_competencia"), where("competencia", "==", competencia)));
+    const snapAnterior = await getDocs(query(collection(db2, "status_por_competencia"), where("competencia", "==", competencia)));
     const anteriores = new Map(snapAnterior.docs.map((d) => [d.data().codigo_ibge, d.data()]));
     await gravarMovimentacoes(coletarMovimentacoes(porIbge, anteriores, porIbgeMunicipios, competencia, ["ratificacao", "modulo"]));
-    const batch = writeBatch(db);
+    const batch = writeBatch(db2);
     for (const [codigoIbge, campos] of porIbge) {
       const municipio = porIbgeMunicipios.get(codigoIbge);
       batch.set(
-        doc(db, "status_por_competencia", idCompetencia + "_" + codigoIbge),
+        doc(db2, "status_por_competencia", idCompetencia + "_" + codigoIbge),
         Object.assign(
           { codigo_ibge: codigoIbge, municipio: municipio ? municipio.nome : "", competencia, atualizado_em: serverTimestamp() },
           campos
@@ -32395,13 +32280,13 @@ This typically indicates that your device does not have a healthy Internet conne
     return resultado;
   }
   async function gravarSnapshotsDiarios() {
-    const snap = await getDocs(collection(db, "status_operacional_atual"));
+    const snap = await getDocs(collection(db2, "status_operacional_atual"));
     const hoje = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    const batch = writeBatch(db);
+    const batch = writeBatch(db2);
     let total = 0;
     snap.forEach(function(d) {
       batch.set(
-        doc(db, "snapshots_diarios", hoje + "_" + d.id),
+        doc(db2, "snapshots_diarios", hoje + "_" + d.id),
         Object.assign({}, d.data(), { data: hoje, timestamp_execucao: serverTimestamp() })
       );
       total++;
@@ -32451,24 +32336,39 @@ This typically indicates that your device does not have a healthy Internet conne
       log("N\xE3o foi poss\xEDvel registrar a carga em 'cargas': " + err.message, "err");
     }
   }
-  async function main() {
+  async function executarCarga(plataforma) {
+    P = plataforma;
+    db2 = plataforma.db;
+    modo = plataforma.parametros.modo || "manual";
+    const inicioParam = plataforma.parametros.competencia_inicio || null;
+    competenciasAlvo = inicioParam ? listarCompetencias(inicioParam, plataforma.parametros.competencia_fim || inicioParam) : null;
+    linhasLog = [];
+    cargaAberta = false;
+    ultimoPulso = 0;
+    alertas.length = 0;
+    cobertura.length = 0;
+    matriculasRestritas.clear();
+    tceAtualizadoEm.ratificacoes = null;
+    tceAtualizadoEm.modulos = null;
+    totalMovimentacoes = 0;
+    cargaRef = doc(collection(db2, "cargas"));
+    if (P.mostrarModo) {
+      P.mostrarModo(
+        "Modo: " + modo + (competenciasAlvo ? competenciasAlvo.length > 1 ? " (compet\xEAncias " + competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1] + ")" : " (compet\xEAncia " + competenciasAlvo[0] + ")" : "")
+      );
+    }
     const inicioMs = Date.now();
     let userEmail = null;
     let erroCarga = null;
     let tipoCarga = competenciasAlvo ? "backfill" : "sync";
     let periodoCarga = competenciasAlvo ? competenciasAlvo.length > 1 ? competenciasAlvo[0] + " a " + competenciasAlvo[competenciasAlvo.length - 1] : competenciasAlvo[0] : null;
     try {
-      const user = await signInComContaBetha();
-      userEmail = user.email;
+      userEmail = await P.entrar(log);
       if (modo === "login") {
         log("Login conclu\xEDdo. Pode fechar esta aba.", "ok");
-        return;
+        return resultadoDaCarga(null);
       }
-      await chrome.storage.local.set({ carga_em_andamento: Date.now() });
-      chrome.tabs.getCurrent(function(aba) {
-        if (aba) chrome.tabs.update(aba.id, { autoDiscardable: false }).catch(function() {
-        });
-      });
+      await P.inicio();
       try {
         await setDoc(cargaRef, {
           status: "em_andamento",
@@ -32508,12 +32408,9 @@ This typically indicates that your device does not have a healthy Internet conne
           log("Per\xEDodo inclui a compet\xEAncia vigente (" + vigente + ") \u2014 atualizando estado atual, CND e foto do dia...");
           estado2 = await atualizarEstadoAtual(ratifVigente, modulosVigente, porNomeBusca, municipiosPorIbge);
         }
-        await chrome.storage.local.set({
-          last_execution: {
-            resumo: "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? ", estado atual e CND atualizados" : "") + resumoCobertura(),
-            timestamp: Date.now()
-          }
-        });
+        await P.guardarUltimaExecucao(
+          "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? ", estado atual e CND atualizados" : "") + resumoCobertura()
+        );
         await registrarCarga({
           tipo: tipoCarga,
           periodo: periodoCarga,
@@ -32528,8 +32425,8 @@ This typically indicates that your device does not have a healthy Internet conne
           )
         });
         log("Conclu\xEDdo.", "ok");
-        fecharEstaAba();
-        return;
+        P.concluido();
+        return resultadoDaCarga(null);
       }
       const ratif = await comTentativas("Ratifica\xE7\xF5es", () => capturarRatificacoes(porNomeBusca));
       const modulos = await capturarModulosComTentativas(porNomeBusca, void 0);
@@ -32538,12 +32435,9 @@ This typically indicates that your device does not have a healthy Internet conne
       await gravarStatusPorCompetencia(ratif.competencia, ratif.porIbge, municipiosPorIbge);
       await gravarStatusPorCompetencia(modulos.competencia, modulos.porIbge, municipiosPorIbge);
       registrarCobertura(ratif.competencia, ratif, modulos, municipiosPorIbge);
-      await chrome.storage.local.set({
-        last_execution: {
-          resumo: estado.status_operacional + " munic\xEDpios atualizados, " + estado.snapshot + " snapshots gravados" + resumoCobertura(),
-          timestamp: Date.now()
-        }
-      });
+      await P.guardarUltimaExecucao(
+        estado.status_operacional + " munic\xEDpios atualizados, " + estado.snapshot + " snapshots gravados" + resumoCobertura()
+      );
       await registrarCarga({
         tipo: tipoCarga,
         periodo: periodoCarga,
@@ -32558,11 +32452,12 @@ This typically indicates that your device does not have a healthy Internet conne
         )
       });
       log("Conclu\xEDdo.", "ok");
-      fecharEstaAba();
+      P.concluido();
+      return resultadoDaCarga(null);
     } catch (err) {
       erroCarga = err.message;
       log("Erro: " + err.message, "err");
-      await chrome.storage.local.set({ last_execution: { resumo: "Erro: " + err.message, timestamp: Date.now() } });
+      await P.guardarUltimaExecucao("Erro: " + err.message);
       await registrarCarga({
         tipo: tipoCarga,
         periodo: periodoCarga,
@@ -32573,12 +32468,13 @@ This typically indicates that your device does not have a healthy Internet conne
         erro: err.message,
         totais: totalMovimentacoes ? { movimentacoes: totalMovimentacoes } : null
       });
+      return resultadoDaCarga(err.message);
     } finally {
-      await registrarNoLogAgenda(erroCarga ? "falhou: " + erroCarga : "conclu\xEDda");
-      await chrome.storage.local.remove("carga_em_andamento");
-      await fecharAbasAbertas();
-      if (modo !== "login") await avisarFimDaCarga(erroCarga);
+      await P.fim(erroCarga, alertas);
     }
+  }
+  function resultadoDaCarga(erro) {
+    return { cargaId: cargaRef.id, erro, alertas: alertas.slice(), cobertura: cobertura.slice(), log: linhasLog.slice() };
   }
   async function atualizarEstadoAtual(ratif, modulos, porNomeBusca, municipiosPorIbge) {
     const cndPorIbge = await comTentativas("CND", () => capturarCND(porNomeBusca), (m2) => m2.size >= MIN_MUNICIPIOS);
@@ -32617,9 +32513,132 @@ This typically indicates that your device does not have a healthy Internet conne
     }
     return r2;
   }
+
+  // src/progress.js
+  var logEl = document.getElementById("log");
+  var modoLabelEl = document.getElementById("modo-label");
+  var urlParams = new URLSearchParams(location.search);
+  var modo2 = urlParams.get("modo") || "manual";
+  var competenciaInicioParam = urlParams.get("competencia_inicio") || urlParams.get("competencia") || null;
+  var competenciaFimParam = urlParams.get("competencia_fim") || competenciaInicioParam;
+  function log2(msg, kind) {
+    const line = document.createElement("div");
+    line.className = kind ? "log-" + kind : "";
+    line.textContent = msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    console.log("[Radar e-Sfinge]", msg);
+  }
+  async function registrarNoLogAgenda(resultado) {
+    if (modo2 !== "alarme") return;
+    const { agenda_log: registro = [] } = await chrome.storage.local.get("agenda_log");
+    registro.unshift({ em: Date.now(), horarios: ["carga"], resultado });
+    await chrome.storage.local.set({ agenda_log: registro.slice(0, 30) });
+  }
+  async function avisarFimDaCarga(erro, alertas2) {
+    const problemas = alertas2.length + (erro ? 1 : 0);
+    try {
+      await chrome.action.setBadgeText({ text: problemas ? "!" : "" });
+      await chrome.action.setBadgeBackgroundColor({ color: "#d93025" });
+    } catch (e2) {
+    }
+    const { last_execution: ultima } = await chrome.storage.local.get("last_execution");
+    await chrome.storage.local.set({ last_execution: Object.assign({}, ultima, { alertas: alertas2, erro: erro || null }) });
+    if (!problemas) return;
+    const primeira = erro ? "Carga com erro: " + erro : alertas2[0].fonte + ": " + alertas2[0].mensagem;
+    const extras = problemas > 1 ? " (+" + (problemas - 1) + " alerta" + (problemas > 2 ? "s" : "") + " \u2014 veja o Controle de Cargas)" : "";
+    try {
+      chrome.notifications.create("carga-" + Date.now(), {
+        type: "basic",
+        iconUrl: "icon.png",
+        title: "BI Esfinge SC \u2014 aten\xE7\xE3o na carga de dados",
+        message: (primeira + extras).slice(0, 300),
+        priority: 2,
+        requireInteraction: true
+      });
+    } catch (e2) {
+    }
+  }
+  function getGoogleToken() {
+    return new Promise(function(resolve, reject) {
+      chrome.identity.getAuthToken({ interactive: true }, function(token) {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(token);
+      });
+    });
+  }
+  async function signInComContaBetha(log3) {
+    log3("Solicitando login Google...");
+    const token = await getGoogleToken();
+    log3("Token obtido, trocando por sess\xE3o Firebase Auth...");
+    const credential = GoogleAuthProvider.credential(null, token);
+    const result = await signInWithCredential(auth, credential);
+    const email = result.user.email || "";
+    if (!email.toLowerCase().endsWith("@" + ALLOWED_EMAIL_DOMAIN)) {
+      await signOut(auth);
+      await chrome.storage.local.set({ auth_status: { signedIn: false } });
+      throw new Error("Acesso restrito a contas @" + ALLOWED_EMAIL_DOMAIN + " (login com " + email + ")");
+    }
+    await chrome.storage.local.set({ auth_status: { signedIn: true, email } });
+    log3("Login confirmado: " + email, "ok");
+    return result.user.email;
+  }
+  var abasAbertas = /* @__PURE__ */ new Set();
+  function abrirAbaOculta(url) {
+    return new Promise(function(resolve, reject) {
+      chrome.tabs.create({ url, active: false }, function(tab) {
+        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        abasAbertas.add(tab.id);
+        chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(function() {
+        });
+        const limite = setTimeout(function() {
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          reject(new Error("p\xE1gina n\xE3o terminou de carregar em 60s: " + url));
+        }, 6e4);
+        function onUpdated(tabId, info) {
+          if (tabId === tab.id && info.status === "complete") {
+            chrome.tabs.onUpdated.removeListener(onUpdated);
+            clearTimeout(limite);
+            setTimeout(function() {
+              resolve(tab);
+            }, 2500);
+          }
+        }
+        chrome.tabs.onUpdated.addListener(onUpdated);
+      });
+    });
+  }
+  function fecharAba(tab) {
+    abasAbertas.delete(tab.id);
+    return chrome.tabs.remove(tab.id).catch(function() {
+    });
+  }
+  async function fecharAbasAbertas() {
+    for (const id of abasAbertas) await chrome.tabs.remove(id).catch(function() {
+    });
+    abasAbertas.clear();
+  }
+  async function abrirPagina(url) {
+    const tab = await abrirAbaOculta(url);
+    return {
+      executar: async function(func, args) {
+        const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func, args: args || [] });
+        return result;
+      },
+      fechar: function() {
+        return fecharAba(tab);
+      }
+    };
+  }
+  async function obterCredenciaisTce() {
+    const dados = await chrome.storage.local.get(["tce_credenciais", "tce_matricula", "tce_senha"]);
+    if (dados.tce_credenciais && dados.tce_credenciais.length) return dados.tce_credenciais;
+    if (dados.tce_matricula && dados.tce_senha) return [{ matricula: dados.tce_matricula, senha: dados.tce_senha }];
+    return [];
+  }
   function fecharEstaAba() {
-    const segundos = modo === "alarme" ? 2 : 10;
-    log("Esta aba fecha sozinha em " + segundos + "s.", "info");
+    const segundos = modo2 === "alarme" ? 2 : 10;
+    log2("Esta aba fecha sozinha em " + segundos + "s.", "info");
     setTimeout(function() {
       chrome.tabs.getCurrent(function(tab) {
         if (tab) chrome.tabs.remove(tab.id);
@@ -32627,7 +32646,41 @@ This typically indicates that your device does not have a healthy Internet conne
       });
     }, segundos * 1e3);
   }
-  main();
+  executarCarga({
+    db,
+    parametros: { modo: modo2, competencia_inicio: competenciaInicioParam, competencia_fim: competenciaFimParam },
+    log: log2,
+    mostrarModo: function(texto) {
+      modoLabelEl.textContent = texto;
+    },
+    entrar: signInComContaBetha,
+    inicio: async function() {
+      await chrome.storage.local.set({ carga_em_andamento: Date.now() });
+      chrome.tabs.getCurrent(function(aba) {
+        if (aba) chrome.tabs.update(aba.id, { autoDiscardable: false }).catch(function() {
+        });
+      });
+    },
+    abrirPagina,
+    fecharTodas: fecharAbasAbertas,
+    credenciaisTce: obterCredenciaisTce,
+    obter: async function(chave) {
+      return (await chrome.storage.local.get(chave))[chave];
+    },
+    guardar: function(chave, valor) {
+      return chrome.storage.local.set({ [chave]: valor });
+    },
+    guardarUltimaExecucao: function(resumo) {
+      return chrome.storage.local.set({ last_execution: { resumo, timestamp: Date.now() } });
+    },
+    concluido: fecharEstaAba,
+    fim: async function(erro, alertas2) {
+      await registrarNoLogAgenda(erro ? "falhou: " + erro : "conclu\xEDda");
+      await chrome.storage.local.remove("carga_em_andamento");
+      await fecharAbasAbertas();
+      if (modo2 !== "login") await avisarFimDaCarga(erro, alertas2);
+    }
+  });
 })();
 /*! Bundled license information:
 
@@ -34073,6 +34126,24 @@ This typically indicates that your device does not have a healthy Internet conne
   (**
    * @license
    * Copyright 2021 Google LLC
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   *   http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   *)
+
+firebase/app/dist/esm/index.esm.js:
+  (**
+   * @license
+   * Copyright 2020 Google LLC
    *
    * Licensed under the Apache License, Version 2.0 (the "License");
    * you may not use this file except in compliance with the License.
@@ -35927,24 +35998,6 @@ re2js/build/index.js:
   (**
    * @license
    * Copyright 2023 Google LLC
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *   http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   *)
-
-firebase/app/dist/esm/index.esm.js:
-  (**
-   * @license
-   * Copyright 2020 Google LLC
    *
    * Licensed under the Apache License, Version 2.0 (the "License");
    * you may not use this file except in compliance with the License.

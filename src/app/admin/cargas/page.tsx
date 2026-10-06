@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, limit, orderBy, query, type Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app, db } from "@/lib/firebase";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
 import { IconRefresh } from "@/components/icons";
@@ -43,6 +44,7 @@ function formatarTotais(totais: Record<string, number> | null): string {
 export default function AdminCargasPage() {
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [nuvem, setNuvem] = useState<{ rodando: boolean; mensagem: string | null }>({ rodando: false, mensagem: null });
 
   async function carregar() {
     setCarregando(true);
@@ -55,6 +57,32 @@ export default function AdminCargasPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     carregar();
   }, []);
+
+  // A função só responde quando a carga termina (alguns minutos); enquanto isso
+  // ela já aparece na lista como "Em andamento".
+  async function rodarNaNuvem() {
+    setNuvem({ rodando: true, mensagem: "Carga na nuvem iniciada — acompanhe na lista." });
+    setTimeout(carregar, 5000);
+    try {
+      const rodar = httpsCallable<void, { pulada?: boolean; erro?: string | null; alertas?: number }>(
+        getFunctions(app, "southamerica-east1"),
+        "rodarCargaAgora",
+        { timeout: 30 * 60 * 1000 }
+      );
+      const { data } = await rodar();
+      setNuvem({
+        rodando: false,
+        mensagem: data.pulada
+          ? "Já havia uma carga na nuvem em andamento — esta não foi iniciada."
+          : data.erro
+            ? "A carga na nuvem terminou com erro: " + data.erro
+            : "Carga na nuvem concluída" + (data.alertas ? " com " + data.alertas + " alerta(s)." : "."),
+      });
+    } catch (err) {
+      setNuvem({ rodando: false, mensagem: "Não foi possível rodar na nuvem: " + (err as Error).message });
+    }
+    carregar();
+  }
 
   return (
     <main className="w-full min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
@@ -69,11 +97,21 @@ export default function AdminCargasPage() {
         >
           <IconRefresh className="h-3.5 w-3.5" />
         </button>
+        <button
+          type="button"
+          onClick={rodarNaNuvem}
+          disabled={nuvem.rodando}
+          className="ml-auto rounded-full bg-vinho px-4 py-1.5 text-[12px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50 dark:bg-blue-600"
+        >
+          {nuvem.rodando ? "Rodando na nuvem…" : "Rodar na nuvem agora"}
+        </button>
       </div>
       <p className="mb-6 text-sm text-apple-secondary">
         Histórico de sincronizações da extensão — cada execução grava um registro aqui assim que termina,
         com quem rodou, quanto tempo levou e quantos documentos foram salvos no Firestore.
+        Além da extensão, a carga roda sozinha na nuvem de hora em hora, das 08:30 às 18:30.
       </p>
+      {nuvem.mensagem && <p className="-mt-3 mb-6 text-sm font-medium text-apple-title">{nuvem.mensagem}</p>}
 
       {carregando ? (
         <p className="text-apple-secondary">Carregando...</p>
@@ -104,7 +142,8 @@ export default function AdminCargasPage() {
                       <span className="block text-[11px] text-apple-muted">fim: {c.concluido_em ? formatarDataHora(c.concluido_em) : "—"}</span>
                     </td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.tipo === "backfill" ? "Backfill" : "Sincronização"}
-                      {c.modo === "alarme" && <span className="mt-0.5 block text-[10px] font-semibold text-vinho dark:text-blue-400">Agendada</span>}</td>
+                      {c.modo === "alarme" && <span className="mt-0.5 block text-[10px] font-semibold text-vinho dark:text-blue-400">Agendada</span>}
+                      {c.modo === "nuvem" && <span className="mt-0.5 block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Nuvem</span>}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.periodo ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{c.usuario ?? "—"}</td>
                     <td className="px-4 py-3.5 text-apple-secondary">{formatarDuracao(c.duracao_ms)}</td>
@@ -173,6 +212,11 @@ export default function AdminCargasPage() {
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {c.diagnostico_ia && (
+                        <div className="mt-2 max-w-[460px] rounded-xl bg-black/[0.03] px-3 py-2 text-[11px] leading-snug whitespace-pre-line text-apple-secondary dark:bg-white/[0.05]">
+                          <span className="font-semibold text-apple-title">Diagnóstico (IA):</span> {c.diagnostico_ia}
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-3.5 font-mono text-apple-secondary">{formatarTotais(c.totais)}</td>

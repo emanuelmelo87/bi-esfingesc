@@ -87,7 +87,8 @@ Nome no Chrome: **BI Esfinge SC**. O painel lateral se chama **Carga de dados**.
 ### Instalação e atualização
 
 1. `cd Extencao-BIEsfinge && npm install && npm run build` (gera `progress.js`
-   a partir de `src/progress.js`).
+   a partir de `src/` e o `Extencao-BIEsfinge.zip` na raiz do projeto, só com
+   os arquivos que o Chrome usa — é esse zip que se passa adiante).
 2. `chrome://extensions` → modo desenvolvedor → **Carregar sem compactação** →
    pasta `Extencao-BIEsfinge/`.
 3. **Após qualquer alteração ou `git pull`, clique em recarregar (↻) em
@@ -121,7 +122,7 @@ Nome no Chrome: **BI Esfinge SC**. O painel lateral se chama **Carga de dados**.
 | Módulos (Contábil/Folha/Contratos/Tributos) | Login no TCE Virtual → ticket Qlik (pedido de novo a cada competência, é de uso único) → WebSocket no Qlik restrito | idem ratificação | idem ratificação |
 | Snapshot diário | Cópia de `status_operacional_atual` | `snapshots_diarios` | Só se o período incluir a competência vigente |
 
-Backfill cujo período inclui a competência vigente (mês anterior) faz também o que a sincronização normal faz: captura a CND, atualiza `status_operacional_atual` e grava a foto do dia (`atualizarEstadoAtual` em `src/progress.js`). Assim, quem só usa o backfill não deixa a CND, a Início e a Evolução paradas.
+Backfill cujo período inclui a competência vigente (mês anterior) faz também o que a sincronização normal faz: captura a CND, atualiza `status_operacional_atual` e grava a foto do dia (`atualizarEstadoAtual` em `src/carga.js`). Assim, quem só usa o backfill não deixa a CND, a Início e a Evolução paradas.
 
 **Alertas de mudança no TCE:** cada captura confere se o que veio ainda tem o
 formato esperado e registra um alerta quando não tem — por exemplo, competência
@@ -145,7 +146,7 @@ completo da execução.
   `quitado` (Ratificado, no prazo), vermelho = `atrasado` (enviado fora do
   prazo), "Ausente" = `ausente`. `quitado` e `atrasado` contam como enviado.
 - **Módulos**: cada área agrega campos do Qlik de extratos
-  (`REGRAS_MODULO` em `src/progress.js`), por tipo de entidade (Prefeitura,
+  (`REGRAS_MODULO` em `src/carga.js`), por tipo de entidade (Prefeitura,
   Câmara, Controle Interno…). Ex.: Assinatura Balancete = exatamente 2 pacotes;
   demais = ao menos 1 pacote. Área `ok` se todos os campos aplicáveis passam,
   senão `pendente` (com a lista de pendências).
@@ -154,6 +155,45 @@ completo da execução.
 - **Ratificação Geral prevalece**: se a ratificação geral está concluída, a
   tela Status por Módulo mostra os 4 módulos como OK e "Ratificação por
   Módulo" = SIM, mesmo que as regras acima apontem pendência.
+
+---
+
+## Carga na nuvem (`functions/`)
+
+A mesma carga da extensão roda também no **Cloud Functions** (região
+`southamerica-east1`), com um Chrome sem tela (`puppeteer-core` +
+`@sparticuz/chromium`) — funciona com o PC desligado. Os dois métodos convivem:
+
+- **Um código só.** A lógica da carga está em `Extencao-BIEsfinge/src/carga.js`
+  (`executarCarga(plataforma)`); o que muda entre extensão e nuvem é a
+  "plataforma": `src/progress.js` (abas, login Google, `chrome.storage`) na
+  extensão e `functions/src/plataforma-nuvem.js` (Puppeteer, Admin SDK) na
+  nuvem. As funções que rodam dentro das páginas do TCE ficam em
+  `src/paginas-tce.js`. O build da nuvem troca `firebase/firestore` por
+  `functions/src/firestore-admin.js`.
+- **`cargaAgendada`**: de hora em hora das 08:30 às 18:30 (Brasília), meia hora
+  depois dos horários da extensão. Período: de `config/carga_nuvem.competencia_inicio`
+  (padrão `05/2026`) até a competência vigente.
+- **`rodarCargaAgora`**: botão "Rodar na nuvem agora" no Controle de Cargas, só
+  para `ADMIN_GERAL`.
+- **Trava**: `config/carga_nuvem.em_andamento_desde` impede duas cargas na nuvem
+  ao mesmo tempo (expira em 30 min).
+- **Conferência pelo Claude**: se a carga terminar com erro, alerta ou cobertura
+  incompleta, o Claude (Haiku 4.5) lê o log e a carga anterior e grava um
+  diagnóstico em `cargas/{id}.diagnostico_ia`, mostrado no Controle de Cargas.
+- No Controle de Cargas essas cargas aparecem com o selo **Nuvem** e usuário `nuvem`.
+
+Segredos (cadastrados por quem administra, nunca no código):
+
+```bash
+firebase functions:secrets:set TCE_CREDENCIAIS      # JSON: [{"matricula":"…","senha":"…"}]
+firebase functions:secrets:set ANTHROPIC_API_KEY    # chave da API da Anthropic
+```
+
+Testes: `npm test` na pasta da extensão roda a carga inteira contra um TCE e um
+banco de mentira; `node functions/teste-local.mjs MM/AAAA` (com
+`GOOGLE_APPLICATION_CREDENTIALS`) roda a versão da nuvem neste PC, com o Chrome
+instalado, contra o banco real.
 
 ---
 
@@ -230,6 +270,7 @@ Variáveis do Firebase em `.env.local` (modelo em `.env.example`).
 npm run build                                     # gera out/
 firebase deploy --only hosting                    # app
 firebase deploy --only firestore:rules            # quando mudar firestore.rules
+firebase deploy --only functions                  # carga na nuvem (builda functions/ antes)
 ```
 
 ### Scripts (`scripts/`)
@@ -263,10 +304,14 @@ src/
   types/                      # tipos das coleções
 scripts/                      # utilitários com firebase-admin
 Extencao-BIEsfinge/
-  src/progress.js             # toda a captura, comparação e gravação (fonte)
+  src/carga.js                # toda a captura, comparação e gravação (usada também pela nuvem)
+  src/paginas-tce.js          # funções que rodam dentro das páginas do TCE
+  src/progress.js             # plataforma Chrome (abas, login, storage, avisos)
+  teste/                      # teste da carga com TCE e banco de mentira (npm test)
   progress.js                 # build gerado pelo esbuild (commitado; é o que o Chrome carrega)
   sidepanel.html/.js          # painel "Carga de dados"
   background.js               # abre o painel e dispara o agendamento
+functions/                    # carga na nuvem (Cloud Functions): index.js, plataforma-nuvem.js, firestore-admin.js
 firestore.rules, firebase.json, next.config.ts
 ```
 
