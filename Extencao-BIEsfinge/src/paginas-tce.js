@@ -2,27 +2,38 @@
 // extensão, ou via page.evaluate na carga em nuvem). Autocontidas: são
 // serializadas com toString(), então não podem usar nada de fora do próprio corpo.
 
+// A tabela da CND às vezes demora a ser desenhada: em vez de ler uma vez só,
+// relê a cada meio segundo até ter a lista inteira (~295) ou dar 20s.
 export function extractCNDPublico() {
-  var rows = Array.from(document.querySelectorAll("tbody tr"));
-  return rows
-    .map(function (tr) {
-      var cells = tr.querySelectorAll("td");
-      if (cells.length < 5) return null;
-      var ente = (cells[0].innerText || "").trim();
-      var bimestre = (cells[1].innerText || "").trim();
-      var certidaoTexto = (cells[2].innerText || "").trim();
-      var validade = (cells[3].innerText || "").trim();
-      var labelEl = cells[4].querySelector(".p-tag-label");
-      var numero = (labelEl ? labelEl.innerText : "").trim().replace("● ", "");
-      return {
-        ente: ente,
-        bimestre: bimestre,
-        status: certidaoTexto.indexOf("Falta de Dados") >= 0 ? "irregular" : "regular",
-        validade: validade,
-        numero: numero,
-      };
-    })
-    .filter(Boolean);
+  function ler() {
+    return Array.from(document.querySelectorAll("tbody tr"))
+      .map(function (tr) {
+        var cells = tr.querySelectorAll("td");
+        if (cells.length < 5) return null;
+        var ente = (cells[0].innerText || "").trim();
+        var bimestre = (cells[1].innerText || "").trim();
+        var certidaoTexto = (cells[2].innerText || "").trim();
+        var validade = (cells[3].innerText || "").trim();
+        var labelEl = cells[4].querySelector(".p-tag-label");
+        var numero = (labelEl ? labelEl.innerText : "").trim().replace("● ", "");
+        return {
+          ente: ente,
+          bimestre: bimestre,
+          status: certidaoTexto.indexOf("Falta de Dados") >= 0 ? "irregular" : "regular",
+          validade: validade,
+          numero: numero,
+        };
+      })
+      .filter(Boolean);
+  }
+  return new Promise(function (resolve) {
+    var limite = Date.now() + 20000;
+    (function tentar() {
+      var linhas = ler();
+      if (linhas.length >= 280 || Date.now() > limite) resolve(linhas);
+      else setTimeout(tentar, 500);
+    })();
+  });
 }
 
 export function extractRatificacoesGlobais(competenciaAlvo) {

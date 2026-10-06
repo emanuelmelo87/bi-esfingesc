@@ -941,7 +941,7 @@ export async function executarCarga(plataforma) {
 
       await P.guardarUltimaExecucao(
         "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratificações, " + totalModulosSoma + " módulos" +
-          (estado ? ", estado atual e CND atualizados" : "") + resumoCobertura()
+          (estado ? (estado.cnd ? ", estado atual e CND atualizados" : ", estado atual atualizado (CND não lida)") : "") + resumoCobertura()
       );
       await registrarCarga({
         tipo: tipoCarga,

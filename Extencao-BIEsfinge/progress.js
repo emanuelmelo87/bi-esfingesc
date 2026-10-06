@@ -31352,24 +31352,33 @@ This typically indicates that your device does not have a healthy Internet conne
 
   // src/paginas-tce.js
   function extractCNDPublico() {
-    var rows = Array.from(document.querySelectorAll("tbody tr"));
-    return rows.map(function(tr) {
-      var cells = tr.querySelectorAll("td");
-      if (cells.length < 5) return null;
-      var ente = (cells[0].innerText || "").trim();
-      var bimestre = (cells[1].innerText || "").trim();
-      var certidaoTexto = (cells[2].innerText || "").trim();
-      var validade = (cells[3].innerText || "").trim();
-      var labelEl = cells[4].querySelector(".p-tag-label");
-      var numero = (labelEl ? labelEl.innerText : "").trim().replace("\u25CF ", "");
-      return {
-        ente,
-        bimestre,
-        status: certidaoTexto.indexOf("Falta de Dados") >= 0 ? "irregular" : "regular",
-        validade,
-        numero
-      };
-    }).filter(Boolean);
+    function ler() {
+      return Array.from(document.querySelectorAll("tbody tr")).map(function(tr) {
+        var cells = tr.querySelectorAll("td");
+        if (cells.length < 5) return null;
+        var ente = (cells[0].innerText || "").trim();
+        var bimestre = (cells[1].innerText || "").trim();
+        var certidaoTexto = (cells[2].innerText || "").trim();
+        var validade = (cells[3].innerText || "").trim();
+        var labelEl = cells[4].querySelector(".p-tag-label");
+        var numero = (labelEl ? labelEl.innerText : "").trim().replace("\u25CF ", "");
+        return {
+          ente,
+          bimestre,
+          status: certidaoTexto.indexOf("Falta de Dados") >= 0 ? "irregular" : "regular",
+          validade,
+          numero
+        };
+      }).filter(Boolean);
+    }
+    return new Promise(function(resolve) {
+      var limite = Date.now() + 2e4;
+      (function tentar() {
+        var linhas = ler();
+        if (linhas.length >= 280 || Date.now() > limite) resolve(linhas);
+        else setTimeout(tentar, 500);
+      })();
+    });
   }
   function extractRatificacoesGlobais(competenciaAlvo) {
     return new Promise(function(resolve, reject) {
@@ -32409,7 +32418,7 @@ This typically indicates that your device does not have a healthy Internet conne
           estado2 = await atualizarEstadoAtual(ratifVigente, modulosVigente, porNomeBusca, municipiosPorIbge);
         }
         await P.guardarUltimaExecucao(
-          "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? ", estado atual e CND atualizados" : "") + resumoCobertura()
+          "Backfill " + periodoCarga + ": " + totalRatifSoma + " ratifica\xE7\xF5es, " + totalModulosSoma + " m\xF3dulos" + (estado2 ? estado2.cnd ? ", estado atual e CND atualizados" : ", estado atual atualizado (CND n\xE3o lida)" : "") + resumoCobertura()
         );
         await registrarCarga({
           tipo: tipoCarga,
