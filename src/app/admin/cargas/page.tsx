@@ -6,6 +6,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { app, db } from "@/lib/firebase";
 import StatusBadge from "@/components/StatusBadge";
 import ContadorResultados from "@/components/ContadorResultados";
+import AgendaNuvem from "@/components/AgendaNuvem";
 import { IconRefresh } from "@/components/icons";
 import { coberturaCompleta, type Carga } from "@/types/carga";
 
@@ -109,9 +110,10 @@ export default function AdminCargasPage() {
       <p className="mb-6 text-sm text-apple-secondary">
         Histórico de sincronizações da extensão — cada execução grava um registro aqui assim que termina,
         com quem rodou, quanto tempo levou e quantos documentos foram salvos no Firestore.
-        Além da extensão, a carga roda sozinha na nuvem de hora em hora, das 08:30 às 18:30.
+        Além da extensão, a carga roda sozinha na nuvem nos horários do agendamento abaixo.
       </p>
       {nuvem.mensagem && <p className="-mt-3 mb-6 text-sm font-medium text-apple-title">{nuvem.mensagem}</p>}
+      <AgendaNuvem />
 
       {carregando ? (
         <p className="text-apple-secondary">Carregando...</p>
@@ -212,11 +214,6 @@ export default function AdminCargasPage() {
                             </li>
                           ))}
                         </ul>
-                      )}
-                      {c.diagnostico_ia && (
-                        <div className="mt-2 max-w-[460px] rounded-xl bg-black/[0.03] px-3 py-2 text-[11px] leading-snug whitespace-pre-line text-apple-secondary dark:bg-white/[0.05]">
-                          <span className="font-semibold text-apple-title">Diagnóstico (IA):</span> {c.diagnostico_ia}
-                        </div>
                       )}
                     </td>
                     <td className="px-6 py-3.5 font-mono text-apple-secondary">{formatarTotais(c.totais)}</td>

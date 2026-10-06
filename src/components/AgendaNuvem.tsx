@@ -1,0 +1,186 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { doc, getDoc, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
+
+// Agenda da carga na nuvem (config/agenda_nuvem). A função relogioCarga confere
+// este documento a cada 5 minutos e dispara a carga nos horários cadastrados.
+type Agenda = {
+  ativo: boolean;
+  horarios: string[];
+  dias: number[]; // 0 = domingo
+  competencia_inicio: string;
+  atualizado_por?: string;
+  atualizado_em?: Timestamp | null;
+};
+
+const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const PADRAO: Agenda = { ativo: false, horarios: [], dias: [1, 2, 3, 4, 5], competencia_inicio: "05/2026" };
+
+function proximoDisparo(a: Agenda): string | null {
+  if (!a.ativo || !a.horarios.length) return null;
+  const agora = new Date();
+  for (let d = 0; d < 8; d++) {
+    const dia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + d);
+    if (a.dias.length && !a.dias.includes(dia.getDay())) continue;
+    for (const h of a.horarios) {
+      const [hh, mm] = h.split(":").map(Number);
+      const quando = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), hh, mm);
+      if (quando > agora) {
+        return (d === 0 ? "hoje" : d === 1 ? "amanhã" : DIAS[quando.getDay()].toLowerCase()) + " às " + h;
+      }
+    }
+  }
+  return null;
+}
+
+export default function AgendaNuvem() {
+  const { user } = useAuth();
+  const [agenda, setAgenda] = useState<Agenda>(PADRAO);
+  const [novoHorario, setNovoHorario] = useState("08:30");
+  const [alterado, setAlterado] = useState(false);
+  const [mensagem, setMensagem] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    getDoc(doc(db, "config", "agenda_nuvem")).then((snap) => {
+      if (snap.exists()) setAgenda({ ...PADRAO, ...(snap.data() as Agenda) });
+    });
+  }, []);
+
+  function mudar(parcial: Partial<Agenda>) {
+    setAgenda((a) => ({ ...a, ...parcial }));
+    setAlterado(true);
+    setMensagem(null);
+  }
+
+  function adicionarHorario() {
+    if (!novoHorario || agenda.horarios.includes(novoHorario)) return;
+    mudar({ horarios: [...agenda.horarios, novoHorario].sort() });
+  }
+
+  async function salvar() {
+    if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(agenda.competencia_inicio)) {
+      setMensagem("Competência inicial deve estar no formato MM/AAAA.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await setDoc(
+        doc(db, "config", "agenda_nuvem"),
+        {
+          ativo: agenda.ativo,
+          horarios: agenda.horarios,
+          dias: agenda.dias,
+          competencia_inicio: agenda.competencia_inicio,
+          atualizado_por: user?.email ?? null,
+          atualizado_em: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      setAlterado(false);
+      setMensagem("Agenda salva.");
+    } catch (err) {
+      setMensagem("Não foi possível salvar: " + (err as Error).message);
+    }
+    setSalvando(false);
+  }
+
+  const proximo = proximoDisparo(agenda);
+  const pill = (ativo: boolean) =>
+    `rounded-full px-3 py-1 text-[12px] font-semibold transition ${
+      ativo
+        ? "bg-vinho text-white dark:bg-blue-600"
+        : "border border-black/[0.08] bg-white/80 text-apple-secondary hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+    }`;
+  const inputClass =
+    "rounded-full border border-black/[0.08] bg-white/90 px-3 py-1.5 text-[12px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100";
+
+  return (
+    <section className="apple-glass-card mb-6 rounded-[22px] px-6 py-5">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <h2 className="text-[15px] font-semibold text-apple-title">Agendamento na nuvem</h2>
+        <label className="flex cursor-pointer items-center gap-2 text-[12px] font-medium text-apple-secondary">
+          <input type="checkbox" checked={agenda.ativo} onChange={(e) => mudar({ ativo: e.target.checked })} className="h-4 w-4 accent-vinho" />
+          Ativo
+        </label>
+        <span className={`text-[12px] font-semibold ${agenda.ativo ? "text-emerald-700 dark:text-emerald-400" : "text-apple-muted"}`}>
+          {agenda.ativo ? (proximo ? "Próximo disparo: " + proximo : "Sem horários cadastrados") : "Desligado"}
+        </span>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-[1.4fr_1fr_auto]">
+        <div>
+          <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">Horários</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {agenda.horarios.map((h) => (
+              <span key={h} className="flex items-center gap-1 rounded-full bg-black/[0.05] py-1 pr-1.5 pl-3 text-[12px] font-semibold text-apple-title dark:bg-white/10">
+                {h}
+                <button
+                  type="button"
+                  title={"Remover " + h}
+                  onClick={() => mudar({ horarios: agenda.horarios.filter((x) => x !== h) })}
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-apple-muted hover:bg-black/10 hover:text-apple-title dark:hover:bg-white/15"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <input type="time" value={novoHorario} onChange={(e) => setNovoHorario(e.target.value)} className={inputClass} />
+            <button type="button" onClick={adicionarHorario} className={pill(false)}>
+              Adicionar
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">Dias</p>
+          <div className="flex flex-wrap gap-1.5">
+            {DIAS.map((nome, i) => (
+              <button
+                key={nome}
+                type="button"
+                onClick={() => mudar({ dias: agenda.dias.includes(i) ? agenda.dias.filter((d) => d !== i) : [...agenda.dias, i].sort() })}
+                className={pill(agenda.dias.includes(i))}
+              >
+                {nome}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-medium tracking-wider text-apple-muted uppercase">Competência inicial</p>
+          <input
+            value={agenda.competencia_inicio}
+            onChange={(e) => mudar({ competencia_inicio: e.target.value.trim() })}
+            placeholder="MM/AAAA"
+            className={inputClass + " w-28"}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={salvar}
+          disabled={!alterado || salvando}
+          className="rounded-full bg-gradient-to-b from-vinho-hover to-vinho px-4 py-1.5 text-[12px] font-semibold text-white shadow-apple-btn ring-1 ring-white/20 transition hover:brightness-105 disabled:opacity-50"
+        >
+          {salvando ? "Salvando..." : "Salvar agenda"}
+        </button>
+        {mensagem && <span className="text-[12px] font-medium text-apple-title">{mensagem}</span>}
+        <span className="text-[11px] text-apple-muted">
+          Cada disparo carrega da competência inicial até a vigente (mês anterior), sem depender de nenhum computador ligado.
+          {agenda.atualizado_por &&
+            " Última alteração: " +
+              agenda.atualizado_por +
+              (agenda.atualizado_em ? " em " + agenda.atualizado_em.toDate().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "") +
+              "."}
+        </span>
+      </div>
+    </section>
+  );
+}

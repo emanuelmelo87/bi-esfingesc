@@ -171,29 +171,29 @@ A mesma carga da extensão roda também no **Cloud Functions** (região
   nuvem. As funções que rodam dentro das páginas do TCE ficam em
   `src/paginas-tce.js`. O build da nuvem troca `firebase/firestore` por
   `functions/src/firestore-admin.js`.
-- **`cargaAgendada`**: de hora em hora das 08:30 às 18:30 (Brasília), meia hora
-  depois dos horários da extensão. Período: de `config/carga_nuvem.competencia_inicio`
-  (padrão `05/2026`) até a competência vigente.
+- **Agendamento pelo portal**: no Controle de Cargas, o admin cadastra horários,
+  dias da semana e competência inicial (`config/agenda_nuvem`). A função
+  **`relogioCarga`** roda a cada 5 minutos, confere a agenda e dispara a carga
+  quando chega um horário (cada horário uma vez por dia; horário perdido há mais
+  de 60 min é pulado). Período de cada carga: da competência inicial até a vigente.
 - **`rodarCargaAgora`**: botão "Rodar na nuvem agora" no Controle de Cargas, só
   para `ADMIN_GERAL`.
 - **Trava**: `config/carga_nuvem.em_andamento_desde` impede duas cargas na nuvem
-  ao mesmo tempo (expira em 30 min).
-- **Conferência pelo Claude**: se a carga terminar com erro, alerta ou cobertura
-  incompleta, o Claude (Haiku 4.5) lê o log e a carga anterior e grava um
-  diagnóstico em `cargas/{id}.diagnostico_ia`, mostrado no Controle de Cargas.
+  ao mesmo tempo (expira em 30 min). `config/carga_nuvem` (estado interno) só a
+  função acessa; `config/agenda_nuvem` todos leem e só admin altera.
 - No Controle de Cargas essas cargas aparecem com o selo **Nuvem** e usuário `nuvem`.
 
-Segredos (cadastrados por quem administra, nunca no código):
+Credenciais do TCE (cadastradas por quem administra, nunca no código):
 
 ```bash
 firebase functions:secrets:set TCE_CREDENCIAIS      # JSON: [{"matricula":"…","senha":"…"}]
-firebase functions:secrets:set ANTHROPIC_API_KEY    # chave da API da Anthropic
 ```
 
 Testes: `npm test` na pasta da extensão roda a carga inteira contra um TCE e um
 banco de mentira; `node functions/teste-local.mjs MM/AAAA` (com
 `GOOGLE_APPLICATION_CREDENTIALS`) roda a versão da nuvem neste PC, com o Chrome
-instalado, contra o banco real.
+instalado, contra o banco real; `node functions/teste-agenda.mjs` confere a regra
+da agenda.
 
 ---
 
@@ -311,7 +311,7 @@ Extencao-BIEsfinge/
   progress.js                 # build gerado pelo esbuild (commitado; é o que o Chrome carrega)
   sidepanel.html/.js          # painel "Carga de dados"
   background.js               # abre o painel e dispara o agendamento
-functions/                    # carga na nuvem (Cloud Functions): index.js, plataforma-nuvem.js, firestore-admin.js
+functions/                    # carga na nuvem (Cloud Functions): index.js, agenda.js, plataforma-nuvem.js, firestore-admin.js
 firestore.rules, firebase.json, next.config.ts
 ```
 

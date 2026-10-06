@@ -22,8 +22,6 @@ export type Carga = {
   // Por competência: quantos municípios vieram em cada fonte e quais faltaram.
   // modulos null = não buscados (sem acesso ao TCE). Ausente em cargas antigas.
   cobertura?: CoberturaCompetencia[];
-  // Só cargas na nuvem com problema: o que o Claude concluiu lendo o log.
-  diagnostico_ia?: string;
 };
 
 export type CoberturaCompetencia = {

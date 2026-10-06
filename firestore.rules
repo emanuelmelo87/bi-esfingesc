@@ -59,6 +59,13 @@ service cloud.firestore {
       allow read, write: if isBethaUser();
     }
 
+    // Agenda da carga na nuvem: todos veem, só admin altera. O resto de
+    // config/ (estado interno da carga na nuvem) só a função acessa.
+    match /config/agenda_nuvem {
+      allow read: if isBethaUser();
+      allow write: if isBethaUser() && isAdmin();
+    }
+
     match /movimentacoes/{id} {
       allow read, write: if isBethaUser();
     }
