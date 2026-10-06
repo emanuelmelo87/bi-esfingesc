@@ -127,6 +127,16 @@ async function buscar(auth, jql, campos) {
     if (resp.status === 401 || resp.status === 403) {
       throw new Error("Login no Jira recusado (HTTP " + resp.status + ") — confira o usuário e a senha em JIRA_CREDENCIAL.");
     }
+    // Este Jira não responde 401 a senha errada: devolve 200 vazio com o motivo
+    // no cabeçalho X-Seraph-LoginReason (AUTHENTICATION_DENIED = conta pedindo
+    // CAPTCHA depois de muitas tentativas erradas).
+    const motivoLogin = resp.headers.get("x-seraph-loginreason") || "";
+    if (/AUTHENTICATED_FAILED|AUTHENTICATION_DENIED/.test(motivoLogin)) {
+      throw new Error(
+        "Jira recusou o usuário/senha de JIRA_CREDENCIAL (" + motivoLogin + ")." +
+          (motivoLogin.includes("DENIED") ? " A conta está pedindo CAPTCHA por tentativas erradas — entre uma vez pelo navegador com ela para liberar." : " Confira o código ou o usuário e a senha cadastrados.")
+      );
+    }
     const corpo = await resp.text();
     if (!resp.ok) throw new Error("Jira respondeu " + resp.status + ": " + corpo.slice(0, 300));
     let dados;
