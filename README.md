@@ -198,7 +198,7 @@ Os chamados vêm do Jira Atendimento pela própria nuvem (antes vinham de um
   **`rodarJiraAgora`** (só admin) roda na hora — aba **Jira** do Controle de Cargas,
   onde também fica o filtro (JQL), editável por admin. Padrão em `src/lib/jira-jql.ts`.
 - Busca `POST /rest/api/2/search` com o usuário de serviço do secret
-  `JIRA_CREDENCIAL` (`{"usuario":"…","senha":"…"}`) e grava cada chamado em
+  `JIRA_CREDENCIAL` (`{"usuario":"…","senha":"…"}` ou o código Base64 do cabeçalho Basic) e grava cada chamado em
   `chamados/{chave}` no formato curto que as telas usam.
 - **Histórico:** chamado que sai do filtro não é apagado — vira `aberto: false`
   com `saiu_em` e `motivo_saida` (`resolvido`, `aguardando`, `fora_do_filtro`).
@@ -208,7 +208,7 @@ Os chamados vêm do Jira Atendimento pela própria nuvem (antes vinham de um
   abertos do Firestore por `carregarChamados()` em `src/lib/chamados.ts`.
 
 ```bash
-firebase functions:secrets:set JIRA_CREDENCIAL      # JSON: {"usuario":"…","senha":"…"}
+firebase functions:secrets:set JIRA_CREDENCIAL      # {"usuario":"…","senha":"…"} ou o código Base64 do cabeçalho Basic
 ```
 
 Testes: `npm test` na pasta da extensão roda a carga inteira contra um TCE e um

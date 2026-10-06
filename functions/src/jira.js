@@ -90,8 +90,21 @@ export function motivoSaida(issue) {
   return "fora_do_filtro";
 }
 
-async function buscar(credencial, jql, campos) {
-  const auth = "Basic " + Buffer.from(credencial.usuario + ":" + credencial.senha).toString("base64");
+// O secret JIRA_CREDENCIAL aceita dois formatos: {"usuario":"…","senha":"…"} ou
+// o código Base64 do cabeçalho Basic (com ou sem a palavra "Basic" na frente),
+// como nos scripts do Google que já buscam no mesmo Jira.
+export function cabecalhoAutorizacao(secret) {
+  const texto = String(secret || "").trim();
+  if (!texto) throw new Error("JIRA_CREDENCIAL está vazio.");
+  if (texto.startsWith("{")) {
+    const { usuario, senha } = JSON.parse(texto);
+    if (!usuario || !senha) throw new Error('JIRA_CREDENCIAL em JSON precisa de "usuario" e "senha".');
+    return "Basic " + Buffer.from(usuario + ":" + senha).toString("base64");
+  }
+  return "Basic " + texto.replace(/^Basic\s+/i, "");
+}
+
+async function buscar(auth, jql, campos) {
   const issues = [];
   let total = 0;
   for (let startAt = 0; startAt === 0 || startAt < total; startAt += 100) {
@@ -122,7 +135,7 @@ async function gravarEmLotes(db, operacoes) {
   }
 }
 
-export async function executarCargaJira({ db, credencial, jql, modo }) {
+export async function executarCargaJira({ db, credencial: secret, jql, modo }) {
   const inicio = Date.now();
   const cargaRef = db.collection("cargas").doc();
   const alertas = [];
@@ -140,6 +153,7 @@ export async function executarCargaJira({ db, credencial, jql, modo }) {
     pulso_em: FieldValue.serverTimestamp(),
   });
   try {
+    const credencial = cabecalhoAutorizacao(secret);
     const { issues, total } = await buscar(credencial, jql, CAMPOS);
     log(issues.length + " de " + total + " chamados lidos.");
     if (issues.length < total) alertas.push({ fonte: "Jira", mensagem: "só " + issues.length + " de " + total + " chamados foram lidos." });

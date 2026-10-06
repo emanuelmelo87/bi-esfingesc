@@ -1,6 +1,6 @@
 // Confere a tradução dos chamados do Jira. Uso: node functions/teste-jira.mjs
 import assert from "node:assert/strict";
-import { normalizarChamado, motivoSaida, normalizarNome } from "./src/jira.js";
+import { normalizarChamado, motivoSaida, normalizarNome, cabecalhoAutorizacao } from "./src/jira.js";
 
 const base = {
   key: "BTHSC-1",
@@ -54,5 +54,12 @@ assert.equal(motivoSaida({ fields: { status: { name: "Aguardando solicitante", s
 assert.equal(motivoSaida({ fields: { status: { name: "Em análise", statusCategory: { key: "indeterminate" } } } }), "fora_do_filtro");
 
 assert.equal(normalizarNome("Herval d'Oeste"), "HERVAL D OESTE");
+
+// Credencial: JSON ou o Base64 do cabeçalho Basic, com ou sem "Basic".
+const b64 = Buffer.from("usuario:senha").toString("base64");
+assert.equal(cabecalhoAutorizacao('{"usuario":"usuario","senha":"senha"}'), "Basic " + b64);
+assert.equal(cabecalhoAutorizacao(b64), "Basic " + b64);
+assert.equal(cabecalhoAutorizacao("Basic " + b64 + "\n"), "Basic " + b64);
+assert.throws(() => cabecalhoAutorizacao(""), /vazio/);
 
 console.log("ok — tradução dos chamados do Jira");

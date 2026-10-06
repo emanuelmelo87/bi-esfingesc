@@ -19,7 +19,8 @@ db.settings({ ignoreUndefinedProperties: true });
 
 // JSON [{"matricula":"…","senha":"…"}] — cadastrado com `firebase functions:secrets:set TCE_CREDENCIAIS`.
 const TCE_CREDENCIAIS = defineSecret("TCE_CREDENCIAIS");
-// JSON {"usuario":"…","senha":"…"} do usuário de serviço do Jira — `firebase functions:secrets:set JIRA_CREDENCIAL`.
+// Usuário de serviço do Jira: {"usuario":"…","senha":"…"} ou o código Base64 do
+// cabeçalho Basic — `firebase functions:secrets:set JIRA_CREDENCIAL`.
 const JIRA_CREDENCIAL = defineSecret("JIRA_CREDENCIAL");
 
 const OPCOES = {
@@ -141,7 +142,7 @@ async function rodarCargaJira(modo) {
     const agenda = (await db.doc(AGENDA_JIRA).get()).data() || {};
     return await executarCargaJira({
       db,
-      credencial: JSON.parse(JIRA_CREDENCIAL.value() || "{}"),
+      credencial: JIRA_CREDENCIAL.value(),
       jql: (agenda.jql || "").trim() || JQL_PADRAO,
       modo,
     });
