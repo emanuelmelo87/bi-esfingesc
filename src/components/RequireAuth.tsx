@@ -99,8 +99,8 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
           ativo
             ? "scale-105 bg-gradient-to-b from-vinho-hover to-vinho text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_4px_18px_-3px_rgba(190,18,60,0.65)]"
             : isAdminLink
-              ? "text-blue-300/70 hover:scale-110 hover:bg-white/[0.08] hover:text-blue-200 active:scale-95"
-              : "text-zinc-500 hover:scale-110 hover:bg-white/[0.08] hover:text-white active:scale-95"
+              ? "text-blue-600/70 hover:scale-110 hover:bg-black/[0.05] hover:text-blue-700 active:scale-95 dark:text-blue-300/70 dark:hover:bg-white/[0.08] dark:hover:text-blue-200"
+              : "text-zinc-500 hover:scale-110 hover:bg-black/[0.05] hover:text-zinc-900 active:scale-95 dark:hover:bg-white/[0.08] dark:hover:text-white"
         }`}
       >
         {ativo && <span className="absolute -left-[13px] h-5 w-[3px] rounded-full bg-gradient-to-b from-rose-300 to-vinho" />}
@@ -114,7 +114,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-full flex-1">
-      <aside className="sticky top-0 hidden h-screen w-[76px] shrink-0 flex-col items-center border-r border-white/[0.06] bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-900 py-5 shadow-[inset_-1px_0_0_rgba(255,255,255,0.03)] lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-[76px] shrink-0 flex-col items-center border-r border-black/[0.06] bg-gradient-to-b from-white via-white to-zinc-50 py-5 lg:flex dark:border-white/[0.06] dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900 dark:shadow-[inset_-1px_0_0_rgba(255,255,255,0.03)]">
         <Link href="/" aria-label="BI eSfinge SC">
           <LogoMark />
         </Link>
@@ -124,7 +124,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
           ))}
           {isAdmin && (
             <>
-              <div className="my-2 h-px w-7 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+              <div className="my-2 h-px w-7 bg-gradient-to-r from-transparent via-black/10 to-transparent dark:via-white/15" />
               {ADMIN_LINKS.map((link) => (
                 <ItemNav key={link.href} link={link} />
               ))}

@@ -79,7 +79,7 @@ export function ThemeToggleCompact() {
     <button
       onClick={() => escolher(proximo)}
       title={`Tema: ${LABELS[tema]} (clique pra alternar)`}
-      className="flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-500 transition-all duration-200 ease-out hover:scale-110 hover:bg-white/[0.08] hover:text-white active:scale-95"
+      className="flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-500 transition-all duration-200 ease-out hover:scale-110 hover:bg-black/[0.05] hover:text-zinc-900 active:scale-95 dark:hover:bg-white/[0.08] dark:hover:text-white"
     >
       <IconeAtual className="h-5 w-5" />
     </button>
