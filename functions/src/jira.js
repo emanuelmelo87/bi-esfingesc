@@ -142,15 +142,16 @@ async function abrirSessao(auth) {
   return cookies.length ? { Cookie: cookies.join("; ") } : { Authorization: auth };
 }
 
-async function buscar(acesso, jql, campos) {
+// validar=false: uma chave que não existe mais não derruba a busca "key in (…)".
+// (Esta versão do Jira só aceita true/false em validateQuery.)
+async function buscar(acesso, jql, campos, validar = true) {
   const issues = [];
   let total = 0;
   for (let startAt = 0; startAt === 0 || startAt < total; startAt += 100) {
     const resp = await fetch(JIRA_BASE + "/rest/api/2/search", {
       method: "POST",
       headers: { ...acesso, Accept: "application/json", "Content-Type": "application/json", "X-Atlassian-Token": "no-check" },
-      // validateQuery "warn": uma chave que não existe mais não derruba a busca "key in (…)".
-      body: JSON.stringify({ jql, startAt, maxResults: 100, fields: campos, validateQuery: "warn" }),
+      body: JSON.stringify({ jql, startAt, maxResults: 100, fields: campos, validateQuery: validar }),
       signal: AbortSignal.timeout(60000),
     });
     conferirLogin(resp);
@@ -242,7 +243,7 @@ export async function executarCargaJira({ db, credencial: secret, jql, modo }) {
     const situacao = new Map();
     for (let i = 0; i < sairam.length; i += 50) {
       const lote = sairam.slice(i, i + 50);
-      const { issues: agoraNoJira } = await buscar(credencial, "key in (" + lote.join(",") + ")", ["status", "resolution", "resolutiondate"]);
+      const { issues: agoraNoJira } = await buscar(credencial, "key in (" + lote.join(",") + ")", ["status", "resolution", "resolutiondate"], false);
       for (const issue of agoraNoJira) situacao.set(issue.key, issue);
     }
     let resolvidos = 0;
