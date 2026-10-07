@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { doc, getDoc, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -51,6 +51,13 @@ export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
   const [alterado, setAlterado] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  // O filtro do Jira se salva sozinho (sem "Salvar agenda"): 1,5s depois da
+  // última tecla, ou ao sair do campo. Vale a partir da próxima carga.
+  const [estadoFiltro, setEstadoFiltro] = useState<string | null>(null);
+  const timerFiltro = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (timerFiltro.current) clearTimeout(timerFiltro.current);
+  }, []);
 
   useEffect(() => {
     getDoc(doc(db, "config", DOC[fonte])).then((snap) => {
@@ -62,6 +69,33 @@ export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
     setAgenda((a) => ({ ...a, ...parcial }));
     setAlterado(true);
     setMensagem(null);
+  }
+
+  async function salvarFiltro(jql: string) {
+    if (timerFiltro.current) clearTimeout(timerFiltro.current);
+    timerFiltro.current = null;
+    if (!jql.trim()) {
+      setEstadoFiltro("O filtro não pode ficar vazio — não foi salvo.");
+      return;
+    }
+    setEstadoFiltro("Salvando o filtro…");
+    try {
+      await setDoc(
+        doc(db, "config", DOC[fonte]),
+        { jql: jql.trim(), atualizado_por: user?.email ?? null, atualizado_em: serverTimestamp() },
+        { merge: true }
+      );
+      setEstadoFiltro("Filtro salvo às " + new Date().toLocaleTimeString("pt-BR") + " — vale a partir da próxima carga (ou clique em Rodar na nuvem agora).");
+    } catch (err) {
+      setEstadoFiltro("Não foi possível salvar o filtro: " + (err as Error).message);
+    }
+  }
+
+  function mudarFiltro(jql: string) {
+    setAgenda((a) => ({ ...a, jql }));
+    setEstadoFiltro("Filtro alterado — salvando em instantes…");
+    if (timerFiltro.current) clearTimeout(timerFiltro.current);
+    timerFiltro.current = setTimeout(() => salvarFiltro(jql), 1500);
   }
 
   function adicionarHorario() {
@@ -233,18 +267,22 @@ export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
           <p className="mb-2 flex flex-wrap items-center gap-3 text-[11px] font-medium tracking-wider text-apple-muted uppercase">
             Filtro do Jira (JQL)
             {agenda.jql.trim() !== JQL_PADRAO && (
-              <button type="button" onClick={() => mudar({ jql: JQL_PADRAO })} className="text-[11px] font-medium tracking-normal normal-case underline hover:text-apple-title">
+              <button type="button" onClick={() => mudarFiltro(JQL_PADRAO)} className="text-[11px] font-medium tracking-normal normal-case underline hover:text-apple-title">
                 voltar ao filtro padrão
               </button>
             )}
           </p>
           <textarea
             value={agenda.jql}
-            onChange={(e) => mudar({ jql: e.target.value })}
+            onChange={(e) => mudarFiltro(e.target.value)}
+            onBlur={() => timerFiltro.current && salvarFiltro(agenda.jql)}
             rows={4}
             spellCheck={false}
             className="w-full rounded-2xl border border-black/[0.08] bg-white/90 px-3 py-2 font-mono text-[11px] text-apple-title shadow-xs focus:border-vinho focus:ring-1 focus:ring-vinho dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100"
           />
+          <p className="mt-1 text-[11px] text-apple-muted">
+            {estadoFiltro ?? "O filtro se salva sozinho ao editar — não precisa clicar em Salvar agenda."}
+          </p>
         </div>
       )}
 
