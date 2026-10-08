@@ -98,6 +98,31 @@ export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
     timerFiltro.current = setTimeout(() => salvarFiltro(jql), 1500);
   }
 
+  // Ligar/desligar vale na hora (sem "Salvar agenda"): era fácil marcar "Ativo",
+  // ver "Filtro salvo" e achar que a agenda toda tinha sido gravada.
+  async function alternarAtivo(ativo: boolean) {
+    if (ativo && agenda.horarios.length === 0) {
+      setMensagem("Adicione ao menos um horário antes de ativar.");
+      return;
+    }
+    setAgenda((a) => ({ ...a, ativo }));
+    try {
+      await setDoc(doc(db, "config", DOC[fonte]), { ativo, atualizado_por: user?.email ?? null, atualizado_em: serverTimestamp() }, { merge: true });
+      setMensagem(ativo ? "Agenda ligada." + (alterado ? " Os horários alterados ainda precisam de Salvar agenda." : "") : "Agenda desligada.");
+    } catch (err) {
+      setAgenda((a) => ({ ...a, ativo: !ativo }));
+      setMensagem("Não foi possível " + (ativo ? "ligar" : "desligar") + " a agenda: " + (err as Error).message);
+    }
+  }
+
+  // Avisa antes de sair da página com horários alterados e não salvos.
+  useEffect(() => {
+    if (!alterado) return;
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [alterado]);
+
   function adicionarHorario() {
     if (!novoHorario || agenda.horarios.includes(novoHorario)) return;
     mudar({ horarios: [...agenda.horarios, novoHorario].sort() });
@@ -167,7 +192,7 @@ export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h2 className="text-[15px] font-semibold text-apple-title">Agendamento na nuvem — {fonte === "jira" ? "Jira" : "TCE"}</h2>
         <label className="flex cursor-pointer items-center gap-2 text-[12px] font-medium text-apple-secondary">
-          <input type="checkbox" checked={agenda.ativo} onChange={(e) => mudar({ ativo: e.target.checked })} className="h-4 w-4 accent-vinho" />
+          <input type="checkbox" checked={agenda.ativo} onChange={(e) => alternarAtivo(e.target.checked)} className="h-4 w-4 accent-vinho" />
           Ativo
         </label>
         <span className={`text-[12px] font-semibold ${agenda.ativo ? "text-emerald-700 dark:text-emerald-400" : "text-apple-muted"}`}>
@@ -295,6 +320,9 @@ export default function AgendaNuvem({ fonte }: { fonte: FonteCarga }) {
         >
           {salvando ? "Salvando..." : "Salvar agenda"}
         </button>
+        {alterado && !salvando && (
+          <span className="text-[12px] font-semibold text-amber-700 dark:text-amber-400">Horários/dias alterados e ainda não salvos.</span>
+        )}
         {mensagem && <span className="text-[12px] font-medium text-apple-title">{mensagem}</span>}
         <span className="text-[11px] text-apple-muted">
           {fonte === "jira"
