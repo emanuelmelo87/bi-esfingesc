@@ -191,6 +191,8 @@ firebase functions:secrets:set TCE_CREDENCIAIS      # JSON: [{"matricula":"…",
 
 ### Carga de chamados do Jira (`functions/src/jira.js`)
 
+Guia completo (uso, credencial, problemas comuns e detalhes técnicos): [`docs/acesso-jira.md`](docs/acesso-jira.md).
+
 Os chamados vêm do Jira Atendimento pela própria nuvem (antes vinham de um
 `data.json` público mantido fora do sistema):
 
